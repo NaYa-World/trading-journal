@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { createChart } from "lightweight-charts";
 import CryptoJS from "crypto-js";
+import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis,
@@ -19,14 +20,23 @@ import {
 } from "./utils/constants.js";
 import { calculatePnL, calculateWinRate, calculateProfitFactor, calculateExpectancy } from "./utils/calculations.js";
 import { useDashboard } from "./context/DashboardContext.jsx";
+import { usePrices } from "./context/PricesContext.jsx";
+import AlertsEngine from "./components/AlertsEngine.jsx";
 import {
-  Sidebar, TopNav, BottomNav, ProfileManagerModal,
-  AddTradeModal, EditTradeModal, CSVImportModal,
+  Sidebar, TopNav, BottomNav,
   TradeLog, TradeSummary, RiskCalculator, TradingCalendar, Analytics,
   Tag, CoinIcon, InfoDot, Card, ML, MV,
   Placeholder, EmptyState, Skeleton, SemiGauge, DonutGauge, MaskedDateInput,
-  Sparkline, WinLossRatioBar
+  Sparkline, WinLossRatioBar, AccountsManager, TradeSetupsManager,
+  AddTradeModal, EditTradeModal, CSVImportModal, SecuritySettingsModal, ProfileManagerModal
 } from "./components";
+import AddLiveTradeModal from "./components/modals/AddLiveTradeModal.jsx";
+import CloseLiveTradeModal from "./components/modals/CloseLiveTradeModal.jsx";
+import SellSpotModal from "./components/modals/SellSpotModal.jsx";
+import LiveTradesView from "./components/views/LiveTradesView.jsx";
+import OpenSpotView from "./components/views/OpenSpotView.jsx";
+import WatchlistView from "./components/views/WatchlistView.jsx";
+import AlertsView from "./components/views/AlertsView.jsx";
 
 // ─── Custom Tooltip ───────────────────────────────────────────────────────────
 function ChartTip({ active, payload, label, prefix = "" }) {
@@ -201,7 +211,7 @@ function Overview({ trades, allProfileTrades, initialCapital = 0, profiles = [],
     return acc;
   }, {})).map(([date, val]) => ({ date, val: parseFloat(val.toFixed(2)) }));
 
-  const { prices } = useDashboard();
+  const { prices } = usePrices();
   const totalUnrealizedPnl = liveTrades.reduce((sum, t) => {
     const p = prices[t.symbol];
     if (!p) return sum;
@@ -315,6 +325,11 @@ function ChartModal({ trade, onClose }) {
     let chart;
     const fetchKlineData = async () => {
       try {
+        if (CapApp && Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()) {
+          // Can't easily fetch Binance directly on mobile without CORS issues
+          setLoading(false);
+          return;
+        }
         const start = trade.openTime - 3 * 86400000;
         const end = (trade.closeTime || Date.now()) + 3 * 86400000;
         const symbol = trade.symbol.replace(/[^A-Z0-9]/ig, "").toUpperCase();
@@ -584,416 +599,10 @@ function TimeMetrics({ trades }) {
   );
 }
 
+// AddLiveTradeModal moved to components/modals
 
-// ─── Add Live Trade Modal ─────────────────────────────────────────────────────
-function AddLiveTradeModal({ onAdd, onClose, savedSymbols, initialSymbol }) {
-  const { showToast } = useDashboard();
-  const [form, setForm] = useState({
-    exchange: "Binance", tradeType: "Futures", symbol: initialSymbol || "", side: "Long",
-    entry: "", qty: "", leverage: "1", stopLoss: "", takeProfit: "",
-    openTime: "", notes: "",
-  });
-  const [symbolInput, setSymbolInput] = useState(initialSymbol || "");
-  const [showDrop, setShowDrop] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [confirmed, setConfirmed] = useState(false);
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-
-  const cryptoSymbols = Array.isArray(savedSymbols) ? savedSymbols : DEFAULT_SYMBOLS;
-  const filtered = symbolInput
-    ? cryptoSymbols.filter(s => s.toLowerCase().includes(symbolInput.toLowerCase()))
-    : cryptoSymbols;
-  const qc = getQuoteCurrency(form.symbol) || "USDT";
-
-  const handle = async () => {
-    const e = parseFloat(form.entry), q = parseFloat(form.qty);
-    if (!form.symbol.trim() || isNaN(e) || isNaN(q)) return;
-
-    setLoading(true);
-    try {
-      const sym = form.symbol.trim().toUpperCase();
-      let openT = parseMaskedDate(form.openTime);
-      if (openT > Date.now()) {
-        openT = Date.now();
-        showToast("Entry time was in the future. It has been automatically set to the current time.", "warning");
-      }
-
-      const quoteCurrency = getQuoteCurrency(sym);
-      const usdtRate = await fetchUsdtRate(quoteCurrency, openT);
-
-      onAdd({
-        id: Date.now(), ...form,
-        symbol: sym,
-        entry: e, qty: q,
-        leverage: parseFloat(form.leverage) || 1,
-        stopLoss: form.stopLoss ? parseFloat(form.stopLoss) : null,
-        takeProfit: form.takeProfit ? parseFloat(form.takeProfit) : null,
-        openTime: openT,
-        status: "live",
-        quoteCurrency,
-        usdtRate,
-      });
-      onClose();
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const IS = { background: "#080d14", border: `1px solid ${T.border}`, borderRadius: 6, color: T.text, padding: "8px 10px", fontSize: 14, width: "100%", fontFamily: T.mono, outline: "none", boxSizing: "border-box" };
-  const LS = { fontSize: 11, color: T.dim, letterSpacing: 1.2, textTransform: "uppercase", display: "block", marginBottom: 5, marginTop: 12 };
-
-  const showLeverage = form.tradeType === "Futures" || form.tradeType === "Margin";
-
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "#00000092", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999, backdropFilter: "blur(6px)" }}
-      onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{ background: T.panel, border: `1px solid ${T.cyan}30`, borderRadius: 14, padding: 26, width: "min(560px,95vw)", maxHeight: "90vh", overflowY: "auto", WebkitOverflowScrolling: "touch", boxShadow: "0 30px 80px #00000070" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: T.green, boxShadow: `0 0 6px ${T.green}`, animation: "pulse 1.5s infinite" }} />
-            <div style={{ fontFamily: T.mono, fontSize: 16, color: T.bright, letterSpacing: 1.5 }}>OPEN LIVE TRADE</div>
-          </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: T.dim, cursor: "pointer", fontSize: 22 }}>✕</button>
-        </div>
-
-        {/* Exchange + Type row */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 4 }}>
-          <div>
-            <label style={LS}>Exchange</label>
-            <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-              {EXCHANGES.map(ex => (
-                <button key={ex} onClick={() => set("exchange", ex)} style={{ flex: 1, background: form.exchange === ex ? T.blueDim : T.panel2, border: `1px solid ${form.exchange === ex ? T.blue + "60" : T.border}`, color: form.exchange === ex ? T.blue : T.dim, borderRadius: 6, padding: "7px 0", cursor: "pointer", fontSize: 13, fontFamily: T.mono, fontWeight: 700 }}>{ex}</button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <label style={LS}>Trade Type</label>
-            <div style={{ display: "flex", gap: 4, marginTop: 6, flexWrap: "wrap" }}>
-              {["Margin", "Futures"].map(tt => (
-                <button key={tt} onClick={() => set("tradeType", tt)} style={{ flex: 1, minWidth: 60, background: form.tradeType === tt ? T.blueDim : T.panel2, border: `1px solid ${form.tradeType === tt ? T.blue + "60" : T.border}`, color: form.tradeType === tt ? T.blue : T.dim, borderRadius: 6, padding: "7px 4px", cursor: "pointer", fontSize: 12, fontFamily: T.mono, fontWeight: 700 }}>{tt}</button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          {/* Symbol autocomplete */}
-          <div style={{ position: "relative" }}>
-            <label style={LS}>Symbol</label>
-            <input style={IS} value={symbolInput}
-              onChange={e => { setSymbolInput(e.target.value.toUpperCase()); set("symbol", e.target.value.toUpperCase()); setShowDrop(true); }}
-              onFocus={() => setShowDrop(true)}
-              onBlur={() => setTimeout(() => setShowDrop(false), 150)}
-              placeholder="e.g. BTCUSDT" autoComplete="off" />
-            {showDrop && filtered.length > 0 && (
-              <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: T.panel2, border: `1px solid ${T.border2}`, borderRadius: 6, zIndex: 10, maxHeight: 130, overflowY: "auto", WebkitOverflowScrolling: "touch", marginTop: 2, boxShadow: "0 8px 32px #00000050" }}>
-                {filtered.map(s => (
-                  <div key={s} onMouseDown={() => { set("symbol", s); setSymbolInput(s); setShowDrop(false); }}
-                    style={{ padding: "7px 10px", fontSize: 11, fontFamily: T.mono, color: T.text, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}
-                    onMouseEnter={e => e.currentTarget.style.background = T.border}
-                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                    <CoinIcon symbol={s} size={16} />
-                    <span style={{ flex: 1 }}>{s}</span>
-                    <span style={{ color: T.dim, fontSize: 11 }}>{getQuoteCurrency(s)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div>
-            <label style={LS}>Side</label>
-            <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-              {SIDES.map(s => (
-                <button key={s} onClick={() => set("side", s)} style={{ flex: 1, background: form.side === s ? (s === "Long" ? T.greenDim : T.redDim) : T.panel2, border: `1px solid ${form.side === s ? (s === "Long" ? T.green : T.red) + "60" : T.border}`, color: form.side === s ? (s === "Long" ? T.green : T.red) : T.dim, borderRadius: 6, padding: "8px 0", cursor: "pointer", fontSize: 13, fontFamily: T.mono, fontWeight: 700 }}>{s}</button>
-              ))}
-            </div>
-          </div>
-
-          <div><label style={LS}>Entry Price ({qc})</label><input style={IS} type="number" inputMode="decimal" value={form.entry} onChange={e => set("entry", e.target.value)} placeholder="0.00" /></div>
-          <div><label style={LS}>Quantity</label><input style={IS} type="number" inputMode="decimal" value={form.qty} onChange={e => set("qty", e.target.value)} placeholder="0.00" /></div>
-
-          {showLeverage && (
-            <div><label style={LS}>Leverage</label>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <input style={{ ...IS, width: 80, flexShrink: 0 }} type="number" inputMode="decimal" value={form.leverage} onChange={e => set("leverage", e.target.value)} min="1" max="125" />
-                <span style={{ fontFamily: T.mono, fontSize: 16, color: T.orange, fontWeight: 700 }}>{form.leverage}×</span>
-              </div>
-            </div>
-          )}
-
-          <div><label style={LS}>Stop Loss ({qc})</label><input style={IS} type="number" inputMode="decimal" value={form.stopLoss} onChange={e => set("stopLoss", e.target.value)} placeholder="Optional" /></div>
-          <div><label style={LS}>Take Profit ({qc})</label><input style={IS} type="number" inputMode="decimal" value={form.takeProfit} onChange={e => set("takeProfit", e.target.value)} placeholder="Optional" /></div>
-          <div style={{ gridColumn: "1/-1" }}><label style={LS}>Open Time</label><MaskedDateInput style={IS} value={form.openTime} onChange={v => set("openTime", v)} /></div>
-        </div>
-
-        <div style={{ marginTop: 10 }}>
-          <label style={LS}>Notes</label>
-          <textarea style={{ ...IS, resize: "vertical", minHeight: 52 }} value={form.notes} onChange={e => set("notes", e.target.value)} placeholder="Setup reason, entry thesis..." />
-        </div>
-
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 20 }}>
-          <button onClick={onClose} style={{ background: "transparent", border: `1px solid ${T.dim}`, color: T.dim, borderRadius: 7, padding: "9px 18px", cursor: "pointer", fontSize: 13, fontFamily: T.mono }} disabled={loading}>Cancel</button>
-          <button onClick={handle} style={{ background: T.greenDim, border: `1px solid ${T.green}50`, color: T.green, borderRadius: 7, padding: "9px 22px", cursor: "pointer", fontSize: 13, fontFamily: T.mono, fontWeight: 700 }} disabled={loading}>
-            {loading ? "Looking up rate..." : "Open Trade ↗"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Close Live Trade Modal ───────────────────────────────────────────────────
-function CloseLiveTradeModal({ trade, currentPrice, onClose: onModalClose, onConfirm }) {
-  const [exitPrice, setExitPrice] = useState(currentPrice ? currentPrice.toFixed(4) : "");
-  const [closeReason, setCloseReason] = useState("Target Hit");
-  const [mistake, setMistake] = useState("None");
-  const [chartUrl, setChartUrl] = useState("");
-  const [fees, setFees] = useState("");
-
-  // Auto-calculate exit fee
-  useEffect(() => {
-    const x = parseFloat(exitPrice);
-    if (!isNaN(x) && x > 0 && trade?.qty > 0) {
-      setFees((x * trade.qty * 0.0006).toFixed(4));
-    }
-  }, [exitPrice, trade]);
-
-  const exit = parseFloat(exitPrice);
-  const pnl = !isNaN(exit) && trade
-    ? (exit - trade.entry) * trade.qty * (trade.side === "Long" ? 1 : -1)
-    : null;
-
-  const IS = { background: "#080d14", border: `1px solid ${T.border}`, borderRadius: 6, color: T.text, padding: "8px 10px", fontSize: 14, width: "100%", fontFamily: T.mono, outline: "none", boxSizing: "border-box" };
-  const LS = { fontSize: 11, color: T.dim, letterSpacing: 1.2, textTransform: "uppercase", display: "block", marginBottom: 5, marginTop: 12 };
-
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "#00000092", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, backdropFilter: "blur(6px)" }}
-      onClick={e => e.target === e.currentTarget && onModalClose()}>
-      <div style={{ background: T.panel, border: `1px solid ${T.red}30`, borderRadius: 14, padding: 26, width: "min(420px,95vw)", boxShadow: "0 30px 80px #00000070" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <div style={{ fontFamily: T.mono, fontSize: 15, color: T.bright, letterSpacing: 1 }}>CLOSE TRADE — {trade?.symbol}</div>
-          <button onClick={onModalClose} style={{ background: "none", border: "none", color: T.dim, cursor: "pointer", fontSize: 22 }}>✕</button>
-        </div>
-
-        {currentPrice && (
-          <div style={{ background: T.panel2, border: `1px solid ${T.border}`, borderRadius: 8, padding: "10px 14px", marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: 13, color: T.dim, fontFamily: T.mono }}>LIVE PRICE</span>
-            <span style={{ fontFamily: T.mono, fontSize: 18, fontWeight: 700, color: T.cyan }}>{currentPrice.toFixed(4)}</span>
-            <button onClick={() => setExitPrice(currentPrice.toFixed(4))} style={{ background: T.blueDim, border: `1px solid ${T.blue}40`, color: T.blue, borderRadius: 5, padding: "4px 10px", cursor: "pointer", fontSize: 12, fontFamily: T.mono }}>Use Live</button>
-          </div>
-        )}
-
-        <div>
-          <label style={LS}>Exit Price (USDT)</label>
-          <input style={IS} type="number" inputMode="decimal" value={exitPrice} onChange={e => setExitPrice(e.target.value)} placeholder="0.00" />
-        </div>
-        <div>
-          <label style={LS}>Close Reason</label>
-          <select style={IS} value={closeReason} onChange={e => setCloseReason(e.target.value)}>
-            {CLOSE_REASONS.map(r => <option key={r}>{r}</option>)}
-          </select>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <div><label style={LS}>Mistake</label><select style={IS} value={mistake} onChange={e => setMistake(e.target.value)}>{MISTAKES.map(m => <option key={m}>{m}</option>)}</select></div>
-          <div><label style={LS}>Chart URL</label><input style={IS} value={chartUrl} onChange={e => setChartUrl(e.target.value)} placeholder="https://..." /></div>
-        </div>
-        <div>
-          <label style={LS}>Fees (USDT)</label>
-          <input style={IS} type="number" inputMode="decimal" value={fees} onChange={e => setFees(e.target.value)} placeholder="0.00" />
-        </div>
-
-        {pnl !== null && (
-          <div style={{ background: pnl >= 0 ? T.greenDim : T.redDim, border: `1px solid ${pnl >= 0 ? T.green : T.red}40`, borderRadius: 8, padding: "12px 16px", marginTop: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: 13, color: T.dim, fontFamily: T.mono }}>ESTIMATED PnL</span>
-            <span style={{ fontFamily: T.mono, fontSize: 20, fontWeight: 700, color: pnl >= 0 ? T.green : T.red }}>{fmtPnl(pnl)}</span>
-          </div>
-        )}
-
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 20 }}>
-          <button onClick={onModalClose} style={{ background: "transparent", border: `1px solid ${T.dim}`, color: T.dim, borderRadius: 7, padding: "9px 18px", cursor: "pointer", fontSize: 13, fontFamily: T.mono }}>Cancel</button>
-          <button onClick={() => onConfirm({ exit: parseFloat(exitPrice), closeReason, fees: -(Math.abs(parseFloat(fees) || 0)) })}
-            style={{ background: T.redDim, border: `1px solid ${T.red}50`, color: T.red, borderRadius: 7, padding: "9px 22px", cursor: "pointer", fontSize: 13, fontFamily: T.mono, fontWeight: 700 }}>Close Trade</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Live Trades View ─────────────────────────────────────────────────────────
-function LiveTrades({ liveTrades, onAdd, onClose, savedSymbols, prices, status, prefilledSymbol, clearPrefilledSymbol }) {
-  const [showAdd, setShowAdd] = useState(false);
-  const [closingTrade, setClosingTrade] = useState(null);
-
-  useEffect(() => {
-    if (prefilledSymbol) {
-      setShowAdd(true);
-    }
-  }, [prefilledSymbol]);
-
-  const totalUnrealizedPnl = liveTrades.reduce((sum, t) => {
-    const p = prices[t.symbol];
-    if (!p) return sum;
-    return sum + (p.price - t.entry) * t.qty * (t.side === "Long" ? 1 : -1) * (t.leverage || 1);
-  }, 0);
-
-  const TYPE_COLORS = { Spot: T.green, Futures: T.orange, Margin: T.purple, Options: T.cyan };
-
-  return (
-    <div>
-      {/* Header bar */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: status === "ok" ? T.green : status === "fetching" ? T.yellow : T.dim, boxShadow: status === "ok" ? `0 0 6px ${T.green}` : "none" }} />
-            <span style={{ fontFamily: T.mono, fontSize: 12, color: T.dim, letterSpacing: 1 }}>
-              {status === "ok" ? "LIVE · 3s" : status === "fetching" ? "UPDATING..." : "CONNECTING..."}
-            </span>
-          </div>
-          <div style={{ fontFamily: T.mono, fontSize: 13, color: liveTrades.length ? T.cyan : T.dim }}>{liveTrades.length} Open Position{liveTrades.length !== 1 ? "s" : ""}</div>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          {liveTrades.length > 0 && (
-            <div style={{ fontFamily: T.mono, fontSize: 15, fontWeight: 700, color: totalUnrealizedPnl >= 0 ? T.green : T.red }}>
-              Unrealized: {fmtPnl(totalUnrealizedPnl)}
-            </div>
-          )}
-          <button onClick={() => setShowAdd(true)} style={{ background: T.green, border: "none", color: "#000", borderRadius: 7, padding: "7px 16px", cursor: "pointer", fontSize: 14, fontWeight: 700, fontFamily: T.mono }}>+ Open Trade</button>
-        </div>
-      </div>
-
-      {/* Empty state */}
-      {liveTrades.length === 0 ? (
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 320, gap: 14 }}>
-          <div style={{ fontSize: 38 }}>◎</div>
-          <div style={{ fontFamily: T.mono, fontSize: 16, color: T.bright }}>No open positions</div>
-          <div style={{ fontSize: 14, color: T.dim }}>Open a trade to track it live with real-time PnL</div>
-          <button onClick={() => setShowAdd(true)} style={{ background: T.greenDim, border: `1px solid ${T.green}50`, color: T.green, borderRadius: 8, padding: "10px 24px", cursor: "pointer", fontSize: 14, fontWeight: 700, fontFamily: T.mono, marginTop: 4 }}>+ Open First Trade</button>
-        </div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {liveTrades.map(trade => {
-            const p = prices[trade.symbol];
-            const currentPrice = p?.price;
-            const lev = trade.leverage || 1;
-            const nativeUnrealizedPnl = currentPrice
-              ? (currentPrice - trade.entry) * trade.qty * (trade.side === "Long" ? 1 : -1) * lev
-              : null;
-            const unrealizedPnl = nativeUnrealizedPnl !== null ? nativeUnrealizedPnl * (trade.usdtRate || 1) : null;
-            const pnlPct = nativeUnrealizedPnl !== null ? (nativeUnrealizedPnl / (trade.entry * trade.qty * lev)) * 100 : null;
-            const distToSL = trade.stopLoss && currentPrice ? ((currentPrice - trade.stopLoss) / currentPrice * 100 * (trade.side === "Long" ? 1 : -1)) : null;
-            const distToTP = trade.takeProfit && currentPrice ? ((trade.takeProfit - currentPrice) / currentPrice * 100 * (trade.side === "Long" ? 1 : -1)) : null;
-            const typeColor = TYPE_COLORS[trade.tradeType] || T.dim;
-            const holdMs = Date.now() - trade.openTime;
-            const holdH = Math.floor(holdMs / 3600000);
-            const holdM = Math.floor((holdMs % 3600000) / 60000);
-
-            return (
-              <div key={trade.id} style={{ background: T.panel, border: `1px solid ${unrealizedPnl !== null ? (unrealizedPnl >= 0 ? T.green + "30" : T.red + "30") : T.border}`, borderRadius: 12, padding: "16px 18px" }}>
-                {/* Top row */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <CoinIcon symbol={trade.symbol} size={36} />
-                    <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                        <span style={{ fontSize: 17, fontWeight: 700, color: T.bright }}>{trade.symbol}</span>
-                        <span style={{ background: trade.side === "Long" ? T.greenDim : T.redDim, color: trade.side === "Long" ? T.green : T.red, border: `1px solid ${trade.side === "Long" ? T.green : T.red}40`, borderRadius: 4, padding: "2px 7px", fontSize: 12, fontFamily: T.mono, fontWeight: 700 }}>{trade.side}</span>
-                        <span style={{ background: typeColor + "18", color: typeColor, border: `1px solid ${typeColor}40`, borderRadius: 4, padding: "2px 7px", fontSize: 12, fontFamily: T.mono, fontWeight: 700 }}>{trade.tradeType}</span>
-                        {trade.leverage > 1 && <span style={{ background: T.orangeDim, color: T.orange, border: `1px solid ${T.orange}40`, borderRadius: 4, padding: "2px 7px", fontSize: 12, fontFamily: T.mono, fontWeight: 700 }}>{trade.leverage}×</span>}
-                        <span style={{ fontSize: 11, color: T.dim, fontFamily: T.mono }}>{trade.exchange}</span>
-                      </div>
-                      <div style={{ fontSize: 12, color: T.dim, marginTop: 3, fontFamily: T.mono }}>
-                        Opened {holdH}h {holdM}m ago · Entry: {trade.entry.toFixed(4)} · Qty: {trade.qty}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Live price + PnL */}
-                  <div style={{ textAlign: "right" }}>
-                    {currentPrice ? (
-                      <>
-                        <div style={{ fontFamily: T.mono, fontSize: 22, fontWeight: 700, color: T.cyan }}>{currentPrice.toFixed(4)}</div>
-                        <div style={{ fontSize: 12, color: p.change24h >= 0 ? T.green : T.red, fontFamily: T.mono }}>{p.change24h >= 0 ? "+" : ""}{p.change24h?.toFixed(2)}% 24h</div>
-                      </>
-                    ) : (
-                      <Skeleton width={120} height={20} />
-                    )}
-                  </div>
-                </div>
-
-                {/* PnL + levels row */}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))", gap: 8, marginBottom: 12 }}>
-                  <div style={{ background: T.panel2, borderRadius: 8, padding: "10px 12px" }}>
-                    <div style={{ fontSize: 11, color: T.dim, fontFamily: T.mono, marginBottom: 4 }}>UNREALIZED PnL</div>
-                    <div style={{ fontFamily: T.mono, fontSize: 17, fontWeight: 700, color: unrealizedPnl !== null ? (unrealizedPnl >= 0 ? T.green : T.red) : T.dim }}>
-                      {unrealizedPnl !== null ? fmtPnl(unrealizedPnl) : "–"}
-                    </div>
-                    {trade.quoteCurrency && trade.quoteCurrency !== "USDT" && nativeUnrealizedPnl !== null && (
-                      <div style={{ fontSize: 11, color: T.dim, fontFamily: T.mono, marginTop: 2 }}>{nativeUnrealizedPnl > 0 ? "+" : ""}{nativeUnrealizedPnl.toFixed(4)} {trade.quoteCurrency}</div>
-                    )}
-                    {pnlPct !== null && <div style={{ fontSize: 12, color: pnlPct >= 0 ? T.green : T.red, fontFamily: T.mono, marginTop: 2 }}>{pnlPct >= 0 ? "+" : ""}{pnlPct.toFixed(2)}%</div>}
-                  </div>
-                  <div style={{ background: T.panel2, borderRadius: 8, padding: "10px 12px" }}>
-                    <div style={{ fontSize: 11, color: T.dim, fontFamily: T.mono, marginBottom: 4 }}>STOP LOSS</div>
-                    <div style={{ fontFamily: T.mono, fontSize: 15, fontWeight: 700, color: trade.stopLoss ? T.red : T.dim }}>{trade.stopLoss ? trade.stopLoss.toFixed(4) : "—"}</div>
-                    {distToSL !== null && <div style={{ fontSize: 12, color: T.dim, fontFamily: T.mono }}>{distToSL.toFixed(2)}% away</div>}
-                  </div>
-                  <div style={{ background: T.panel2, borderRadius: 8, padding: "10px 12px" }}>
-                    <div style={{ fontSize: 11, color: T.dim, fontFamily: T.mono, marginBottom: 4 }}>TAKE PROFIT</div>
-                    <div style={{ fontFamily: T.mono, fontSize: 15, fontWeight: 700, color: trade.takeProfit ? T.green : T.dim }}>{trade.takeProfit ? trade.takeProfit.toFixed(4) : "—"}</div>
-                    {distToTP !== null && <div style={{ fontSize: 12, color: T.dim, fontFamily: T.mono }}>{distToTP.toFixed(2)}% away</div>}
-                  </div>
-                  <div style={{ background: T.panel2, borderRadius: 8, padding: "10px 12px" }}>
-                    <div style={{ fontSize: 11, color: T.dim, fontFamily: T.mono, marginBottom: 4 }}>24H RANGE</div>
-                    {p ? (
-                      <>
-                        <div style={{ fontSize: 12, color: T.green, fontFamily: T.mono }}>H: {p.high24h?.toFixed(2)}</div>
-                        <div style={{ fontSize: 12, color: T.red, fontFamily: T.mono }}>L: {p.low24h?.toFixed(2)}</div>
-                      </>
-                    ) : <div style={{ fontSize: 14, color: T.dim }}>–</div>}
-                  </div>
-                </div>
-
-                {/* Notes + close button */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  {trade.notes ? <div style={{ fontSize: 13, color: T.dim, fontStyle: "italic", maxWidth: "70%" }}>{trade.notes}</div> : <div />}
-                  <button onClick={() => setClosingTrade(trade)}
-                    style={{ background: T.redDim, border: `1px solid ${T.red}40`, color: T.red, borderRadius: 7, padding: "7px 16px", cursor: "pointer", fontSize: 13, fontFamily: T.mono, fontWeight: 700 }}>
-                    Close Trade
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {showAdd && (
-        <AddLiveTradeModal
-          onAdd={(t) => {
-            onAdd(t);
-            setShowAdd(false);
-            if (clearPrefilledSymbol) clearPrefilledSymbol();
-          }}
-          onClose={() => {
-            setShowAdd(false);
-            if (clearPrefilledSymbol) clearPrefilledSymbol();
-          }}
-          savedSymbols={savedSymbols}
-          initialSymbol={prefilledSymbol}
-        />
-      )}
-      {closingTrade && (
-        <CloseLiveTradeModal
-          trade={closingTrade}
-          currentPrice={prices[closingTrade.symbol]?.price}
-          onClose={() => setClosingTrade(null)}
-          onConfirm={(closeData) => { onClose(closingTrade, closeData); setClosingTrade(null); }}
-        />
-      )}
-    </div>
-  );
-}
+// CloseLiveTradeModal moved to components/modals
+// LiveTradesView moved to components/views
 
 // ─── Risk Calculator ──────────────────────────────────────────────────────────
 
@@ -1040,204 +649,11 @@ function ReviewModal({ reviewKey, existing, onSave, onClose }) {
   );
 }
 
-function SellSpotModal({ trade, currentPrice, onClose, onConfirm }) {
-  const { showToast } = useDashboard();
-  const [sellPrice, setSellPrice] = useState(currentPrice ? currentPrice.toFixed(4) : trade.entry.toFixed(4));
-  const [sellTime, setSellTime] = useState("");
-  const [fees, setFees] = useState("");
-  const [reason, setReason] = useState("Target Hit");
-  const [notes, setNotes] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [confirmed, setConfirmed] = useState(false);
+// SellSpotModal moved to components/modals
 
-  const exit = parseFloat(sellPrice);
-  const pnl = !isNaN(exit) ? (exit - trade.entry) * trade.qty : null;
-  const qc = getQuoteCurrency(trade.symbol) || "USDT";
-  const IS = { background: T.panel2, border: `1px solid ${T.border}`, borderRadius: 6, color: T.text, padding: "8px 10px", fontSize: 12, width: "100%", fontFamily: T.mono, outline: "none", boxSizing: "border-box" };
-  const LS = { fontSize: 11, color: T.dim, letterSpacing: 1.2, textTransform: "uppercase", display: "block", marginBottom: 5, marginTop: 12 };
+// OpenSpotView moved to components/views
 
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "#00000092", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, backdropFilter: "blur(6px)" }}
-      onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{ background: T.panel, border: `1px solid ${T.green}30`, borderRadius: 14, padding: 26, width: "min(440px,95vw)", boxShadow: "0 30px 80px #00000070" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-          <div>
-            <div style={{ fontFamily: T.mono, fontSize: 13, color: T.bright, letterSpacing: 1 }}>RECORD SELL — {trade.symbol}</div>
-            <div style={{ fontSize: 11, color: T.dim, marginTop: 2, fontFamily: T.mono }}>Bought @ {trade.entry.toFixed(4)} · {trade.qty} units</div>
-          </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: T.dim, cursor: "pointer", fontSize: 20 }}>✕</button>
-        </div>
-
-        {currentPrice && (
-          <div style={{ background: T.panel2, border: `1px solid ${T.border}`, borderRadius: 8, padding: "10px 14px", marginBottom: 4, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: 11, color: T.dim, fontFamily: T.mono }}>LIVE PRICE</span>
-            <span style={{ fontFamily: T.mono, fontSize: 16, fontWeight: 700, color: T.cyan }}>{currentPrice.toFixed(4)}</span>
-            <button onClick={() => setSellPrice(currentPrice.toFixed(4))} style={{ background: T.blueDim, border: `1px solid ${T.blue}40`, color: T.blue, borderRadius: 5, padding: "4px 10px", cursor: "pointer", fontSize: 11, fontFamily: T.mono }}>Use Live</button>
-          </div>
-        )}
-
-        <div><label style={LS}>Sell Price ({qc})</label><input style={IS} type="number" inputMode="decimal" value={sellPrice} onChange={e => setSellPrice(e.target.value)} placeholder="0.00" /></div>
-        <div><label style={LS}>Sell Time</label><MaskedDateInput style={IS} value={sellTime} onChange={v => setSellTime(v)} /></div>
-        <div><label style={LS}>Fees ({qc})</label><input style={IS} type="number" inputMode="decimal" value={fees} onChange={e => setFees(e.target.value)} placeholder="0.00" /></div>
-        <div><label style={LS}>Close Reason</label>
-          <select style={IS} value={reason} onChange={e => setReason(e.target.value)}>
-            {CLOSE_REASONS.map(r => <option key={r}>{r}</option>)}
-          </select>
-        </div>
-        <div><label style={LS}>Notes (optional)</label>
-          <textarea style={{ ...IS, resize: "vertical", minHeight: 52 }} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Why did you sell? What did you learn?" />
-        </div>
-
-        {pnl !== null && (
-          <div style={{ background: pnl >= 0 ? T.greenDim : T.redDim, border: `1px solid ${pnl >= 0 ? T.green : T.red}40`, borderRadius: 8, padding: "12px 16px", marginTop: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: 11, color: T.dim, fontFamily: T.mono }}>ESTIMATED PnL</span>
-            <span style={{ fontFamily: T.mono, fontSize: 18, fontWeight: 700, color: pnl >= 0 ? T.green : T.red }}>{fmt$(pnl)}</span>
-          </div>
-        )}
-
-        <div style={{ marginTop: 18 }}>
-          <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 12, color: T.text, fontFamily: T.mono }}>
-            <input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} style={{ width: 16, height: 16, accentColor: T.green }} />
-            I confirm these details are correct
-          </label>
-        </div>
-
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 20 }}>
-          <button onClick={onClose} style={{ background: "transparent", border: `1px solid ${T.dim}`, color: T.dim, borderRadius: 7, padding: "9px 18px", cursor: "pointer", fontSize: 11, fontFamily: T.mono }} disabled={loading}>Cancel</button>
-          <button onClick={async () => {
-            let closeT = parseMaskedDate(sellTime);
-            let capped = false;
-            if (closeT > Date.now()) { closeT = Date.now(); capped = true; }
-            if (trade.openTime && closeT < trade.openTime) { closeT = trade.openTime; capped = true; }
-            if (capped) {
-              showToast("Sell time was invalid (in the future, or before buy time). It has been automatically corrected.", "warning");
-            }
-            setLoading(true);
-            try { await onConfirm({ exit: parseFloat(sellPrice), closeTime: closeT, fees: -(Math.abs(parseFloat(fees) || 0)), closeReason: reason, notes }); }
-            finally { setLoading(false); }
-          }}
-            style={{ background: T.greenDim, border: `1px solid ${T.green}50`, color: T.green, borderRadius: 7, padding: "9px 22px", cursor: "pointer", fontSize: 11, fontFamily: T.mono, fontWeight: 700 }} disabled={loading || !confirmed}>
-            {loading ? "Looking up rate..." : "Record Sell ✓"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function OpenSpotTrades({ spotOpen, onSell, onDelete, savedSymbols }) {
-  const [sellingTrade, setSellingTrade] = useState(null);
-  const { prices } = useDashboard();
-
-  const totalValue = spotOpen.reduce((sum, t) => {
-    const p = prices[t.symbol]?.price;
-    const valQuote = p ? p * t.qty : t.entry * t.qty;
-    return sum + (valQuote * (t.usdtRate || 1));
-  }, 0);
-  const totalCost = spotOpen.reduce((s, t) => s + (t.entry * t.qty * (t.usdtRate || 1)), 0);
-  const totalPnl = totalValue - totalCost;
-
-  if (!spotOpen.length) return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 260, gap: 12 }}>
-      <div style={{ fontSize: 32 }}>🪙</div>
-      <div style={{ fontFamily: T.mono, fontSize: 14, color: T.bright }}>No open spot positions</div>
-      <div style={{ fontSize: 12, color: T.dim }}>Click "+ Add Trade" → Spot → "Just Bought" to log a buy</div>
-    </div>
-  );
-
-  return (
-    <div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 200px), 1fr))", gap: 10, marginBottom: 16 }}>
-        {[
-          { label: "Positions", val: spotOpen.length, color: T.cyan },
-          { label: "Invested Amount", val: `${totalCost.toFixed(2)} USDT`, color: T.bright },
-          { label: "Current Value", val: `${totalValue.toFixed(2)} USDT`, color: T.blue },
-          { label: "Unrealized PnL", val: fmt$(totalPnl), color: totalPnl >= 0 ? T.green : T.red },
-        ].map((s, i) => (
-          <div key={i} style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 10, padding: "14px 16px" }}>
-            <div style={{ fontSize: 11, color: T.dim, fontFamily: T.mono, letterSpacing: 1, marginBottom: 6 }}>{s.label}</div>
-            <div style={{ fontFamily: T.mono, fontSize: 16, fontWeight: 700, color: s.color }}>{s.val}</div>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {spotOpen.map(trade => {
-          const p = prices[trade.symbol];
-          const livePrice = p?.price;
-          const unreal = livePrice ? (livePrice - trade.entry) * trade.qty : null;
-          const unrealUsdt = unreal !== null ? unreal * (trade.usdtRate || 1) : null;
-          const unrPct = unreal !== null ? (unreal / (trade.entry * trade.qty)) * 100 : null;
-          const holdMs = Date.now() - trade.openTime;
-          const holdDays = Math.floor(holdMs / 86400000);
-          const holdH = Math.floor((holdMs % 86400000) / 3600000);
-          const invested = trade.entry * trade.qty;
-          const investedUsdt = invested * (trade.usdtRate || 1);
-
-          return (
-            <div key={trade.id} style={{ background: T.panel, border: `1px solid ${unreal !== null ? (unrealUsdt >= 0 ? T.green + "30" : T.red + "30") : T.border}`, borderRadius: 12, padding: "16px 18px" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <CoinIcon symbol={trade.symbol} size={36} />
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: 15, fontWeight: 700, color: T.bright }}>{trade.symbol}</span>
-                      <span style={{ background: T.greenDim, color: T.green, border: `1px solid ${T.green}40`, borderRadius: 4, padding: "2px 7px", fontSize: 11, fontFamily: T.mono, fontWeight: 700 }}>SPOT BUY</span>
-                      <span style={{ fontSize: 11, color: T.dim, fontFamily: T.mono }}>{trade.exchange}</span>
-                    </div>
-                    <div style={{ fontSize: 11, color: T.dim, marginTop: 3, fontFamily: T.mono }}>
-                      Bought @ {trade.entry.toFixed(4)} · {trade.qty} units · {holdDays > 0 ? `${holdDays}d ` : ""}{holdH}h ago
-                      <br />
-                      Invested: {invested < 10 ? Number(invested.toFixed(6)) : invested.toFixed(2)} {trade.quoteCurrency || "USDT"} {trade.quoteCurrency && trade.quoteCurrency !== "USDT" ? `(~$${investedUsdt.toFixed(2)})` : ""}
-                    </div>
-                  </div>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  {livePrice
-                    ? <><div style={{ fontFamily: T.mono, fontSize: 20, fontWeight: 700, color: T.cyan }}>{livePrice.toFixed(4)}</div>
-                      <div style={{ fontSize: 11, color: p.change24h >= 0 ? T.green : T.red, fontFamily: T.mono }}>{p.change24h >= 0 ? "+" : ""}{p.change24h?.toFixed(2)}% 24h</div></>
-                    : <Skeleton width={60} height={16} />}
-                </div>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))", gap: 8, marginBottom: 12 }}>
-                {[
-                  { label: "COST BASIS", val: `${(trade.entry * trade.qty).toFixed(4)} ${trade.quoteCurrency || "USDT"}`, color: T.text },
-                  { label: "CURRENT VALUE", val: livePrice ? `${(livePrice * trade.qty).toFixed(4)} ${trade.quoteCurrency || "USDT"}` : "–", color: T.blue },
-                  { label: "UNREALIZED PnL", val: unreal !== null ? (trade.quoteCurrency && trade.quoteCurrency !== "USDT" ? `${unreal >= 0 ? "+" : ""}${unreal.toFixed(4)} ${trade.quoteCurrency} (~${fmt$(unrealUsdt)})` : fmt$(unreal)) : "–", color: unreal !== null ? (unrealUsdt >= 0 ? T.green : T.red) : T.dim },
-                  { label: "RETURN %", val: unrPct !== null ? `${unrPct >= 0 ? "+" : ""}${unrPct.toFixed(2)}%` : "–", color: unrPct !== null ? (unrPct >= 0 ? T.green : T.red) : T.dim },
-                ].map((item, i) => (
-                  <div key={i} style={{ background: T.panel2, borderRadius: 8, padding: "10px 12px" }}>
-                    <div style={{ fontSize: 11, color: T.dim, fontFamily: T.mono, marginBottom: 4 }}>{item.label}</div>
-                    <div style={{ fontFamily: T.mono, fontSize: 12, fontWeight: 700, color: item.color }}>{item.val}</div>
-                  </div>
-                ))}
-              </div>
-
-              {trade.notes && <div style={{ fontSize: 11, color: T.dim, fontStyle: "italic", marginBottom: 10 }}>{trade.notes}</div>}
-
-              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                <button onClick={() => onDelete(trade.id)} style={{ background: "none", border: `1px solid ${T.dim}`, color: T.dim, borderRadius: 6, padding: "6px 14px", cursor: "pointer", fontSize: 11, fontFamily: T.mono }}>Delete</button>
-                <button onClick={() => setSellingTrade(trade)} style={{ background: T.greenDim, border: `1px solid ${T.green}50`, color: T.green, borderRadius: 6, padding: "6px 16px", cursor: "pointer", fontSize: 11, fontFamily: T.mono, fontWeight: 700 }}>Record Sell →</button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {sellingTrade && (
-        <SellSpotModal
-          trade={sellingTrade}
-          currentPrice={prices[sellingTrade.symbol]?.price}
-          onClose={() => setSellingTrade(null)}
-          onConfirm={(data) => { onSell(sellingTrade, data); setSellingTrade(null); }}
-        />
-      )}
-    </div>
-  );
-}
-
-function TradeFilterBar({ filterSetup, setFilterSetup, filterCoin, setFilterCoin, filterResult, setFilterResult, filterTrade, setFilterTrade, filterCapitalActivity, setFilterCapitalActivity, onDownload, coins, setups }) {
+function TradeFilterBar({ filterSetup, setFilterSetup, filterCoin, setFilterCoin, filterResult, setFilterResult, filterTrade, setFilterTrade, onDownload, coins, setups }) {
   const S = { background: T.panel2, border: `1px solid ${T.border}`, borderRadius: 6, color: T.text, padding: "6px 12px", fontSize: 13, fontFamily: T.mono, outline: "none", flex: "1 1 auto", minWidth: 100 };
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10, background: T.panel, border: `1px solid ${T.border}`, borderRadius: 8, padding: "10px 16px", marginBottom: 16 }}>
@@ -1260,9 +676,6 @@ function TradeFilterBar({ filterSetup, setFilterSetup, filterCoin, setFilterCoin
           <option value="All">All Types</option>
           <option value="spot">Spot Only</option>
           <option value="futures">Futures Only</option>
-        </select>
-        <select style={S} value={filterCapitalActivity} onChange={e => setFilterCapitalActivity(e.target.value)}>
-          <option value="All">All </option>
           <option value="deposit">Deposits</option>
           <option value="withdrawal">Withdrawals</option>
         </select>
@@ -1314,299 +727,10 @@ function ExchangeSyncModal({ onClose, onSync, keys, setKeys }) {
 // ─── Edit Trade Modal ────────────────────────────────────────────────────────
 
 
-// ─── Watchlist View ───────────────────────────────────────────────────────────
-function WatchlistView({ savedSymbols, prices, status, onAddAlert, onOpenLiveTrade }) {
-  const symbols = (savedSymbols || DEFAULT_SYMBOLS).slice(0, 30);
-
-  return (
-    <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ fontFamily: T.mono, fontSize: 18, fontWeight: 700, color: T.bright, letterSpacing: 1 }}>WATCHLIST</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <div style={{ width: 7, height: 7, borderRadius: "50%", background: status === "ok" ? T.green : T.dim, boxShadow: status === "ok" ? `0 0 6px ${T.green}` : "none" }} />
-            <span style={{ fontFamily: T.mono, fontSize: 11, color: T.dim }}>{status === "ok" ? "LIVE" : "CONNECTING..."}</span>
-          </div>
-        </div>
-        <div style={{ fontSize: 12, color: T.dim, fontFamily: T.mono }}>Auto-updates every 3s · Showing {symbols.length} symbols</div>
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 10 }}>
-        {symbols.map(sym => {
-          const p = prices[sym];
-          const change = p?.change24h;
-          const isUp = change >= 0;
-          return (
-            <div key={sym} style={{ background: T.panel, border: `1px solid ${p ? (isUp ? T.green + "25" : T.red + "25") : T.border}`, borderRadius: 10, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10, transition: "border-color 0.3s" }}>
-              <div style={{ display: "flex", width: "100%", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <CoinIcon symbol={sym} size={32} />
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: T.bright }}>{sym}</div>
-                    <div style={{ fontSize: 11, color: T.dim, fontFamily: T.mono, marginTop: 2 }}>{getQuoteCurrency(sym)}</div>
-                  </div>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  {p ? (
-                    <>
-                      <div style={{ fontFamily: T.mono, fontSize: 16, fontWeight: 700, color: T.bright }}>
-                        {p.price >= 1 ? p.price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : p.price.toFixed(6)}
-                      </div>
-                      <div style={{ fontSize: 12, fontFamily: T.mono, color: isUp ? T.green : T.red, marginTop: 2 }}>
-                        {isUp ? "▲" : "▼"} {Math.abs(change).toFixed(2)}%
-                      </div>
-                    </>
-                  ) : (
-                    <Skeleton width={80} height={16} />
-                  )}
-                </div>
-              </div>
-
-              {/* Actions Section */}
-              <div style={{ display: "flex", gap: 6, marginTop: 4, width: "100%", justifyContent: "flex-end", borderTop: `1px solid ${T.border}30`, paddingTop: 8 }}>
-                <button
-                  onClick={() => onAddAlert && onAddAlert(sym)}
-                  style={{ background: "transparent", border: `1px solid ${T.blue}40`, color: T.blue, borderRadius: 5, padding: "4px 8px", fontSize: 11, cursor: "pointer", fontFamily: T.mono }}
-                  onMouseEnter={e => e.currentTarget.style.background = T.blueDim}
-                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-                >
-                  🔔 Alert
-                </button>
-                <button
-                  onClick={() => onOpenLiveTrade && onOpenLiveTrade(sym)}
-                  style={{ background: T.greenDim, border: `1px solid ${T.green}40`, color: T.green, borderRadius: 5, padding: "4px 8px", fontSize: 11, cursor: "pointer", fontFamily: T.mono }}
-                  onMouseEnter={e => e.currentTarget.style.background = T.greenDim + "40"}
-                  onMouseLeave={e => e.currentTarget.style.background = T.greenDim}
-                >
-                  📈 Trade Live
-                </button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {symbols.length === 0 && (
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 300, gap: 12 }}>
-          <div style={{ fontSize: 36 }}>◎</div>
-          <div style={{ fontFamily: T.mono, fontSize: 15, color: T.bright }}>No symbols saved yet</div>
-          <div style={{ fontSize: 13, color: T.dim }}>Add trades with crypto symbols — they'll appear here automatically.</div>
-        </div>
-      )}
-    </div>
-  );
-}
+// WatchlistView moved to components/views
 
 // ─── Alerts View ──────────────────────────────────────────────────────────────
-function AlertsView({ alerts, onAddAlert, onDeleteAlert, savedSymbols, prices, prefilledSymbol, clearPrefilledSymbol }) {
-  const [symbolInput, setSymbolInput] = useState(prefilledSymbol || "");
-  const [condition, setCondition] = useState("above");
-  const [targetPrice, setTargetPrice] = useState("");
-  const [showDrop, setShowDrop] = useState(false);
-
-  useEffect(() => {
-    if (prefilledSymbol) {
-      setSymbolInput(prefilledSymbol);
-      if (clearPrefilledSymbol) clearPrefilledSymbol();
-    }
-  }, [prefilledSymbol]);
-
-  const saved = savedSymbols || DEFAULT_SYMBOLS;
-  const filtered = symbolInput
-    ? saved.filter(s => s.toLowerCase().includes(symbolInput.toLowerCase()))
-    : saved;
-
-  const handleCreate = () => {
-    const sym = symbolInput.trim().toUpperCase();
-    const price = parseFloat(targetPrice);
-    if (!sym || isNaN(price) || price <= 0) return;
-
-    onAddAlert({
-      symbol: sym,
-      condition,
-      targetPrice: price
-    });
-
-    setSymbolInput("");
-    setTargetPrice("");
-    setShowDrop(false);
-  };
-
-  const activeAlerts = alerts.filter(a => !a.triggered);
-  const triggeredAlerts = alerts.filter(a => a.triggered).sort((a, b) => b.triggeredAt - a.triggeredAt);
-
-  return (
-    <div>
-      <div style={{ fontFamily: T.mono, fontSize: 18, fontWeight: 700, color: T.bright, letterSpacing: 1, marginBottom: 18 }}>
-        PRICE ALERTS
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 20 }}>
-        {/* Create Alert Panel */}
-        <div style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 10, padding: 18 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: T.bright, marginBottom: 14, fontFamily: T.mono }}>+ CREATE PRICE ALERT</div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {/* Symbol Selection */}
-            <div style={{ position: "relative" }}>
-              <label style={{ fontSize: 11, color: T.dim, textTransform: "uppercase", display: "block", marginBottom: 5 }}>Symbol</label>
-              <input
-                type="text"
-                placeholder="BTCUSDT, ETHUSDT..."
-                value={symbolInput}
-                onChange={e => { setSymbolInput(e.target.value); setShowDrop(true); }}
-                onFocus={() => setShowDrop(true)}
-                onBlur={() => setTimeout(() => setShowDrop(false), 200)}
-                style={{ background: T.panel2, border: `1px solid ${T.border}`, borderRadius: 7, color: T.bright, padding: "8px 12px", width: "100%", boxSizing: "border-box", outline: "none", fontSize: 13, fontFamily: T.mono }}
-              />
-              {showDrop && filtered.length > 0 && (
-                <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: T.panel, border: `1px solid ${T.border}`, borderRadius: 7, maxHeight: 180, overflowY: "auto", WebkitOverflowScrolling: "touch", zIndex: 10, boxShadow: "0 10px 30px #00000080" }}>
-                  {filtered.map(s => (
-                    <div
-                      key={s}
-                      onClick={() => { setSymbolInput(s); setShowDrop(false); }}
-                      style={{ padding: "8px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, fontSize: 13, borderBottom: `1px solid ${T.border}30` }}
-                      onMouseEnter={e => e.currentTarget.style.background = T.border + "30"}
-                      onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-                    >
-                      <CoinIcon symbol={s} size={20} />
-                      <span style={{ color: T.bright }}>{s}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Condition Selection */}
-            <div>
-              <label style={{ fontSize: 11, color: T.dim, textTransform: "uppercase", display: "block", marginBottom: 5 }}>Trigger Condition</label>
-              <select
-                value={condition}
-                onChange={e => setCondition(e.target.value)}
-                style={{ background: T.panel2, border: `1px solid ${T.border}`, borderRadius: 7, color: T.bright, padding: "8px 12px", width: "100%", fontSize: 13, outline: "none", cursor: "pointer" }}
-              >
-                <option value="above">Price crosses above (▲)</option>
-                <option value="below">Price crosses below (▼)</option>
-              </select>
-            </div>
-
-            {/* Target Price */}
-            <div>
-              <label style={{ fontSize: 11, color: T.dim, textTransform: "uppercase", display: "block", marginBottom: 5 }}>Target Price (USD)</label>
-              <input
-                type="number" inputMode="decimal"
-                step="any"
-                placeholder="100000"
-                value={targetPrice}
-                onChange={e => setTargetPrice(e.target.value)}
-                style={{ background: T.panel2, border: `1px solid ${T.border}`, borderRadius: 7, color: T.bright, padding: "8px 12px", width: "100%", boxSizing: "border-box", outline: "none", fontSize: 13, fontFamily: T.mono }}
-              />
-            </div>
-
-            <button
-              onClick={handleCreate}
-              style={{ background: T.blueDim, border: `1px solid ${T.blue}50`, color: T.blue, borderRadius: 7, padding: "10px 14px", cursor: "pointer", fontSize: 13, fontWeight: 700, fontFamily: T.mono, marginTop: 6, transition: "background 0.2s" }}
-              onMouseEnter={e => e.currentTarget.style.background = T.blue + "20"}
-              onMouseLeave={e => e.currentTarget.style.background = T.blueDim}
-            >
-              🔔 Create Alert
-            </button>
-          </div>
-        </div>
-
-        {/* Alerts List Panels */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 15 }}>
-          {/* Active Alerts */}
-          <div style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 10, padding: 18, flex: 1 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: T.bright, marginBottom: 12, fontFamily: T.mono }}>
-              ACTIVE ALERTS ({activeAlerts.length})
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {activeAlerts.map(alert => {
-                const livePrice = prices[alert.symbol]?.price;
-                return (
-                  <div key={alert.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: T.panel2, border: `1px solid ${T.border}`, borderRadius: 8, padding: "10px 12px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <CoinIcon symbol={alert.symbol} size={24} />
-                      <div>
-                        <div style={{ fontWeight: 700, fontSize: 13, color: T.bright }}>{alert.symbol}</div>
-                        <div style={{ fontSize: 11, color: T.dim, fontFamily: T.mono, marginTop: 1 }}>
-                          Crosses {alert.condition === "above" ? "above ▲" : "below ▼"} {alert.targetPrice.toLocaleString()}
-                        </div>
-                      </div>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      {livePrice !== undefined && (
-                        <div style={{ fontSize: 11, fontFamily: T.mono, color: T.dim }}>
-                          Live: <span style={{ color: T.bright }}>{livePrice.toLocaleString()}</span>
-                        </div>
-                      )}
-                      <button
-                        onClick={() => onDeleteAlert(alert.id)}
-                        style={{ background: "transparent", border: "none", color: T.red, cursor: "pointer", fontSize: 14, padding: 12 }}
-                        title="Delete Alert"
-                      >
-                        🗑️
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-              {activeAlerts.length === 0 && (
-                <div style={{ textAlign: "center", color: T.dim, fontSize: 12, padding: "20px 0", fontStyle: "italic" }}>
-                  No active alerts. Create one on the left.
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Triggered Alerts */}
-          <div style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 10, padding: 18 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: T.bright, marginBottom: 12, fontFamily: T.mono }}>
-              TRIGGERED ALERTS ({triggeredAlerts.length})
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 180, overflowY: "auto", WebkitOverflowScrolling: "touch" }}>
-              {triggeredAlerts.map(alert => (
-                <div key={alert.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: T.panel2, border: `1px solid ${T.border}30`, borderRadius: 8, padding: "8px 12px", opacity: 0.7 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <CoinIcon symbol={alert.symbol} size={24} />
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: 13, color: T.bright }}>{alert.symbol}</div>
-                      <div style={{ fontSize: 11, color: T.dim, fontFamily: T.mono, marginTop: 1 }}>
-                        Crossed {alert.condition === "above" ? "above ▲" : "below ▼"} {alert.targetPrice.toLocaleString()}
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    {alert.triggeredAt && (
-                      <div style={{ fontSize: 11, fontFamily: T.mono, color: T.dim }}>
-                        {new Date(alert.triggeredAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                    )}
-                    <button
-                      onClick={() => onDeleteAlert(alert.id)}
-                      style={{ background: "transparent", border: "none", color: T.red, cursor: "pointer", fontSize: 14, padding: 12 }}
-                      title="Delete Alert"
-                    >
-                      🗑️
-                    </button>
-                  </div>
-                </div>
-              ))}
-              {triggeredAlerts.length === 0 && (
-                <div style={{ textAlign: "center", color: T.dim, fontSize: 12, padding: "20px 0", fontStyle: "italic" }}>
-                  No triggered alerts.
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+// AlertsView moved to components/views
 
 export default function App() {
   const {
@@ -1618,6 +742,7 @@ export default function App() {
     apiKeys, setApiKeys,
     allTrades, allSpotOpen, allLiveTrades,
     savedSymbols, setSavedSymbols,
+    tradeSetups, setTradeSetups,
     undoTrade, setUndoTrade,
     reviews, setReviews, reviewKey, setReviewKey,
     showDataMenu, setShowDataMenu,
@@ -1626,6 +751,7 @@ export default function App() {
     showCSVModal, setShowCSVModal,
     showReviewModal, setShowReviewModal,
     showSyncModal, setShowSyncModal,
+    showSecurityModal, setShowSecurityModal,
     editingTrade, setEditingTrade,
     viewChartTrade, setViewChartTrade,
     dateRange, setDateRange,
@@ -1640,16 +766,18 @@ export default function App() {
     notifications, setNotifications,
     appToast, showToast,
     profileTrades, trades, spotOpen, liveTrades, closed, isJournalEmpty, isFilteredEmpty,
-    prices, status, isMobile,
+    isMobile,
     addAlert, deleteAlert,
     deleteFinishedTrade, restoreDeletedTrade, handleEditTrade,
     saveSymbol, handleQuickAdd, addTrade, importTrades, addSpotOpen,
     closeSpotOpen, deleteSpotOpen, handleApiSync, addLiveTrade, closeLiveTrade,
-    saveReview, openReview, switchProfile, addProfile, deleteProfile, clearAllData, downloadCSV
+    saveReview, openReview, switchProfile, addProfile, updateProfile, deleteProfile, clearAllData, downloadCSV
   } = useDashboard();
 
+  const { prices, status } = usePrices();
+
   // ── Keyboard Shortcuts ───────────────────────────────────────────────────
-  const DASH_TABS = ["Overview", "Trade Summary", "Calendar", "Analytics", "Time Metrics", "Risk Calc"];
+  const DASH_TABS = ["Overview"];
 
   useEffect(() => {
     const onKey = (e) => {
@@ -1706,6 +834,8 @@ export default function App() {
         setShowClearConfirm(false);
         setShowDataMenu(false);
         setUndoTrade(null);
+      } else if (view !== "Dashboard") {
+        setView("Dashboard");
       } else {
         CapApp.minimizeApp();
       }
@@ -1714,7 +844,15 @@ export default function App() {
     return () => {
       if (backListener) backListener.remove();
     };
-  }, [setShowAddModal, setEditingTrade, setShowCSVModal, setShowSyncModal, setViewChartTrade, setShowClearConfirm, setShowDataMenu, setUndoTrade]);
+  }, [setShowAddModal, setEditingTrade, setShowCSVModal, setShowSyncModal, setViewChartTrade, setShowClearConfirm, setShowDataMenu, setUndoTrade, view, setView]);
+
+  // Ensure modals close when navigating views
+  useEffect(() => {
+    setShowAddModal(false);
+    setShowCSVModal(false);
+    setShowSyncModal(false);
+    setEditingTrade(null);
+  }, [view, setShowAddModal, setShowCSVModal, setShowSyncModal, setEditingTrade]);
 
   return (
     <>
@@ -1738,7 +876,7 @@ export default function App() {
           50% { opacity: 0.5; }
         }
       `}</style>
-      <div style={{ display: "flex", minHeight: "100dvh", maxWidth: "100vw", overflowX: "hidden", background: T.bg, fontFamily: T.sans, color: T.text, transition: "background .2s", paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: isMobile ? "max(60px, env(safe-area-inset-bottom, 0px))" : 0 }}>
+      <div style={{ display: "flex", minHeight: "100dvh", maxWidth: "100vw", overflowX: "hidden", background: T.bg, fontFamily: T.sans, color: T.text, transition: "background .2s", paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: isMobile ? "max(70px, env(safe-area-inset-bottom, 0px))" : 0 }}>
         {!isMobile && (
           <Sidebar
             view={view} setView={setView}
@@ -1750,9 +888,10 @@ export default function App() {
             onOpenProfiles={() => setShowProfiles(true)}
           />
         )}
+        <AlertsEngine />
         <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
           {/* Top bar */}
-          <TopNav />
+          {!isMobile && <TopNav />}
 
           <div style={{ flex: 1, overflowY: "auto", WebkitOverflowScrolling: "touch", padding: isMobile ? "12px 14px" : 18 }}>
             {/* Notification Banners */}
@@ -1782,40 +921,26 @@ export default function App() {
               </div>
             )}
 
-            {(view === "Dashboard" || view === "Finished Trades") && (
+            {(view === "Finished Trades" || view === "Journal") && (
               <TradeFilterBar
                 filterSetup={filterSetup} setFilterSetup={setFilterSetup}
                 filterCoin={filterCoin} setFilterCoin={setFilterCoin}
                 filterResult={filterResult} setFilterResult={setFilterResult}
                 filterTrade={filterTrade} setFilterTrade={setFilterTrade}
-                filterCapitalActivity={filterCapitalActivity} setFilterCapitalActivity={setFilterCapitalActivity}
                 onDownload={downloadCSV}
                 coins={Array.from(new Set(closed.map(t => t.symbol)))}
                 setups={SETUPS}
               />
             )}
-            {isJournalEmpty && view === "Dashboard"
-              ? <EmptyState onAdd={() => setShowAddModal(true)} />
-              : isFilteredEmpty && view === "Dashboard"
-                ? <EmptyState filtered={true} />
-              : <>
-                {view === "Dashboard" && subTab === "Overview" && <Overview trades={trades} allProfileTrades={profileTrades} initialCapital={initialCapital} profiles={profiles} liveTrades={liveTrades} />}
-                {view === "Dashboard" && subTab === "Trade Summary" && (
-                  <TradeSummary
-                    trades={trades}
-                    allProfileTrades={profileTrades}
-                    initialCapital={initialCapital}
-                    profileId={activeProfileId}
-                    onUpdateCapital={(val) => { setInitialCapital(val); saveCapital(val); }}
-                  />
-                )}
-                {view === "Dashboard" && subTab === "Calendar" && <TradingCalendar />}
-                {view === "Dashboard" && subTab === "Analytics" && <Analytics />}
-                {view === "Dashboard" && subTab === "Time Metrics" && <TimeMetrics trades={trades} />}
-                {view === "Dashboard" && subTab === "Risk Calc" && <RiskCalculator />}
-                {view === "Open Spot Trades" && <OpenSpotTrades spotOpen={spotOpen} onSell={closeSpotOpen} onDelete={deleteSpotOpen} savedSymbols={savedSymbols} />}
+            {view === "Dashboard" ? (
+              isJournalEmpty ? <EmptyState onAdd={() => setShowAddModal(true)} /> :
+              isFilteredEmpty ? <EmptyState filtered={true} /> :
+              (subTab === "Overview" && <Overview trades={trades} allProfileTrades={profileTrades} initialCapital={initialCapital} profiles={profiles} liveTrades={liveTrades} />)
+            ) : null}
+            <>
+              {view === "Open Spot Trades" && <OpenSpotView spotOpen={spotOpen} onSell={closeSpotOpen} onDelete={deleteSpotOpen} onEdit={setEditingTrade} savedSymbols={savedSymbols} />}
                 {view === "Live Trades(ongoing)" && (
-                  <LiveTrades
+                  <LiveTradesView
                     liveTrades={liveTrades}
                     onAdd={addLiveTrade}
                     onClose={closeLiveTrade}
@@ -1841,6 +966,7 @@ export default function App() {
                 {view === "Watchlist" && (
                   <WatchlistView
                     savedSymbols={savedSymbols}
+                    setSavedSymbols={setSavedSymbols}
                     prices={prices}
                     status={status}
                     onAddAlert={(sym) => {
@@ -1864,8 +990,76 @@ export default function App() {
                     clearPrefilledSymbol={() => setPrefilledAlertSymbol(null)}
                   />
                 )}
+                {view === "Journal" && (
+                  <TradeLog 
+                    trades={trades} 
+                    onEdit={setEditingTrade}
+                    onViewChart={setViewChartTrade}
+                    onDelete={deleteFinishedTrade}
+                    onSave={handleEditTrade}
+                    onQuickAdd={handleQuickAdd}
+                    savedSymbols={savedSymbols}
+                  />
+                )}
+                {view === "Setup" && (
+                  <TradeSetupsManager trades={trades} tradeSetups={tradeSetups} setTradeSetups={setTradeSetups} showToast={showToast} />
+                )}
+                {view === "Profile" && (
+                  <div style={{ padding: isMobile ? "0" : "0", display: "flex", flexDirection: "column", flex: 1 }}>
+                    {isMobile && (
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, padding: "0 16px", marginBottom: 20 }}>
+                        {["Accounts", "Trade Summary", "Time Metrics", "Analytics", "Calendar", "Risk Calc"].map(t => (
+                          <button
+                            key={t}
+                            onClick={() => setSubTab(t)}
+                            style={{
+                              background: subTab === t ? T.purple : T.panel,
+                              border: `1px solid ${subTab === t ? T.purple : T.border}`,
+                              color: subTab === t ? "#FFF" : T.dim,
+                              padding: "12px",
+                              borderRadius: 10,
+                              fontSize: 13,
+                              fontWeight: subTab === t ? 700 : 500,
+                              cursor: "pointer",
+                              textAlign: "center"
+                            }}
+                          >
+                            {t}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <div style={{ flex: 1 }}>
+                    {subTab === "Accounts" && (
+                      <AccountsManager 
+                        profiles={profiles}
+                        activeProfileId={activeProfileId}
+                        switchProfile={switchProfile}
+                        addProfile={addProfile}
+                        updateProfile={updateProfile}
+                        trades={profileTrades}
+                        liveTrades={liveTrades}
+                        addTrade={addTrade}
+                        showToast={showToast}
+                      />
+                    )}
+                    {subTab === "Trade Summary" && (
+                      <TradeSummary
+                        trades={trades}
+                        allProfileTrades={profileTrades}
+                        initialCapital={initialCapital}
+                        profileId={activeProfileId}
+                        onUpdateCapital={(val) => { setInitialCapital(val); }}
+                      />
+                    )}
+                    {subTab === "Calendar" && <TradingCalendar />}
+                    {subTab === "Analytics" && <Analytics />}
+                    {subTab === "Time Metrics" && <TimeMetrics trades={trades} />}
+                    {subTab === "Risk Calc" && <RiskCalculator />}
+                    </div>
+                  </div>
+                )}
               </>
-            }
           </div>
         </div>
       </div>
@@ -1873,9 +1067,14 @@ export default function App() {
       {isMobile && (
         <BottomNav
           view={view}
-          setView={setView}
-          spotOpenCount={spotOpen.length}
-          alertsCount={alerts.filter(a => !a.triggered).length}
+          setView={(v) => {
+            if (v === "Trade") {
+              setShowAddModal(true);
+            } else {
+              setShowAddModal(false);
+              setView(v);
+            }
+          }}
         />
       )}
 
@@ -1896,6 +1095,7 @@ export default function App() {
       {viewChartTrade && <ChartModal trade={viewChartTrade} onClose={() => setViewChartTrade(null)} />}
       {showSyncModal && <ExchangeSyncModal onClose={() => setShowSyncModal(false)} onSync={handleApiSync} keys={apiKeys} setKeys={setApiKeys} />}
       {editingTrade && <EditTradeModal />}
+      {showSecurityModal && <SecuritySettingsModal onClose={() => setShowSecurityModal(false)} />}
 
       {showClearConfirm && (
         <div style={{ position: "fixed", inset: 0, background: "#00000092", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999, backdropFilter: "blur(6px)" }}>

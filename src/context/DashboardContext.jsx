@@ -1,10 +1,13 @@
 import { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from "react";
 import CryptoJS from "crypto-js";
 import { StatusBar, Style } from '@capacitor/status-bar';
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { T, DARK, LIGHT } from "../utils/theme.js";
+import { Capacitor } from '@capacitor/core';
 import {
   loadTrades, saveTrades, loadSpotOpen, saveSpotOpen,
   loadLiveTrades, saveLiveTrades, loadSavedSymbols, saveSavedSymbols,
+  loadTradeSetups, saveTradeSetups, loadAlerts, saveAlerts,
   loadCapital, saveCapital, loadProfiles, saveProfiles,
   loadActiveProfile, saveActiveProfile, loadTheme, saveThemePref,
   loadReviews, saveReviews, loadApiKeys, saveApiKeys,
@@ -18,60 +21,12 @@ import {
   SETUPS, MISTAKES, CLOSE_REASONS, SIDES, EXCHANGES,
   CRYPTO_TRADE_TYPES, DEFAULT_SYMBOLS, DEFAULT_PROFILES, NAV_ITEMS,
 } from "../utils/constants.js";
+import { createTrade } from "../utils/tradeFactory.js";
 import { calculatePnL } from "../utils/calculations.js";
-
-// Custom hook to poll live prices
-function useLivePrices(symbols) {
-  const [prices, setPrices] = useState({});
-  const [status, setStatus] = useState("idle");
-
-  const symbolsRef = useRef(symbols);
-  useEffect(() => { symbolsRef.current = symbols; }, [symbols]);
-  const symbolsKey = symbols.map(s => `${s.symbol}-${s.exchange}`).join(",");
-
-  useEffect(() => {
-    if (!symbolsRef.current.length) return;
-    let cancelled = false;
-
-    const fetchAll = async () => {
-      setStatus("fetching");
-      const results = {};
-      const currentSymbols = symbolsRef.current;
-
-      await Promise.allSettled(currentSymbols.map(async ({ symbol, exchange }) => {
-        const sym = symbol.toUpperCase().replace("/", "");
-        try {
-          if (exchange === "Bitget") {
-            const r = await fetch(`https://api.bitget.com/api/v2/spot/market/tickers?symbol=${sym}`);
-            const d = await r.json();
-            const t = d?.data?.[0];
-            if (t) results[symbol] = { price: parseFloat(t.lastPr), change24h: parseFloat(t.change24h) * 100, high24h: parseFloat(t.high24h), low24h: parseFloat(t.low24h), vol24h: parseFloat(t.baseVolume), source: "Bitget" };
-          } else {
-            const r = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${sym}`);
-            const t = await r.json();
-            if (t.lastPrice) results[symbol] = { price: parseFloat(t.lastPrice), change24h: parseFloat(t.priceChangePercent), high24h: parseFloat(t.highPrice), low24h: parseFloat(t.lowPrice), vol24h: parseFloat(t.volume), source: "Binance" };
-          }
-        } catch {
-          try {
-            const r = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${sym}`);
-            const t = await r.json();
-            if (t.lastPrice) results[symbol] = { price: parseFloat(t.lastPrice), change24h: parseFloat(t.priceChangePercent), high24h: parseFloat(t.highPrice), low24h: parseFloat(t.lowPrice), vol24h: parseFloat(t.volume), source: "Binance(fb)" };
-          } catch { }
-        }
-      }));
-
-      if (!cancelled) { setPrices(p => ({ ...p, ...results })); setStatus("ok"); }
-    };
-
-    fetchAll();
-    const id = setInterval(fetchAll, 3000);
-    return () => { cancelled = true; clearInterval(id); };
-  }, [symbolsKey]);
-
-  return { prices, status };
-}
+import { PricesProvider } from "./PricesContext.jsx";
 
 const DashboardContext = createContext();
+
 
 export function useDashboard() {
   const context = useContext(DashboardContext);
@@ -94,8 +49,13 @@ export function DashboardProvider({ children }) {
   const [activeProfileId, setActiveProfileId] = useState(loadActiveProfile);
   const [showProfiles, setShowProfiles] = useState(false);
 
-  // Capital settings
-  const [initialCapital, setInitialCapital] = useState(loadCapital);
+  // Capital is now derived from the active profile
+  const activeProfile = profiles.find(p => p.id === activeProfileId) || profiles[0] || {};
+  const initialCapital = activeProfile.initialCapital || 0;
+  
+  const setInitialCapital = (newCap) => {
+    setProfiles(prev => prev.map(p => p.id === activeProfileId ? { ...p, initialCapital: newCap } : p));
+  };
 
   // API sync key states
   const [apiKeys, setApiKeys] = useState(loadApiKeys);
@@ -107,6 +67,9 @@ export function DashboardProvider({ children }) {
   
   // Watchlist & symbol settings
   const [savedSymbols, setSavedSymbols] = useState(loadSavedSymbols);
+  
+  // Trade Setups
+  const [tradeSetups, setTradeSetups] = useState(loadTradeSetups);
 
   // Keyboard undo states
   const [undoTrade, setUndoTrade] = useState(null);
@@ -125,6 +88,7 @@ export function DashboardProvider({ children }) {
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [editingTrade, setEditingTrade] = useState(null);
   const [viewChartTrade, setViewChartTrade] = useState(null);
+  const [showSecurityModal, setShowSecurityModal] = useState(false);
 
   // Filters state
   const [dateRange, setDateRange] = useState("all");
@@ -148,13 +112,7 @@ export function DashboardProvider({ children }) {
   const isMobile = width <= 768;
 
   // Price Alerts state
-  const [alerts, setAlerts] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("cj_alerts_v1") || "null") ?? [];
-    } catch {
-      return [];
-    }
-  });
+  const [alerts, setAlerts] = useState(loadAlerts);
   const [notifications, setNotifications] = useState([]);
   
   const [appToast, setAppToast] = useState(null);
@@ -164,13 +122,13 @@ export function DashboardProvider({ children }) {
   }, []);
 
   // ── Theme Sync Effect ──
-  Object.assign(T, isDark ? DARK : LIGHT);
+  const T = isDark ? DARK : LIGHT;
   useEffect(() => {
     saveThemePref(isDark ? "dark" : "light");
     document.body.style.background = T.bg;
     document.body.style.color = T.text;
     StatusBar.setStyle({ style: isDark ? Style.Dark : Style.Light }).catch(() => {});
-  }, [isDark]);
+  }, [isDark, T]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -190,16 +148,30 @@ export function DashboardProvider({ children }) {
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, []);
 
-  useEffect(() => {
-    saveCapital(initialCapital);
-  }, [initialCapital]);
+useEffect(() => {
+    saveProfiles(profiles);
+  }, [profiles]);
 
   useEffect(() => {
     saveApiKeys(apiKeys);
   }, [apiKeys]);
 
   useEffect(() => {
-    setSubTab(view === "Dashboard" ? "Overview" : "All");
+    saveSavedSymbols(savedSymbols);
+  }, [savedSymbols]);
+
+  useEffect(() => {
+    saveTradeSetups(tradeSetups);
+  }, [tradeSetups]);
+
+  useEffect(() => {
+    if (view === "Dashboard") {
+      setSubTab("Overview");
+    } else if (view === "Profile") {
+      setSubTab("Accounts");
+    } else {
+      setSubTab("All");
+    }
   }, [view]);
 
   // ── Profile and Trade Aggregation ──
@@ -219,17 +191,24 @@ export function DashboardProvider({ children }) {
 
     return profileTrades.filter(t => {
       if (cutoff > 0 && t.closeTime < cutoff && t.openTime < cutoff) return false;
-      if (filterSetup !== "All" && t.setup !== filterSetup) return false;
-      if (filterCoin !== "All" && t.symbol !== filterCoin) return false;
-      if (filterResult === "Win" && t.pnl <= 0) return false;
-      if (filterResult === "Loss" && t.pnl >= 0) return false;
-      if (filterTrade === "spot" && (t.tradeType || "Spot") !== "Spot") return false;
-      if (filterTrade === "futures" && t.tradeType !== "Futures") return false;
-
       const isDeposit = t.entryType === "Deposit" || t.symbol === "Deposit";
       const isWithdrawal = t.entryType === "Withdrawal" || t.symbol === "Withdrawal";
-      if (filterCapitalActivity === "deposit" && !isDeposit) return false;
-      if (filterCapitalActivity === "withdrawal" && !isWithdrawal) return false;
+      const isCapitalActivity = isDeposit || isWithdrawal;
+
+      if (!isCapitalActivity) {
+        if (filterSetup !== "All" && t.setup !== filterSetup) return false;
+        if (filterCoin !== "All" && t.symbol !== filterCoin) return false;
+        if (filterResult === "Win" && t.pnl <= 0) return false;
+        if (filterResult === "Loss" && t.pnl >= 0) return false;
+        if (filterTrade === "spot" && (t.tradeType || "Spot") !== "Spot") return false;
+        if (filterTrade === "futures" && t.tradeType !== "Futures") return false;
+        if (filterTrade === "deposit" || filterTrade === "withdrawal") return false; // Hide regular trades when filtering by deposits/withdrawals
+      } else {
+        if (filterTrade === "spot" || filterTrade === "futures") return false; // Hide deposits/withdrawals when filtering by trade types
+        if (filterTrade === "deposit" && !isDeposit) return false;
+        if (filterTrade === "withdrawal" && !isWithdrawal) return false;
+      }
+
       return true;
     });
   }, [profileTrades, dateRange, filterSetup, filterCoin, filterResult, filterTrade, filterCapitalActivity]);
@@ -239,7 +218,6 @@ export function DashboardProvider({ children }) {
   const closed = useMemo(() => trades.filter(t => t.status === "closed"), [trades]);
   const isJournalEmpty = profileTrades.length === 0 && spotOpen.length === 0 && liveTrades.length === 0;
   const isFilteredEmpty = trades.length === 0 && spotOpen.length === 0 && liveTrades.length === 0;
-  const activeProfile = useMemo(() => profiles.find(p => p.id === activeProfileId) || profiles[0], [profiles, activeProfileId]);
 
   // ── Combined Live Price Hook & Alerts Check ──
   const activeAlertSymbols = useMemo(() => {
@@ -247,64 +225,36 @@ export function DashboardProvider({ children }) {
   }, [alerts]);
 
   const allWatchedSymbols = useMemo(() => {
-    const syms = new Set();
-    liveTrades.forEach(t => syms.add(t.symbol));
-    spotOpen.forEach(t => syms.add(t.symbol));
+    const symMap = new Map();
+    liveTrades.forEach(t => {
+      symMap.set(t.symbol, t.exchange || "Binance");
+      const qc = getQuoteCurrency(t.symbol);
+      if (qc && qc !== "USDT" && !symMap.has(`${qc}USDT`)) symMap.set(`${qc}USDT`, "Binance");
+    });
+    spotOpen.forEach(t => {
+      symMap.set(t.symbol, t.exchange || "Binance");
+      const qc = getQuoteCurrency(t.symbol);
+      if (qc && qc !== "USDT" && !symMap.has(`${qc}USDT`)) symMap.set(`${qc}USDT`, "Binance");
+    });
+    
     const wl = Array.isArray(savedSymbols) ? savedSymbols : DEFAULT_SYMBOLS;
-    wl.slice(0, 30).forEach(s => syms.add(s));
-    activeAlertSymbols.forEach(s => syms.add(s));
-    return [...syms].map(s => ({ symbol: s, exchange: "Binance" }));
+    wl.slice(0, 30).forEach(s => {
+      if (!symMap.has(s)) symMap.set(s, "Binance");
+    });
+    
+    activeAlertSymbols.forEach(s => {
+      if (!symMap.has(s)) symMap.set(s, "Binance");
+    });
+    
+    return Array.from(symMap.entries()).map(([symbol, exchange]) => ({ symbol, exchange }));
   }, [liveTrades, spotOpen, savedSymbols, activeAlertSymbols]);
-
-  const { prices, status } = useLivePrices(allWatchedSymbols);
 
   const alertsRef = useRef(alerts);
   useEffect(() => {
     alertsRef.current = alerts;
   }, [alerts]);
 
-  useEffect(() => {
-    if (!prices || Object.keys(prices).length === 0) return;
-
-    let triggeredAny = false;
-    const newNotifs = [];
-    const updatedAlerts = alertsRef.current.map(alert => {
-      if (alert.triggered) return alert;
-      const currentPriceObj = prices[alert.symbol];
-      if (!currentPriceObj) return alert;
-      const currentPrice = currentPriceObj.price;
-
-      let isTriggered = false;
-      if (alert.condition === "above" && currentPrice >= alert.targetPrice) {
-        isTriggered = true;
-      } else if (alert.condition === "below" && currentPrice <= alert.targetPrice) {
-        isTriggered = true;
-      }
-
-      if (isTriggered) {
-        triggeredAny = true;
-        const newNotif = {
-          id: Date.now() + Math.random().toString(),
-          symbol: alert.symbol,
-          condition: alert.condition,
-          targetPrice: alert.targetPrice,
-          currentPrice: currentPrice,
-          timestamp: Date.now()
-        };
-        newNotifs.push(newNotif);
-        return { ...alert, triggered: true, triggeredAt: Date.now() };
-      }
-      return alert;
-    });
-
-    if (triggeredAny) {
-      setAlerts(updatedAlerts);
-      setNotifications(prev => [...newNotifs, ...prev]);
-      try {
-        localStorage.setItem("cj_alerts_v1", JSON.stringify(updatedAlerts));
-      } catch (e) {}
-    }
-  }, [prices]);
+  // Alert processing is handled by AlertsEngine component which has access to PricesContext
 
   // ── Actions ──
   const addAlert = useCallback((newAlert) => {
@@ -316,9 +266,7 @@ export function DashboardProvider({ children }) {
         targetPrice: newAlert.targetPrice,
         triggered: false
       }];
-      try {
-        localStorage.setItem("cj_alerts_v1", JSON.stringify(next));
-      } catch {}
+      saveAlerts(next);
       return next;
     });
   }, []);
@@ -326,9 +274,7 @@ export function DashboardProvider({ children }) {
   const deleteAlert = useCallback((id) => {
     setAlerts(prev => {
       const next = prev.filter(a => a.id !== id);
-      try {
-        localStorage.setItem("cj_alerts_v1", JSON.stringify(next));
-      } catch {}
+      saveAlerts(next);
       return next;
     });
   }, []);
@@ -367,10 +313,26 @@ export function DashboardProvider({ children }) {
 
   const handleEditTrade = useCallback((updatedTrade) => {
     setAllTrades(prev => {
+      if (!prev.some(t => t.id === updatedTrade.id)) return prev;
       const next = prev.map(t => t.id === updatedTrade.id ? updatedTrade : t);
       saveTrades(next);
       return next;
     });
+
+    setAllSpotOpen(prev => {
+      if (!prev.some(t => t.id === updatedTrade.id)) return prev;
+      const next = prev.map(t => t.id === updatedTrade.id ? updatedTrade : t);
+      saveSpotOpen(next);
+      return next;
+    });
+
+    setAllLiveTrades(prev => {
+      if (!prev.some(t => t.id === updatedTrade.id)) return prev;
+      const next = prev.map(t => t.id === updatedTrade.id ? updatedTrade : t);
+      saveLiveTrades(next);
+      return next;
+    });
+
     setEditingTrade(null);
   }, []);
 
@@ -418,32 +380,27 @@ export function DashboardProvider({ children }) {
 
     const fees = -(e * q * 0.0006 + x * q * 0.0006);
 
-    const nextTrade = {
+    const nextTrade = createTrade({
       id: Date.now(),
-      symbol: sym,
-      tradeType,
-      exchange: "Binance",
-      side,
-      action: side,
-      displayType: `${tradeType} ${side}`,
-      entry: e,
-      exit: x,
-      qty: q,
+      symbol: sym, tradeType: "Futures",
+      exchange: "Binance", side, displayType: `Futures ${side}`, action: side,
+      entry: e, exit: x, qty: q,
+      leverage: 1,
+      nativePnl: parseFloat(nativePnl.toFixed(6)),
+      pnl: parseFloat(pnl.toFixed(2)),
       fees: parseFloat(fees.toFixed(4)),
-      nativePnl,
-      pnl,
-      setup: data.setup || "BREAKOUT",
-      closeReason: data.closeReason || "Target Hit",
-      openTime: openT,
-      closeTime: closeT,
-      notes: "Quick Logged",
+      openTime: openT, closeTime: closeT,
       status: "closed",
-      tags: [data.setup || "BREAKOUT"],
+      notes: "Quick Logged",
+      setup: "BREAKOUT",
+      mistake: "None",
+      closeReason: "Target Hit",
+      tags: ["BREAKOUT"],
       profileId: activeProfileId || "default",
       quoteCurrency,
       usdtRate,
       closeUsdtRate
-    };
+    });
 
     setAllTrades(prev => { const next = [...prev, nextTrade].sort((a, b) => a.closeTime - b.closeTime); saveTrades(next); return next; });
   }, [activeProfileId, saveSymbol]);
@@ -495,13 +452,13 @@ export function DashboardProvider({ children }) {
 
   const closeSpotOpen = useCallback(async (openTrade, { exit, closeTime, fees, closeReason, notes, mistake, chartUrl }) => {
     const quoteCurrency = openTrade.quoteCurrency || "USDT";
-    const closeUsdtRate = await fetchUsdtRate(quoteCurrency, closeTime);
+    const closeUsdtRate = await fetchUsdtRate(quoteCurrency, closeTime, openTrade.exchange);
     const openUsdtRate = openTrade.usdtRate || 1;
 
     const nativePnl = (exit - openTrade.entry) * openTrade.qty;
     const pnlUsdt = (exit * openTrade.qty * closeUsdtRate) - (openTrade.entry * openTrade.qty * openUsdtRate);
 
-    const finished = {
+    const finished = createTrade({
       ...openTrade, exit, closeTime, fees,
       nativePnl: parseFloat(nativePnl.toFixed(6)),
       pnl: parseFloat(pnlUsdt.toFixed(2)),
@@ -510,7 +467,7 @@ export function DashboardProvider({ children }) {
       mistake, chartUrl,
       status: "closed", side: "Long", action: "Buy",
       displayType: "Spot Buy", tags: [openTrade.setup],
-    };
+    });
     setAllSpotOpen(prev => { const next = prev.filter(t => t.id !== openTrade.id); saveSpotOpen(next); return next; });
     setAllTrades(prev => { const next = [...prev, finished].sort((a, b) => a.closeTime - b.closeTime); saveTrades(next); return next; });
   }, []);
@@ -520,6 +477,9 @@ export function DashboardProvider({ children }) {
   }, []);
 
   const handleApiSync = async (apiKey, apiSecret) => {
+    if (Capacitor.isNativePlatform()) {
+      throw new Error("Direct API Sync is not supported on the mobile app. Please use the Web version.");
+    }
     const timestamp = Date.now();
     const queryString = `timestamp=${timestamp}`;
     const signature = CryptoJS.HmacSHA256(queryString, apiSecret).toString(CryptoJS.enc.Hex);
@@ -541,14 +501,14 @@ export function DashboardProvider({ children }) {
 
       setAllLiveTrades(prev => {
         if (prev.some(lt => lt.symbol === p.symbol && lt.profileId === activeProfileId)) return prev;
-        const newTrade = {
+        const newTrade = createTrade({
           id: Date.now() + Math.random(),
           symbol: p.symbol, tradeType: "Futures",
           side, action: side, displayType: `Futures ${side}`,
           entry, qty,
           openTime: Date.now(),
           status: "open", profileId: activeProfileId
-        };
+        });
         const next = [...prev, newTrade];
         saveLiveTrades(next);
         return next;
@@ -563,7 +523,7 @@ export function DashboardProvider({ children }) {
   const closeLiveTrade = useCallback(async (liveTrade, { exit, closeReason, mistake, chartUrl, fees }) => {
     const closeTime = Date.now();
     const quoteCurrency = liveTrade.quoteCurrency || "USDT";
-    const closeUsdtRate = await fetchUsdtRate(quoteCurrency, closeTime);
+    const closeUsdtRate = await fetchUsdtRate(quoteCurrency, closeTime, liveTrade.exchange);
     const openUsdtRate = liveTrade.usdtRate || 1;
 
     const lev = liveTrade.leverage || 1;
@@ -572,13 +532,13 @@ export function DashboardProvider({ children }) {
       ? (exit * liveTrade.qty * closeUsdtRate) - (liveTrade.entry * liveTrade.qty * openUsdtRate)
       : (liveTrade.entry * liveTrade.qty * openUsdtRate) - (exit * liveTrade.qty * closeUsdtRate)) * lev;
 
-    const finished = {
+    const finished = createTrade({
       ...liveTrade, exit, closeReason, fees, mistake, chartUrl,
       nativePnl: parseFloat(nativePnl.toFixed(6)),
       pnl: parseFloat(pnlUsdt.toFixed(2)),
       closeUsdtRate,
       closeTime, status: "closed", tags: [liveTrade.setup || liveTrade.tradeType]
-    };
+    });
     setAllLiveTrades(prev => { const next = prev.filter(t => t.id !== liveTrade.id); saveLiveTrades(next); return next; });
     setAllTrades(prev => { const next = [...prev, finished].sort((a, b) => a.closeTime - b.closeTime); saveTrades(next); return next; });
   }, []);
@@ -598,6 +558,14 @@ export function DashboardProvider({ children }) {
     setProfiles(prev => { const next = [...prev, p]; saveProfiles(next); return next; });
   }, []);
 
+  const updateProfile = useCallback((id, updates) => {
+    setProfiles(prev => { 
+      const next = prev.map(p => p.id === id ? { ...p, ...updates } : p);
+      saveProfiles(next); 
+      return next; 
+    });
+  }, []);
+
   const deleteProfile = useCallback((id) => {
     setProfiles(prev => { const next = prev.filter(p => p.id !== id); saveProfiles(next); return next; });
     if (activeProfileId === id) switchProfile("default");
@@ -611,10 +579,10 @@ export function DashboardProvider({ children }) {
   };
 
   const downloadCSV = useCallback(() => {
-    const profileTrades = allTrades.filter(t => (t.profileId || "default") === activeProfileId);
+    const _profileTrades = allTrades.filter(t => (t.profileId || "default") === activeProfileId);
     const profileSpotOpen = allSpotOpen.filter(t => (t.profileId || "default") === activeProfileId);
     const profileLive = allLiveTrades.filter(t => (t.profileId || "default") === activeProfileId);
-    const allItems = [...profileTrades, ...profileSpotOpen, ...profileLive];
+    const allItems = [..._profileTrades, ...profileSpotOpen, ...profileLive];
 
     const escapeCsvCell = (val) => {
       if (val === null || val === undefined) return "";
@@ -657,16 +625,39 @@ export function DashboardProvider({ children }) {
     ].map(escapeCsvCell));
 
     const csvContent = headers.join(",") + "\n" + rows.map(e => e.join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `trading_journal_${fmtDateShort(Date.now()).replace("/", "-")}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  }, [allTrades, activeProfileId, allSpotOpen, allLiveTrades]);
+    const filename = `trading_journal_${fmtDateShort(Date.now()).replace("/", "-")}.csv`;
+
+    if (Capacitor.isNativePlatform()) {
+      // Native: save to Documents via Capacitor Filesystem
+      try {
+        Filesystem.writeFile({
+          path: filename,
+          data: csvContent,
+          directory: Directory.Documents,
+          encoding: Encoding.UTF8,
+        }).then(() => {
+          showToast(`CSV saved to Documents/${filename}`, "success");
+        }).catch(err => {
+          console.error("CSV export failed:", err);
+          showToast("Failed to save CSV file.", "error");
+        });
+      } catch (err) {
+        console.error("CSV export failed:", err);
+        showToast("Failed to save CSV file.", "error");
+      }
+    } else {
+      // Web: standard blob download
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+  }, [allTrades, activeProfileId, allSpotOpen, allLiveTrades, showToast]);
 
   const exportPDF = useCallback((month, year) => {
     const closed = trades.filter(t => t.status === "closed" && new Date(t.closeTime).getMonth() === month && new Date(t.closeTime).getFullYear() === year);
@@ -684,33 +675,54 @@ export function DashboardProvider({ children }) {
 <div class="section">Trade History</div><table><thead><tr><th>Symbol</th><th>Side</th><th>Entry</th><th>Exit</th><th>Qty</th><th>P&L</th><th>Setup</th><th>Date</th></tr></thead><tbody>${closed.sort((a, b) => b.closeTime - a.closeTime).map(t => `<tr><td><b>${t.symbol}</b></td><td style="color:${t.side === "Long" ? "#059669" : "#e11d48"}">${t.side}</td><td>${t.entry?.toFixed(4) ?? '–'}</td><td>${t.exit?.toFixed(4) ?? '–'}</td><td>${t.qty}</td><td style="color:${t.pnl >= 0 ? "#059669" : "#e11d48"};font-weight:700">${t.pnl >= 0 ? "+" : ""}${t.pnl.toFixed(2)}</td><td>${t.setup || "–"}</td><td>${new Date(t.closeTime).toLocaleDateString("en-IN")}</td></tr>`).join("")}</tbody></table>
 ${review ? `<div class="section">Monthly Review</div>${review.bestTrade ? `<div class="rb"><div class="rl">Best Trade</div><div class="rt">${review.bestTrade}</div></div>` : ""}${review.worstTrade ? `<div class="rb"><div class="rl">Worst Trade</div><div class="rt">${review.worstTrade}</div></div>` : ""}${review.lesson ? `<div class="rb"><div class="rl">Key Lesson</div><div class="rt">${review.lesson}</div></div>` : ""}${review.improvement ? `<div class="rb"><div class="rl">Focus Next Month</div><div class="rt">${review.improvement}</div></div>` : ""}` : ""}
 </body></html>`;
-    try {
-      const printWindow = window.open("", "_blank");
-      if (printWindow) {
-        printWindow.document.write(html);
-        printWindow.document.close();
-        printWindow.onload = function() {
-          printWindow.focus();
-          printWindow.print();
-          printWindow.close();
-        };
-        setTimeout(() => {
-          try {
+    if (Capacitor.isNativePlatform()) {
+      // Native: save HTML report to Documents
+      try {
+        const filename = `TradeReport_${monthName.replace(" ", "_")}.html`;
+        Filesystem.writeFile({
+          path: filename,
+          data: html,
+          directory: Directory.Documents,
+          encoding: Encoding.UTF8,
+        }).then(() => {
+          showToast(`Report saved to Documents/${filename}`, "success");
+        }).catch(err => {
+          console.error("PDF export failed:", err);
+          showToast("Failed to save report.", "error");
+        });
+      } catch (err) {
+        console.error("PDF export failed:", err);
+        showToast("Failed to save report.", "error");
+      }
+    } else {
+      try {
+        const printWindow = window.open("", "_blank");
+        if (printWindow) {
+          printWindow.document.write(html);
+          printWindow.document.close();
+          printWindow.onload = function() {
             printWindow.focus();
             printWindow.print();
-          } catch (e) {}
-        }, 500);
-      } else {
-        throw new Error("Popup blocked");
+            printWindow.close();
+          };
+          setTimeout(() => {
+            try {
+              printWindow.focus();
+              printWindow.print();
+            } catch (e) {}
+          }, 500);
+        } else {
+          throw new Error("Popup blocked");
+        }
+      } catch (e) {
+        const blob = new Blob([html], { type: "text/html" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = `TradeReport_${monthName.replace(" ", "_")}.html`; a.click();
+        URL.revokeObjectURL(url);
       }
-    } catch (e) {
-      const blob = new Blob([html], { type: "text/html" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = `TradeReport_${monthName.replace(" ", "_")}.html`; a.click();
-      URL.revokeObjectURL(url);
     }
-  }, [trades, reviews]);
+  }, [trades, reviews, showToast]);
 
   const contextValue = useMemo(() => ({
     isDark, setIsDark,
@@ -721,6 +733,7 @@ ${review ? `<div class="section">Monthly Review</div>${review.bestTrade ? `<div 
     apiKeys, setApiKeys,
     allTrades, allSpotOpen, allLiveTrades,
     savedSymbols, setSavedSymbols,
+    tradeSetups, setTradeSetups,
     undoTrade, setUndoTrade,
     reviews, setReviews, reviewKey, setReviewKey,
     showDataMenu, setShowDataMenu,
@@ -729,6 +742,7 @@ ${review ? `<div class="section">Monthly Review</div>${review.bestTrade ? `<div 
     showCSVModal, setShowCSVModal,
     showReviewModal, setShowReviewModal,
     showSyncModal, setShowSyncModal,
+    showSecurityModal, setShowSecurityModal,
     editingTrade, setEditingTrade,
     viewChartTrade, setViewChartTrade,
     dateRange, setDateRange,
@@ -743,26 +757,34 @@ ${review ? `<div class="section">Monthly Review</div>${review.bestTrade ? `<div 
     notifications, setNotifications,
     appToast, setAppToast, showToast,
     profileTrades, trades, spotOpen, liveTrades, closed, isJournalEmpty, isFilteredEmpty,
-    prices, status, isMobile, T,
+    isMobile, T,
     addAlert, deleteAlert,
     deleteFinishedTrade, restoreDeletedTrade, handleEditTrade,
     saveSymbol, handleQuickAdd, addTrade, importTrades, addSpotOpen,
     closeSpotOpen, deleteSpotOpen, handleApiSync, addLiveTrade, closeLiveTrade,
-    saveReview, openReview, switchProfile, addProfile, deleteProfile, clearAllData,
-    downloadCSV, exportPDF
+    saveReview, openReview, switchProfile, addProfile, updateProfile, deleteProfile, clearAllData,
+    downloadCSV, exportPDF,
+    tradeSetups, setTradeSetups
   }), [
     isDark, view, subTab, profiles, activeProfileId, showProfiles, activeProfile,
-    initialCapital, apiKeys, allTrades, allSpotOpen, allLiveTrades, savedSymbols,
+    initialCapital, apiKeys, allTrades, allSpotOpen, allLiveTrades, savedSymbols, tradeSetups,
     undoTrade, reviews, reviewKey, showDataMenu, showAddModal, showClearConfirm,
-    showCSVModal, showReviewModal, showSyncModal, editingTrade, viewChartTrade,
+    showCSVModal, showReviewModal, showSyncModal, showSecurityModal, editingTrade, viewChartTrade,
     dateRange, filterSetup, filterCoin, filterResult, filterTrade, filterCapitalActivity,
     prefilledLiveSymbol, prefilledAlertSymbol, alerts, notifications, appToast,
-    prices, status, isMobile, isJournalEmpty, isFilteredEmpty
+    isMobile, isJournalEmpty, isFilteredEmpty,
+    addAlert, deleteAlert, deleteFinishedTrade, restoreDeletedTrade, handleEditTrade,
+    saveSymbol, handleQuickAdd, addTrade, importTrades, addSpotOpen,
+    closeSpotOpen, deleteSpotOpen, handleApiSync, addLiveTrade, closeLiveTrade,
+    saveReview, openReview, switchProfile, addProfile, updateProfile, deleteProfile, clearAllData,
+    downloadCSV, exportPDF, showToast
   ]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <DashboardContext.Provider value={contextValue}>
-      {children}
+      <PricesProvider symbols={allWatchedSymbols}>
+        {children}
+      </PricesProvider>
     </DashboardContext.Provider>
   );
 }
