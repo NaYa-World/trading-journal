@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useSecurity } from "../../context/SecurityContext.jsx";
-import { DARK } from "../../utils/theme.js";
+import { T } from "../../utils/theme.js";
 
 export default function UnlockScreen() {
   const { authenticate, keyOption, isBiometricAvailable } = useSecurity();
@@ -52,17 +52,17 @@ export default function UnlockScreen() {
         alignItems: "center",
         justifyContent: "center",
         minHeight: "100vh",
-        background: DARK.bg,
-        color: DARK.text,
-        fontFamily: DARK.sans,
+        background: T.bg,
+        color: T.text,
+        fontFamily: T.sans,
         padding: 24,
         boxSizing: "border-box",
       }}
     >
       <div
         style={{
-          background: DARK.panel,
-          border: `1px solid ${DARK.border}`,
+          background: T.panel,
+          border: `1px solid ${T.border}`,
           borderRadius: 16,
           padding: "40px 32px",
           width: "100%",
@@ -79,7 +79,7 @@ export default function UnlockScreen() {
             style={{
               position: "absolute",
               inset: -12,
-              background: `radial-gradient(circle, ${DARK.blue}30 0%, transparent 70%)`,
+              background: `radial-gradient(circle, ${T.blue}30 0%, transparent 70%)`,
               borderRadius: "50%",
               zIndex: 1,
             }}
@@ -89,8 +89,8 @@ export default function UnlockScreen() {
               width: 72,
               height: 72,
               borderRadius: "50%",
-              background: `${DARK.blue}15`,
-              border: `1px solid ${DARK.blue}40`,
+              background: `${T.blue}15`,
+              border: `1px solid ${T.blue}40`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -103,10 +103,10 @@ export default function UnlockScreen() {
           </div>
         </div>
 
-        <h2 style={{ color: DARK.bright, fontSize: 22, fontWeight: 700, margin: "0 0 8px 0" }}>
+        <h2 style={{ color: T.bright, fontSize: 22, fontWeight: 700, margin: "0 0 8px 0" }}>
           Journal Locked
         </h2>
-        <p style={{ color: DARK.dim, fontSize: 14, margin: "0 0 32px 0", lineHeight: 1.5 }}>
+        <p style={{ color: T.dim, fontSize: 14, margin: "0 0 32px 0", lineHeight: 1.5 }}>
           {keyOption === "biometric"
             ? "Authenticate using Face ID / Fingerprint to access your trading dashboard."
             : keyOption === "password"
@@ -117,13 +117,13 @@ export default function UnlockScreen() {
         {error && (
           <div
             style={{
-              background: `${DARK.red}12`,
-              border: `1px solid ${DARK.red}30`,
-              color: DARK.red,
+              background: `${T.red}12`,
+              border: `1px solid ${T.red}30`,
+              color: T.red,
               borderRadius: 8,
               padding: "10px 14px",
               fontSize: 13,
-              fontFamily: DARK.mono,
+              fontFamily: T.mono,
               marginBottom: 20,
               lineHeight: 1.4,
               textAlign: "left",
@@ -138,17 +138,17 @@ export default function UnlockScreen() {
             onClick={handleBiometricUnlock}
             disabled={loading}
             style={{
-              background: DARK.blue,
+              background: T.blue,
               color: "#fff",
               border: "none",
               borderRadius: 10,
               padding: "14px 28px",
               fontSize: 14,
               fontWeight: 700,
-              fontFamily: DARK.mono,
+              fontFamily: T.mono,
               cursor: "pointer",
               width: "100%",
-              boxShadow: `0 4px 14px ${DARK.blue}40`,
+              boxShadow: `0 4px 14px ${T.blue}40`,
               transition: "transform 0.15s, opacity 0.15s",
               display: "flex",
               alignItems: "center",
@@ -170,9 +170,9 @@ export default function UnlockScreen() {
                 onChange={(e) => setInputValue(e.target.value)}
                 disabled={loading}
                 style={{
-                  background: DARK.bg,
-                  border: `1px solid ${DARK.border}`,
-                  color: DARK.bright,
+                  background: T.bg,
+                  border: `1px solid ${T.border}`,
+                  color: T.bright,
                   borderRadius: 10,
                   padding: "14px 16px",
                   fontSize: 14,
@@ -182,8 +182,8 @@ export default function UnlockScreen() {
                   outline: "none",
                   transition: "border-color 0.2s",
                 }}
-                onFocus={(e) => (e.target.style.borderColor = DARK.blue)}
-                onBlur={(e) => (e.target.style.borderColor = DARK.border)}
+                onFocus={(e) => (e.target.style.borderColor = T.blue)}
+                onBlur={(e) => (e.target.style.borderColor = T.border)}
               />
             ) : (
               <textarea
@@ -193,13 +193,13 @@ export default function UnlockScreen() {
                 disabled={loading}
                 rows={3}
                 style={{
-                  background: DARK.bg,
-                  border: `1px solid ${DARK.border}`,
-                  color: DARK.bright,
+                  background: T.bg,
+                  border: `1px solid ${T.border}`,
+                  color: T.bright,
                   borderRadius: 10,
                   padding: "14px 16px",
                   fontSize: 12,
-                  fontFamily: DARK.mono,
+                  fontFamily: T.mono,
                   width: "100%",
                   boxSizing: "border-box",
                   marginBottom: 16,
@@ -207,8 +207,8 @@ export default function UnlockScreen() {
                   resize: "none",
                   transition: "border-color 0.2s",
                 }}
-                onFocus={(e) => (e.target.style.borderColor = DARK.blue)}
-                onBlur={(e) => (e.target.style.borderColor = DARK.border)}
+                onFocus={(e) => (e.target.style.borderColor = T.blue)}
+                onBlur={(e) => (e.target.style.borderColor = T.border)}
               />
             )}
 
@@ -216,17 +216,17 @@ export default function UnlockScreen() {
               type="submit"
               disabled={loading}
               style={{
-                background: DARK.blue,
+                background: T.blue,
                 color: "#fff",
                 border: "none",
                 borderRadius: 10,
                 padding: "14px 28px",
                 fontSize: 14,
                 fontWeight: 700,
-                fontFamily: DARK.mono,
+                fontFamily: T.mono,
                 cursor: "pointer",
                 width: "100%",
-                boxShadow: `0 4px 14px ${DARK.blue}40`,
+                boxShadow: `0 4px 14px ${T.blue}40`,
                 transition: "transform 0.15s, opacity 0.15s",
               }}
             >

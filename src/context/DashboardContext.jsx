@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useMemo, useCallback, u
 import CryptoJS from "crypto-js";
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
-import { T, DARK, LIGHT } from "../utils/theme.js";
+import { T, THEMES, updateTheme } from "../utils/theme.js";
 import { Capacitor } from '@capacitor/core';
 import {
   loadTrades, saveTrades, loadSpotOpen, saveSpotOpen,
@@ -38,7 +38,13 @@ export function useDashboard() {
 
 export function DashboardProvider({ children }) {
   // Theme state
-  const [isDark, setIsDark] = useState(() => loadTheme() !== "light");
+  const [activeThemeKey, setActiveThemeKey] = useState(() => {
+    let t = loadTheme();
+    // Migrating old 'dark'/'light' values to new names
+    if (t === "dark") t = "oceanBlue";
+    if (t === "light") t = "ledgerPaper";
+    return t;
+  });
 
   // Navigation state
   const [view, setView] = useState("Dashboard");
@@ -122,28 +128,26 @@ export function DashboardProvider({ children }) {
   }, []);
 
   // ── Theme Sync Effect ──
-  const T = isDark ? DARK : LIGHT;
   useEffect(() => {
-    saveThemePref(isDark ? "dark" : "light");
+    saveThemePref(activeThemeKey);
+    updateTheme(activeThemeKey);
     document.body.style.background = T.bg;
     document.body.style.color = T.text;
-    StatusBar.setStyle({ style: isDark ? Style.Dark : Style.Light }).catch(() => {});
-  }, [isDark, T]);
+    
+    // Attempt to set a matching status bar style based on the theme
+    const isActuallyDark = THEMES[activeThemeKey]?.bg?.toUpperCase() !== "#FDF6E3" && THEMES[activeThemeKey]?.bg?.toUpperCase() !== "#F0F4F8";
+    StatusBar.setStyle({ style: isActuallyDark ? Style.Dark : Style.Light }).catch(() => {});
+  }, [activeThemeKey]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const handleChange = (e) => {
       // If user hasn't explicitly set a theme, follow system
       if (!localStorage.getItem('cj_theme_v1')) {
-        setIsDark(e.matches);
+        setActiveThemeKey(e.matches ? "oceanBlue" : "ledgerPaper");
       }
     };
     mediaQuery.addEventListener('change', handleChange);
-    
-    // Initial check on mount
-    if (!localStorage.getItem('cj_theme_v1')) {
-      setIsDark(mediaQuery.matches);
-    }
     
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, []);
@@ -725,10 +729,10 @@ ${review ? `<div class="section">Monthly Review</div>${review.bestTrade ? `<div 
   }, [trades, reviews, showToast]);
 
   const contextValue = useMemo(() => ({
-    isDark, setIsDark,
     view, setView,
     subTab, setSubTab,
-    profiles, activeProfileId, showProfiles, setShowProfiles, activeProfile,
+    profiles, setProfiles, setShowProfiles, activeProfile,
+    activeThemeKey, setActiveThemeKey,
     initialCapital, setInitialCapital,
     apiKeys, setApiKeys,
     allTrades, allSpotOpen, allLiveTrades,
@@ -763,11 +767,10 @@ ${review ? `<div class="section">Monthly Review</div>${review.bestTrade ? `<div 
     saveSymbol, handleQuickAdd, addTrade, importTrades, addSpotOpen,
     closeSpotOpen, deleteSpotOpen, handleApiSync, addLiveTrade, closeLiveTrade,
     saveReview, openReview, switchProfile, addProfile, updateProfile, deleteProfile, clearAllData,
-    downloadCSV, exportPDF,
-    tradeSetups, setTradeSetups
+    downloadCSV, exportPDF
   }), [
-    isDark, view, subTab, profiles, activeProfileId, showProfiles, activeProfile,
-    initialCapital, apiKeys, allTrades, allSpotOpen, allLiveTrades, savedSymbols, tradeSetups,
+    view, subTab, profiles, activeProfileId, showProfiles, activeProfile,
+    activeThemeKey, initialCapital, apiKeys, allTrades, allSpotOpen, allLiveTrades, savedSymbols, tradeSetups,
     undoTrade, reviews, reviewKey, showDataMenu, showAddModal, showClearConfirm,
     showCSVModal, showReviewModal, showSyncModal, showSecurityModal, editingTrade, viewChartTrade,
     dateRange, filterSetup, filterCoin, filterResult, filterTrade, filterCapitalActivity,

@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { Capacitor } from "@capacitor/core";
-import { T } from "../utils/theme.js";
+import { T, THEMES } from "../utils/theme.js";
 import { useBackup } from "../context/BackupContext.jsx";
 import { useDashboard } from "../context/DashboardContext.jsx";
 import { fmt$ } from "../utils/helpers.js";
@@ -8,12 +8,22 @@ import { fmt$ } from "../utils/helpers.js";
 export default function AccountsManager({ profiles, activeProfileId, switchProfile, addProfile, updateProfile, trades = [], liveTrades = [], addTrade, showToast }) {
   const [editingProfile, setEditingProfile] = useState(null);
   const [showAddProfile, setShowAddProfile] = useState(false);
+  const [showThemeSettings, setShowThemeSettings] = useState(false);
   const [profileForm, setProfileForm] = useState({ name: "", color: "#6366f1", emoji: "💼" });
   
   const activeProfile = profiles.find(p => p.id === activeProfileId) || profiles[0];
   const { userEmail, authenticateGoogle, clearGoogleSession } = useBackup();
-  const { setShowCSVModal, downloadCSV, exportPDF, isDark, setIsDark } = useDashboard();
+  const { setShowCSVModal, downloadCSV, exportPDF, activeThemeKey, setActiveThemeKey } = useDashboard();
   const fileInputRef = useRef(null);
+
+  const handleGoogleSignIn = async () => {
+    try {
+      await authenticateGoogle();
+    } catch (e) {
+      if (showToast) showToast(e.message || "Failed to sign in.", "error");
+      else alert(e.message || "Failed to sign in.");
+    }
+  };
 
   const initialCapital = activeProfile.initialCapital || 0;
   const closed = trades.filter(t => t.status === "closed");
@@ -74,6 +84,72 @@ export default function AccountsManager({ profiles, activeProfileId, switchProfi
     };
     reader.readAsDataURL(file);
   };
+
+  if (showThemeSettings) {
+    return (
+      <div style={{ padding: "env(safe-area-inset-top, 20px) 16px 20px 16px", paddingBottom: 100, minHeight: "100%", background: T.bg }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}>
+          <button onClick={() => setShowThemeSettings(false)} style={{ background: "transparent", color: T.dim, border: "none", fontSize: 24, cursor: "pointer", padding: 0 }}>←</button>
+          <div style={{ fontSize: 20, fontWeight: 700, color: "#FFF" }}>Theme & Support</div>
+        </div>
+
+        {/* Themes Grid */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 32 }}>
+          {Object.entries(THEMES).map(([key, theme]) => {
+            const isActive = activeThemeKey === key;
+            return (
+              <div 
+                key={key}
+                onClick={() => setActiveThemeKey(key)}
+                style={{
+                  background: theme.panel,
+                  border: `2px solid ${isActive ? T.purple : theme.border}`,
+                  borderRadius: 16,
+                  padding: 16,
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  boxShadow: isActive ? `0 0 15px ${T.purple}40` : "none"
+                }}
+              >
+                <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+                  {theme.swatches.map((color, i) => (
+                    <div key={i} style={{ width: 24, height: 24, borderRadius: 6, background: color }} />
+                  ))}
+                </div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: theme.bright, marginBottom: 4 }}>{theme.name}</div>
+                <div style={{ fontSize: 12, color: theme.dim }}>{theme.desc}</div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Backup Section inside Theme & Support */}
+        <div style={{ 
+          background: T.panel, border: `1px solid ${T.border}`, borderRadius: 16, padding: 20 
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+            <div style={{ background: `${T.purple}20`, color: T.purple, padding: 8, borderRadius: 8 }}>📥</div>
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "#FFF" }}>Backup</div>
+              <div style={{ fontSize: 12, color: T.dim, marginTop: 2 }}>Export or restore your journal data.</div>
+            </div>
+          </div>
+          
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <button onClick={downloadCSV} style={{ width: "100%", background: T.purple, color: "#FFF", border: "none", borderRadius: 10, padding: 14, fontWeight: 700, fontSize: 15, cursor: "pointer", display: "flex", justifyContent: "center", gap: 8 }}>
+              <span>📥</span> Export CSV
+            </button>
+            <button onClick={() => setShowCSVModal(true)} style={{ width: "100%", background: T.panel2, color: T.bright, border: `1px solid ${T.border}`, borderRadius: 10, padding: 14, fontWeight: 700, fontSize: 15, cursor: "pointer", display: "flex", justifyContent: "center", gap: 8 }}>
+              <span>📤</span> Import CSV
+            </button>
+            <button onClick={() => { const now = new Date(); exportPDF(now.getMonth(), now.getFullYear()); }} style={{ width: "100%", background: T.panel2, color: T.bright, border: `1px solid ${T.border}`, borderRadius: 10, padding: 14, fontWeight: 700, fontSize: 15, cursor: "pointer", display: "flex", justifyContent: "center", gap: 8 }}>
+              <span>📄</span> Export PDF
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: "env(safe-area-inset-top, 20px) 16px 20px 16px", paddingBottom: 100, minHeight: "100%", background: T.bg }}>
@@ -242,7 +318,7 @@ export default function AccountsManager({ profiles, activeProfileId, switchProfi
             <div style={{ fontSize: 13, color: T.dim, marginBottom: 20, lineHeight: 1.4 }}>
               Offline only (not backed up). Sign in to back up your trades across devices.
             </div>
-            <button onClick={authenticateGoogle} style={{ width: "100%", background: T.purple, color: "#FFF", border: "none", borderRadius: 10, padding: 14, fontWeight: 700, fontSize: 15 }}>
+            <button onClick={handleGoogleSignIn} style={{ width: "100%", background: T.purple, color: "#FFF", border: "none", borderRadius: 10, padding: 14, fontWeight: 700, fontSize: 15 }}>
               👤 Sign In
             </button>
           </>
@@ -258,54 +334,22 @@ export default function AccountsManager({ profiles, activeProfileId, switchProfi
         )}
       </div>
 
-      {/* Theme & Support */}
-      <div style={{ 
-        background: T.panel, 
-        border: `1px solid ${T.border}`, 
-        borderRadius: 16, 
-        padding: 20,
-        marginBottom: 20
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-          <div style={{ background: `${T.blue}20`, color: T.blue, padding: 8, borderRadius: 8 }}>⚙️</div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: "#FFF" }}>Theme & Support</div>
-            <div style={{ fontSize: 12, color: T.dim, marginTop: 2 }}>Customize and manage your data</div>
-          </div>
-        </div>
-        
-        {/* Theme Toggle */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24, paddingBottom: 20, borderBottom: `1px solid ${T.border}` }}>
+      {/* Theme & Support Link */}
+      <div 
+        onClick={() => setShowThemeSettings(true)}
+        style={{ 
+          background: T.panel, border: `1px solid ${T.border}`, borderRadius: 16, 
+          padding: 20, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", marginBottom: 20
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <div style={{ background: `${T.blue}20`, color: T.blue, padding: 10, borderRadius: 12, fontSize: 20 }}>🎨</div>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "#FFF" }}>Theme</div>
-            <div style={{ fontSize: 12, color: T.dim, marginTop: 2 }}>Toggle application appearance</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#FFF" }}>Theme & Support</div>
+            <div style={{ fontSize: 12, color: T.dim, marginTop: 4 }}>Themes, exports, backups, and help.</div>
           </div>
-          <button 
-            onClick={() => setIsDark(!isDark)} 
-            style={{ 
-              background: T.panel2, color: T.bright, border: `1px solid ${T.border}`, 
-              borderRadius: 10, padding: "10px 16px", fontWeight: 700, cursor: "pointer", fontSize: 13 
-            }}
-          >
-            {isDark ? "🌙 Dark Mode" : "☀️ Light Mode"}
-          </button>
         </div>
-
-        {/* Data Management inside Theme & Support */}
-        <div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: "#FFF", marginBottom: 12 }}>Data Management</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <button onClick={() => setShowCSVModal(true)} style={{ background: T.panel2, color: "#FFF", border: `1px solid ${T.border}`, borderRadius: 10, padding: 12, fontWeight: 700, cursor: "pointer", fontSize: 13 }}>
-              ⬆ Import CSV
-            </button>
-            <button onClick={downloadCSV} style={{ background: T.panel2, color: "#FFF", border: `1px solid ${T.border}`, borderRadius: 10, padding: 12, fontWeight: 700, cursor: "pointer", fontSize: 13 }}>
-              ⬇ Export CSV
-            </button>
-          </div>
-          <button onClick={() => { const now = new Date(); exportPDF(now.getMonth(), now.getFullYear()); }} style={{ width: "100%", background: T.panel2, color: "#FFF", border: `1px solid ${T.border}`, borderRadius: 10, padding: 12, fontWeight: 700, cursor: "pointer", fontSize: 13, marginTop: 12 }}>
-            ⬇ Export PDF
-          </button>
-        </div>
+        <div style={{ color: T.dim, fontSize: 18, fontWeight: 700 }}>›</div>
       </div>
 
     </div>

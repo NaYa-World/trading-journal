@@ -8,7 +8,7 @@ import {
   Tooltip, ResponsiveContainer, Cell,
 } from "recharts";
 
-import { T, DARK, LIGHT } from "./utils/theme.js";
+import { T } from "./utils/theme.js";
 import {
   STABLES, QUOTES, getQuoteCurrency, fetchUsdtRate,
   fmt$, fmtPnl, fmtDate, fmtDateShort, formatMaskedDate, parseMaskedDate,
