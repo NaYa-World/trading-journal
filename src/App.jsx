@@ -157,7 +157,7 @@ function ConsistencyHeatmap({ trades }) {
 }
 
 // ─── Overview ─────────────────────────────────────────────────────────────────
-function Overview({ trades, allProfileTrades, initialCapital = 0, profiles = [], liveTrades = [] }) {
+function Overview({ trades, allProfileTrades, initialCapital = 0, profiles = [], liveTrades = [], isMobile }) {
   const allClosed = trades.filter(t => t.status === "closed");
   const closed = allClosed.filter(t => t.entryType !== "Deposit" && t.entryType !== "Withdrawal" && t.symbol !== "Deposit" && t.symbol !== "Withdrawal");
   const wins = closed.filter(t => t.pnl > 0);
@@ -217,6 +217,106 @@ function Overview({ trades, allProfileTrades, initialCapital = 0, profiles = [],
     if (!p) return sum;
     return sum + (p.price - t.entry) * t.qty * (t.side === "Long" ? 1 : -1) * (t.leverage || 1);
   }, 0);
+
+  if (!isMobile) {
+    return (
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(250px, 1fr) 2fr minmax(250px, 1fr)", gap: 16, height: "100%", alignItems: "start" }}>
+        
+        {/* Left Column: KPIs */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <Card style={{ background: T.panel, border: `1px solid ${T.border}` }}>
+            <div style={ML}>Net PNL <InfoDot title="Realized profit/loss after transaction fees" /></div>
+            <div style={{ ...MV, color: realizedPnl >= 0 ? T.green : T.red, fontSize: 32 }}>{fmt$(realizedPnl)}</div>
+          </Card>
+          <Card>
+            <div style={ML}>Win Rate <InfoDot title="Percentage of trades that were profitable" /></div>
+            <div style={{ ...MV, fontSize: 32 }}>{winRate.toFixed(2)}%</div>
+            <div style={{ fontSize: 13, color: T.dim, marginTop: 5, fontFamily: T.mono }}>{wins.length} wins · {losses.length} losses</div>
+          </Card>
+          <Card>
+            <div style={ML}>Profit Factor <InfoDot title="Gross profit divided by gross loss" /></div>
+            <div style={{ ...MV, fontSize: 32 }}>{profitFactor.toFixed(2)}</div>
+          </Card>
+          <Card>
+            <div style={ML}>Expected Value <InfoDot title="Average monetary value won/lost per trade" /></div>
+            <div style={{ ...MV, fontSize: 32, color: expectedValue >= 0 ? T.green : T.red }}>{expectedValue.toFixed(2)}</div>
+          </Card>
+          <Card>
+            <div style={ML}>Total Invested</div>
+            <div style={{ ...MV, fontSize: 26, color: T.blue }}>
+              {totalInvested.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span style={{ fontSize: 14, color: T.dim, fontWeight: 400 }}>USDT</span>
+            </div>
+            <div style={{ fontSize: 13, color: T.dim, marginTop: 6, fontFamily: T.mono }}>
+              {closed.length} closed trade{closed.length !== 1 ? "s" : ""}
+            </div>
+          </Card>
+        </div>
+
+        {/* Center Column: Charts */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <EquityCurveChart equityData={equitySeries} />
+          <ConsistencyHeatmap trades={closed} />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+             <Card>
+               <div style={ML}>Average Hold Times</div>
+               <div style={{ ...MV, fontSize: 20, color: T.bright, marginTop: 6 }}>
+                 <div style={{ marginBottom: 4 }}>Spot: {spotH}h {spotM}m</div>
+                 <div>Futures: {futH}h {futM}m</div>
+               </div>
+             </Card>
+             <Card>
+               <div style={ML}>Average RR</div>
+               <div style={{ ...MV, fontSize: 30 }}>{avgRR.toFixed(2)}</div>
+               <div style={{ fontSize: 12, color: T.dim, marginTop: 5, fontFamily: T.mono }}><span style={{ color: T.green }}>+{avgWin.toFixed(2)}</span> / <span style={{ color: T.red }}>-{avgLoss.toFixed(2)}</span></div>
+             </Card>
+          </div>
+        </div>
+
+        {/* Right Column: Live & Recent */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <Card>
+            <div style={{ fontSize: 15, fontWeight: 700, color: T.bright, marginBottom: 14 }}>Live Trades</div>
+            {liveTrades.length === 0 ? <div style={{ color: T.dim, fontSize: 14 }}>No active trades</div> : (
+              liveTrades.map(t => {
+                 const p = prices[t.symbol];
+                 const pnl = p ? (p.price - t.entry) * t.qty * (t.side === "Long" ? 1 : -1) * (t.leverage || 1) : 0;
+                 return (
+                   <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, paddingBottom: 12, borderBottom: `1px solid ${T.border}` }}>
+                     <div>
+                       <div style={{ fontSize: 14, fontWeight: 700 }}>{t.symbol}</div>
+                       <div style={{ fontSize: 12, color: T.dim }}>{t.side} {t.leverage ? `${t.leverage}x` : ""}</div>
+                     </div>
+                     <div style={{ color: pnl >= 0 ? T.green : T.red, fontWeight: 700, fontSize: 15 }}>{fmt$(pnl)}</div>
+                   </div>
+                 );
+              })
+            )}
+            <div style={{ marginTop: liveTrades.length > 0 ? 0 : 16 }}>
+              <div style={ML}>Total Unrealized PNL</div>
+              <div style={{ ...MV, fontSize: 24, color: totalUnrealizedPnl >= 0 ? T.green : T.red }}>
+                {totalUnrealizedPnl >= 0 ? "+" : ""}{totalUnrealizedPnl.toFixed(2)}
+              </div>
+            </div>
+          </Card>
+          <Card>
+            <div style={{ fontSize: 15, fontWeight: 700, color: T.bright, marginBottom: 14 }}>Recent Closed Trades</div>
+            {closed.length === 0 ? <div style={{ color: T.dim, fontSize: 14 }}>No recent trades</div> : (
+              closed.slice(-7).reverse().map(t => (
+                <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, paddingBottom: 12, borderBottom: `1px solid ${T.border}` }}>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 700 }}>{t.symbol}</div>
+                    <div style={{ fontSize: 12, color: T.dim }}>{fmtDateShort(t.closeTime)}</div>
+                  </div>
+                  <div style={{ color: t.pnl >= 0 ? T.green : T.red, fontWeight: 700, fontSize: 15 }}>{fmt$(t.pnl)}</div>
+                </div>
+              ))
+            )}
+          </Card>
+        </div>
+
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -935,7 +1035,7 @@ export default function App() {
             {view === "Dashboard" ? (
               isJournalEmpty ? <EmptyState onAdd={() => setShowAddModal(true)} /> :
               isFilteredEmpty ? <EmptyState filtered={true} /> :
-              (subTab === "Overview" && <Overview trades={trades} allProfileTrades={profileTrades} initialCapital={initialCapital} profiles={profiles} liveTrades={liveTrades} />)
+              (subTab === "Overview" && <Overview trades={trades} allProfileTrades={profileTrades} initialCapital={initialCapital} profiles={profiles} liveTrades={liveTrades} isMobile={isMobile} />)
             ) : null}
             <>
               {view === "Open Spot Trades" && <OpenSpotView spotOpen={spotOpen} onSell={closeSpotOpen} onDelete={deleteSpotOpen} onEdit={setEditingTrade} savedSymbols={savedSymbols} />}
