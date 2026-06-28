@@ -1,4 +1,4 @@
-export function calculatePnL({ entry, exit, qty, side, leverage = 1, tradeType = "Spot", marginType = "USDT-M", quoteRateOpen = 1, quoteRateClose = 1, action = "Buy" }) {
+export function calculatePnL({ entry, exit, qty, side, leverage = 1, tradeType = "Spot", marginType = "USDT-M", quoteRateOpen = 1, quoteRateClose = 1, action = "Buy", fundingFees = 0 }) {
   const isSpot = tradeType === "Spot";
   const finalSide = isSpot ? (action === "Buy" ? "Long" : "Short") : side;
   const multiplier = finalSide === "Long" ? 1 : -1;
@@ -24,8 +24,8 @@ export function calculatePnL({ entry, exit, qty, side, leverage = 1, tradeType =
   }
 
   return {
-    nativePnl: parseFloat(nativePnLVal.toFixed(6)),
-    pnl: parseFloat(pnlUsdtVal.toFixed(2))
+    nativePnl: parseFloat((nativePnLVal - (fundingFees / (quoteRateClose || 1))).toFixed(6)),
+    pnl: parseFloat((pnlUsdtVal - fundingFees).toFixed(2))
   };
 }
 

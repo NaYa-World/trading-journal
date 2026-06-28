@@ -26,7 +26,7 @@ export default function TradeSetupsManager({ trades = [], tradeSetups = [], setT
   useEffect(() => {
     loadCustomSetupTypes().then(types => {
       setCustomTypes(types || []);
-    }).catch(e => {
+    }).catch(() => {
       setCustomTypes([]);
     });
   }, []);

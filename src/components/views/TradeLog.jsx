@@ -1,13 +1,13 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { T } from "../../utils/theme.js";
 import { fmtDate } from "../../utils/helpers.js";
-import { Tag, CoinIcon, EmptyState, MaskedDateInput } from "../shared/index.jsx";
+import { Tag, CoinIcon } from "../shared/index.jsx";
 import { SETUPS, CLOSE_REASONS, DEFAULT_SYMBOLS } from "../../utils/constants.js";
 import { fmt$ } from "../../utils/helpers.js";
 import { calculatePnL } from "../../utils/calculations.js";
 import { useDashboard } from "../../context/DashboardContext.jsx";
 
-function MobileTradeCard({ trade: t, onEdit, onViewChart }) {
+function MobileTradeCard({ trade: t, onEdit }) {
   const isTransaction = t.entryType === "Deposit" || t.entryType === "Withdrawal" || t.symbol === "Deposit" || t.symbol === "Withdrawal";
   return (
     <div 
@@ -165,7 +165,8 @@ export default function TradeLog({ trades, title, onEdit, onViewChart, onSave, o
       tradeType: trade.tradeType || "Spot",
       quoteRateOpen: trade.usdtRate || 1,
       quoteRateClose: trade.closeUsdtRate || 1,
-      action
+      action,
+      fundingFees: trade.fundingFees || 0
     });
 
     updatedTrade.nativePnl = nativePnl;

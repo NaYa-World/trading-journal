@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from "react";
 import CryptoJS from "crypto-js";
 import { StatusBar, Style } from '@capacitor/status-bar';
@@ -8,19 +9,15 @@ import {
   loadTrades, saveTrades, loadSpotOpen, saveSpotOpen,
   loadLiveTrades, saveLiveTrades, loadSavedSymbols, saveSavedSymbols,
   loadTradeSetups, saveTradeSetups, loadAlerts, saveAlerts,
-  loadCapital, saveCapital, loadProfiles, saveProfiles,
+  loadProfiles, saveProfiles,
   loadActiveProfile, saveActiveProfile, loadTheme, saveThemePref,
   loadReviews, saveReviews, loadApiKeys, saveApiKeys,
 } from "../utils/storage.js";
 import {
-  STABLES, QUOTES, getQuoteCurrency, fetchUsdtRate,
-  fmt$, fmtPnl, fmtDate, fmtDateShort, formatMaskedDate, parseMaskedDate,
-  getOrdinal, sequenceTransactions,
+  getQuoteCurrency, fetchUsdtRate, fmtDateShort,
+  sequenceTransactions,
 } from "../utils/helpers.js";
-import {
-  SETUPS, MISTAKES, CLOSE_REASONS, SIDES, EXCHANGES,
-  CRYPTO_TRADE_TYPES, DEFAULT_SYMBOLS, DEFAULT_PROFILES, NAV_ITEMS,
-} from "../utils/constants.js";
+import { DEFAULT_SYMBOLS } from "../utils/constants.js";
 import { createTrade } from "../utils/tradeFactory.js";
 import { calculatePnL } from "../utils/calculations.js";
 import { PricesProvider } from "./PricesContext.jsx";
@@ -56,12 +53,12 @@ export function DashboardProvider({ children }) {
   const [showProfiles, setShowProfiles] = useState(false);
 
   // Capital is now derived from the active profile
-  const activeProfile = profiles.find(p => p.id === activeProfileId) || profiles[0] || {};
+  const activeProfile = useMemo(() => profiles.find(p => p.id === activeProfileId) || profiles[0] || {}, [profiles, activeProfileId]);
   const initialCapital = activeProfile.initialCapital || 0;
   
-  const setInitialCapital = (newCap) => {
+  const setInitialCapital = useCallback((newCap) => {
     setProfiles(prev => prev.map(p => p.id === activeProfileId ? { ...p, initialCapital: newCap } : p));
-  };
+  }, [activeProfileId]);
 
   // API sync key states
   const [apiKeys, setApiKeys] = useState({});
@@ -84,6 +81,9 @@ export function DashboardProvider({ children }) {
   // Reviews state
   const [reviews, setReviews] = useState({});
   const [reviewKey, setReviewKey] = useState(null);
+  
+  // Price Alerts state
+  const [alerts, setAlerts] = useState([]);
 
   const [isStorageLoading, setIsStorageLoading] = useState(true);
 
@@ -155,8 +155,6 @@ export function DashboardProvider({ children }) {
   }, []);
   const isMobile = width <= 768;
 
-  // Price Alerts state
-  const [alerts, setAlerts] = useState([]);
   const [notifications, setNotifications] = useState([]);
   
   const [appToast, setAppToast] = useState(null);
@@ -208,6 +206,7 @@ useEffect(() => {
 
   useEffect(() => {
     if (view === "Dashboard") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSubTab("Overview");
     } else if (view === "Analytics") {
       setSubTab("Time Metrics");
@@ -224,15 +223,21 @@ useEffect(() => {
     return sequenceTransactions(filtered);
   }, [allTrades, activeProfileId]);
 
-  const trades = useMemo(() => {
-    const now = Date.now();
-    let cutoff = 0;
-    if (dateRange === "7d") cutoff = now - 7 * 86400000;
-    else if (dateRange === "30d") cutoff = now - 30 * 86400000;
-    else if (dateRange === "90d") cutoff = now - 90 * 86400000;
-    else if (dateRange === "ytd") cutoff = new Date(new Date().getFullYear(), 0, 1).getTime();
-    else if (dateRange === "1y") cutoff = now - 365 * 86400000;
+  const [nowStr, setNowStr] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNowStr(Date.now()), 60000);
+    return () => clearInterval(timer);
+  }, []);
 
+  const trades = useMemo(() => {
+    let cutoff = 0;
+    if (dateRange === "7d") cutoff = nowStr - 7 * 86400000;
+    else if (dateRange === "30d") cutoff = nowStr - 30 * 86400000;
+    else if (dateRange === "90d") cutoff = nowStr - 90 * 86400000;
+    else if (dateRange === "ytd") cutoff = new Date(new Date().getFullYear(), 0, 1).getTime();
+    else if (dateRange === "1y") cutoff = nowStr - 365 * 86400000;
+    else if (dateRange === "all") cutoff = 0;
+    
     return profileTrades.filter(t => {
       if (cutoff > 0 && t.closeTime < cutoff && t.openTime < cutoff) return false;
       const isDeposit = t.entryType === "Deposit" || t.symbol === "Deposit";
@@ -255,7 +260,7 @@ useEffect(() => {
 
       return true;
     });
-  }, [profileTrades, dateRange, filterSetup, filterCoin, filterResult, filterTrade, filterCapitalActivity]);
+  }, [profileTrades, dateRange, nowStr, filterSetup, filterCoin, filterResult, filterTrade]);
 
   const spotOpen = useMemo(() => allSpotOpen.filter(t => (t.profileId || "default") === activeProfileId), [allSpotOpen, activeProfileId]);
   const liveTrades = useMemo(() => allLiveTrades.filter(t => (t.profileId || "default") === activeProfileId), [allLiveTrades, activeProfileId]);
@@ -321,7 +326,7 @@ useEffect(() => {
       saveAlerts(next);
       return next;
     });
-  }, []);
+  }, [setAlerts]);
 
   const deleteFinishedTrade = useCallback((id) => {
     setAllTrades(prev => {
@@ -520,12 +525,12 @@ useEffect(() => {
     setAllSpotOpen(prev => { const next = prev.filter(t => t.id !== id); saveSpotOpen(next); return next; });
   }, []);
 
-  const handleApiSync = async (exchange, { apiKey, apiSecret, apiPassphrase }) => {
+  const handleApiSync = useCallback(async (exchange, { apiKey, apiSecret, apiPassphrase }) => {
     if (Capacitor.isNativePlatform()) {
       throw new Error("Direct API Sync is not supported on the mobile app. Please use the Web version.");
     }
     
-    let normalizedPositions = [];
+    let normalizedPositions;
 
     if (exchange === "binance") {
       const timestamp = Date.now();
@@ -618,13 +623,13 @@ useEffect(() => {
         return next;
       });
     });
-  };
+  }, [activeProfileId]);
 
   const addLiveTrade = useCallback((t) => {
     setAllLiveTrades(prev => { const next = [...prev, t]; saveLiveTrades(next); return next; });
   }, []);
 
-  const closeLiveTrade = useCallback(async (liveTrade, { exit, closeReason, mistake, chartUrl, fees, fundingFees }) => {
+  const closeLiveTrade = useCallback(async (liveTrade, { exit, closeReason, mistake, chartUrl, fees, fundingFees, closeQty }) => {
     const closeTime = Date.now();
     const quoteCurrency = liveTrade.quoteCurrency || "USDT";
     const closeUsdtRate = await fetchUsdtRate(quoteCurrency, closeTime, liveTrade.exchange);
@@ -634,35 +639,85 @@ useEffect(() => {
     const side = isSpot ? "Long" : liveTrade.side;
     const action = isSpot ? "Buy" : liveTrade.side;
 
+    const qtyToClose = closeQty && closeQty > 0 ? parseFloat(closeQty) : liveTrade.qty;
+    const isPartial = qtyToClose < liveTrade.qty;
+
     const { nativePnl, pnl: pnlUsdt } = calculatePnL({
       entry: liveTrade.entry,
       exit,
-      qty: liveTrade.qty,
+      qty: qtyToClose,
       side,
       leverage: liveTrade.leverage || 1,
       tradeType: liveTrade.tradeType,
       marginType: liveTrade.marginType,
       quoteRateOpen: openUsdtRate,
       quoteRateClose: closeUsdtRate,
-      action
+      action,
+      fundingFees: fundingFees || 0
     });
 
-    const finished = createTrade({
-      ...liveTrade, exit, closeReason, fees, fundingFees, mistake, chartUrl,
+    const execution = {
+      id: Date.now() + Math.random().toString(),
+      qty: qtyToClose,
+      exit,
+      closeTime,
+      fees: fees || 0,
+      fundingFees: fundingFees || 0,
       nativePnl,
       pnl: pnlUsdt,
-      closeUsdtRate,
-      closeTime, status: "closed", tags: [liveTrade.setup || liveTrade.tradeType]
-    });
-    setAllLiveTrades(prev => { const next = prev.filter(t => t.id !== liveTrade.id); saveLiveTrades(next); return next; });
-    setAllTrades(prev => { const next = [...prev, finished].sort((a, b) => a.closeTime - b.closeTime); saveTrades(next); return next; });
+      closeReason, mistake, chartUrl
+    };
+
+    const newExecutions = [...(liveTrade.executions || []), execution];
+
+    if (isPartial) {
+      setAllLiveTrades(prev => { 
+        const next = prev.map(t => t.id === liveTrade.id ? { 
+          ...t, 
+          qty: t.qty - qtyToClose,
+          executions: newExecutions
+        } : t);
+        saveLiveTrades(next); 
+        return next; 
+      });
+    } else {
+      setAllLiveTrades(prev => { const next = prev.filter(t => t.id !== liveTrade.id); saveLiveTrades(next); return next; });
+      
+      const totalPnl = newExecutions.reduce((sum, ex) => sum + ex.pnl, 0);
+      const totalNativePnl = newExecutions.reduce((sum, ex) => sum + ex.nativePnl, 0);
+      const totalFees = newExecutions.reduce((sum, ex) => sum + ex.fees, 0);
+      const totalFundingFees = newExecutions.reduce((sum, ex) => sum + ex.fundingFees, 0);
+      const originalQty = liveTrade.qty + (liveTrade.executions ? liveTrade.executions.reduce((sum, ex) => sum + ex.qty, 0) : 0);
+      const avgExit = newExecutions.reduce((sum, ex) => sum + (ex.exit * ex.qty), 0) / originalQty;
+
+      const finished = createTrade({
+        ...liveTrade, 
+        qty: originalQty, 
+        exit: parseFloat(avgExit.toFixed(6)), 
+        closeReason: execution.closeReason, 
+        fees: totalFees, 
+        fundingFees: totalFundingFees, 
+        mistake: execution.mistake, 
+        chartUrl: execution.chartUrl,
+        nativePnl: parseFloat(totalNativePnl.toFixed(6)),
+        pnl: parseFloat(totalPnl.toFixed(2)),
+        closeUsdtRate,
+        closeTime, 
+        status: "closed", 
+        tags: [liveTrade.setup || liveTrade.tradeType],
+        executions: newExecutions
+      });
+
+      setAllTrades(prev => { const next = [...prev, finished].sort((a, b) => a.closeTime - b.closeTime); saveTrades(next); return next; });
+    }
   }, []);
 
   const saveReview = useCallback((key, data) => {
     setReviews(prev => { const next = { ...prev, [key]: data }; saveReviews(next); return next; });
   }, []);
 
-  const openReview = (key) => { setReviewKey(key); setShowReviewModal(true); };
+  const openReview = useCallback((key) => { setReviewKey(key); setShowReviewModal(true);
+  }, []);
 
   const switchProfile = useCallback((id) => {
     setActiveProfileId(id);
@@ -686,12 +741,12 @@ useEffect(() => {
     if (activeProfileId === id) switchProfile("default");
   }, [activeProfileId, switchProfile]);
 
-  const clearAllData = () => {
+  const clearAllData = useCallback(async () => {
     setAllTrades(prev => { const next = prev.filter(t => (t.profileId || "default") !== activeProfileId); saveTrades(next); return next; });
     setAllSpotOpen(prev => { const next = prev.filter(t => (t.profileId || "default") !== activeProfileId); saveSpotOpen(next); return next; });
     setAllLiveTrades(prev => { const next = prev.filter(t => (t.profileId || "default") !== activeProfileId); saveLiveTrades(next); return next; });
     setShowClearConfirm(false);
-  };
+  }, [activeProfileId]);
 
   const downloadCSV = useCallback(() => {
     const _profileTrades = allTrades.filter(t => (t.profileId || "default") === activeProfileId);
@@ -824,12 +879,15 @@ ${review ? `<div class="section">Monthly Review</div>${review.bestTrade ? `<div 
             try {
               printWindow.focus();
               printWindow.print();
-            } catch (e) {}
+            } catch {
+              // ignore
+            }
           }, 500);
         } else {
           throw new Error("Popup blocked");
         }
-      } catch (e) {
+      } catch {
+        // ignore
         const blob = new Blob([html], { type: "text/html" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -842,7 +900,7 @@ ${review ? `<div class="section">Monthly Review</div>${review.bestTrade ? `<div 
   const contextValue = useMemo(() => ({
     view, setView,
     subTab, setSubTab,
-    profiles, setProfiles, setShowProfiles, activeProfile,
+    profiles, setProfiles, showProfiles, setShowProfiles, activeProfile,
     activeThemeKey, setActiveThemeKey,
     initialCapital, setInitialCapital,
     apiKeys, setApiKeys,
@@ -881,7 +939,7 @@ ${review ? `<div class="section">Monthly Review</div>${review.bestTrade ? `<div 
     downloadCSV, exportPDF,
     isStorageLoading
   }), [
-    view, subTab, profiles, activeProfileId, showProfiles, activeProfile,
+    view, subTab, profiles, activeProfile, showProfiles,
     activeThemeKey, initialCapital, apiKeys, allTrades, allSpotOpen, allLiveTrades, savedSymbols, tradeSetups,
     undoTrade, reviews, reviewKey, showDataMenu, showAddModal, showClearConfirm,
     showCSVModal, showReviewModal, showSyncModal, showSecurityModal, editingTrade, viewChartTrade,
@@ -892,8 +950,9 @@ ${review ? `<div class="section">Monthly Review</div>${review.bestTrade ? `<div 
     saveSymbol, handleQuickAdd, addTrade, importTrades, addSpotOpen,
     closeSpotOpen, deleteSpotOpen, handleApiSync, addLiveTrade, closeLiveTrade,
     saveReview, openReview, switchProfile, addProfile, updateProfile, deleteProfile, clearAllData,
-    downloadCSV, exportPDF, showToast, isStorageLoading
-  ]); // eslint-disable-line react-hooks/exhaustive-deps
+    downloadCSV, exportPDF, showToast, isStorageLoading,
+    closed, liveTrades, profileTrades, setInitialCapital, spotOpen, trades
+  ]);
 
   return (
     <DashboardContext.Provider value={contextValue}>
