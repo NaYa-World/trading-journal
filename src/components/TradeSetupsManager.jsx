@@ -24,8 +24,11 @@ export default function TradeSetupsManager({ trades = [], tradeSetups = [], setT
   const [newTypeInput, setNewTypeInput] = useState("");
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setCustomTypes(loadCustomSetupTypes());
+    loadCustomSetupTypes().then(types => {
+      setCustomTypes(types || []);
+    }).catch(e => {
+      setCustomTypes([]);
+    });
   }, []);
 
   const allSetupTypes = [...SETUP_TYPES, ...customTypes];
