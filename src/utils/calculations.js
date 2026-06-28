@@ -1,17 +1,27 @@
-export function calculatePnL({ entry, exit, qty, side, tradeType = "Spot", quoteRateOpen = 1, quoteRateClose = 1, action = "Buy" }) {
+export function calculatePnL({ entry, exit, qty, side, leverage = 1, tradeType = "Spot", marginType = "USDT-M", quoteRateOpen = 1, quoteRateClose = 1, action = "Buy" }) {
   const isSpot = tradeType === "Spot";
   const finalSide = isSpot ? (action === "Buy" ? "Long" : "Short") : side;
   const multiplier = finalSide === "Long" ? 1 : -1;
 
-  const nativePnLVal = isSpot
-    ? (action === "Buy" ? (exit - entry) * qty : (entry - exit) * qty)
-    : (exit - entry) * qty * multiplier;
+  let nativePnLVal = 0;
+  let pnlUsdtVal = 0;
 
-  const pnlUsdtVal = isSpot
-    ? (action === "Buy"
-        ? (exit * qty * quoteRateClose) - (entry * qty * quoteRateOpen)
-        : (entry * qty * quoteRateOpen) - (exit * qty * quoteRateClose))
-    : ((exit * qty * quoteRateClose) - (entry * qty * quoteRateOpen)) * multiplier;
+  if (isSpot) {
+    nativePnLVal = action === "Buy" ? (exit - entry) * qty : (entry - exit) * qty;
+    pnlUsdtVal = action === "Buy"
+      ? (exit * qty * quoteRateClose) - (entry * qty * quoteRateOpen)
+      : (entry * qty * quoteRateOpen) - (exit * qty * quoteRateClose);
+  } else if (marginType === "COIN-M") {
+    // Inverse futures math. `qty` is in contracts/USD. PNL is settled in base asset.
+    nativePnLVal = (1 / entry - 1 / exit) * qty * multiplier * leverage;
+    // For USDT equivalent, multiply the base asset PNL by the exit price (or close rate).
+    // Often COIN-M uses the contract value in USD directly, so nativePnLVal * exit gives the USD value.
+    pnlUsdtVal = nativePnLVal * exit; 
+  } else {
+    // Standard linear (USDT-M)
+    nativePnLVal = (exit - entry) * qty * multiplier * leverage;
+    pnlUsdtVal = ((exit * qty * quoteRateClose) - (entry * qty * quoteRateOpen)) * multiplier * leverage;
+  }
 
   return {
     nativePnl: parseFloat(nativePnLVal.toFixed(6)),

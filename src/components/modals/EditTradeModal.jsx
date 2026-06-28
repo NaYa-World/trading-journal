@@ -24,6 +24,8 @@ export default function EditTradeModal() {
     exit: (trade.exit || 0).toString(),
     qty: (trade.qty || 0).toString(),
     fees: Math.abs(trade.fees || 0).toString(),
+    fundingFees: Math.abs(trade.fundingFees || 0).toString(),
+    marginType: trade.marginType || "USDT-M",
     setup: trade.setup || "BREAKOUT",
     closeReason: trade.closeReason || "",
     openTime: formatMaskedDate(new Date(trade.openTime)),
@@ -110,6 +112,7 @@ export default function EditTradeModal() {
           side,
           leverage: trade.leverage || 1,
           tradeType: trade.tradeType,
+          marginType: form.marginType,
           quoteRateOpen: usdtRate,
           quoteRateClose: closeUsdtRate,
           action
@@ -122,6 +125,8 @@ export default function EditTradeModal() {
         ...trade,
         entry: e, qty: q,
         fees: -(Math.abs(parseFloat(form.fees) || 0)),
+        fundingFees: Math.abs(parseFloat(form.fundingFees) || 0),
+        marginType: form.marginType,
         usdtRate,
         setup: form.setup,
         openTime: openT,
@@ -172,7 +177,19 @@ export default function EditTradeModal() {
             <div><label style={LS}>Entry Price ({qc})</label><input style={IS} type="number" value={form.entry} onChange={e => set("entry", e.target.value)} /></div>
             {!isOpen && <div><label style={LS}>Exit Price ({qc})</label><input style={IS} type="number" value={form.exit} onChange={e => set("exit", e.target.value)} /></div>}
             <div><label style={LS}>Quantity</label><input style={IS} type="number" value={form.qty} onChange={e => set("qty", e.target.value)} /></div>
-            <div><label style={LS}>Fees ({qc})</label><input style={IS} type="number" value={form.fees} onChange={e => set("fees", e.target.value)} /></div>
+            <div><label style={LS}>Trading Fees ({qc})</label><input style={IS} type="number" value={form.fees} onChange={e => set("fees", e.target.value)} /></div>
+            {trade.tradeType === "Futures" && (
+              <>
+                <div><label style={LS}>Funding Fees ({qc})</label><input style={IS} type="number" value={form.fundingFees} onChange={e => set("fundingFees", e.target.value)} /></div>
+                <div>
+                  <label style={LS}>Margin Type</label>
+                  <select style={IS} value={form.marginType} onChange={e => set("marginType", e.target.value)}>
+                    <option value="USDT-M">USDT-M</option>
+                    <option value="COIN-M">COIN-M</option>
+                  </select>
+                </div>
+              </>
+            )}
             <div><label style={LS}>Setup</label><select style={IS} value={form.setup} onChange={e => set("setup", e.target.value)}>{SETUPS.map(s => <option key={s}>{s}</option>)}</select></div>
             {!isOpen && <div><label style={LS}>Close Reason</label><select style={IS} value={form.closeReason} onChange={e => set("closeReason", e.target.value)}>{CLOSE_REASONS.map(r => <option key={r}>{r}</option>)}</select></div>}
             <div><label style={LS}>Open Time</label><MaskedDateInput style={IS} value={form.openTime} onChange={v => set("openTime", v)} /></div>

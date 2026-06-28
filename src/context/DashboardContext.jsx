@@ -526,22 +526,33 @@ useEffect(() => {
     setAllLiveTrades(prev => { const next = [...prev, t]; saveLiveTrades(next); return next; });
   }, []);
 
-  const closeLiveTrade = useCallback(async (liveTrade, { exit, closeReason, mistake, chartUrl, fees }) => {
+  const closeLiveTrade = useCallback(async (liveTrade, { exit, closeReason, mistake, chartUrl, fees, fundingFees }) => {
     const closeTime = Date.now();
     const quoteCurrency = liveTrade.quoteCurrency || "USDT";
     const closeUsdtRate = await fetchUsdtRate(quoteCurrency, closeTime, liveTrade.exchange);
     const openUsdtRate = liveTrade.usdtRate || 1;
 
-    const lev = liveTrade.leverage || 1;
-    const nativePnl = (exit - liveTrade.entry) * liveTrade.qty * (liveTrade.side === "Long" ? 1 : -1) * lev;
-    const pnlUsdt = (liveTrade.side === "Long"
-      ? (exit * liveTrade.qty * closeUsdtRate) - (liveTrade.entry * liveTrade.qty * openUsdtRate)
-      : (liveTrade.entry * liveTrade.qty * openUsdtRate) - (exit * liveTrade.qty * closeUsdtRate)) * lev;
+    const isSpot = liveTrade.tradeType === "Spot";
+    const side = isSpot ? "Long" : liveTrade.side;
+    const action = isSpot ? "Buy" : liveTrade.side;
+
+    const { nativePnl, pnl: pnlUsdt } = calculatePnL({
+      entry: liveTrade.entry,
+      exit,
+      qty: liveTrade.qty,
+      side,
+      leverage: liveTrade.leverage || 1,
+      tradeType: liveTrade.tradeType,
+      marginType: liveTrade.marginType,
+      quoteRateOpen: openUsdtRate,
+      quoteRateClose: closeUsdtRate,
+      action
+    });
 
     const finished = createTrade({
-      ...liveTrade, exit, closeReason, fees, mistake, chartUrl,
-      nativePnl: parseFloat(nativePnl.toFixed(6)),
-      pnl: parseFloat(pnlUsdt.toFixed(2)),
+      ...liveTrade, exit, closeReason, fees, fundingFees, mistake, chartUrl,
+      nativePnl,
+      pnl: pnlUsdt,
       closeUsdtRate,
       closeTime, status: "closed", tags: [liveTrade.setup || liveTrade.tradeType]
     });

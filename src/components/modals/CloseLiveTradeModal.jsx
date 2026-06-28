@@ -10,6 +10,7 @@ export default function CloseLiveTradeModal({ trade, currentPrice, onClose: onMo
   const [mistake, setMistake] = useState("None");
   const [chartUrl, setChartUrl] = useState("");
   const [fees, setFees] = useState("");
+  const [fundingFees, setFundingFees] = useState("");
 
   // Auto-calculate exit fee
   useEffect(() => {
@@ -58,9 +59,17 @@ export default function CloseLiveTradeModal({ trade, currentPrice, onClose: onMo
           <div><label style={LS}>Mistake</label><select style={IS} value={mistake} onChange={e => setMistake(e.target.value)}>{MISTAKES.map(m => <option key={m}>{m}</option>)}</select></div>
           <div><label style={LS}>Chart URL</label><input style={IS} value={chartUrl} onChange={e => setChartUrl(e.target.value)} placeholder="https://..." /></div>
         </div>
-        <div>
-          <label style={LS}>Fees (USDT)</label>
-          <input style={IS} type="number" inputMode="decimal" value={fees} onChange={e => setFees(e.target.value)} placeholder="0.00" />
+        <div style={{ display: "flex", gap: 10 }}>
+          <div style={{ flex: 1 }}>
+            <label style={LS}>Trading Fees (USDT)</label>
+            <input style={IS} type="number" inputMode="decimal" value={fees} onChange={e => setFees(e.target.value)} placeholder="0.00" />
+          </div>
+          {trade?.tradeType === "Futures" && (
+            <div style={{ flex: 1 }}>
+              <label style={LS}>Funding Fees (USDT)</label>
+              <input style={IS} type="number" inputMode="decimal" value={fundingFees} onChange={e => setFundingFees(e.target.value)} placeholder="0.00" />
+            </div>
+          )}
         </div>
 
         {pnl !== null && (
@@ -72,7 +81,7 @@ export default function CloseLiveTradeModal({ trade, currentPrice, onClose: onMo
 
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 20 }}>
           <button onClick={onModalClose} style={{ background: "transparent", border: `1px solid ${T.dim}`, color: T.dim, borderRadius: 7, padding: "9px 18px", cursor: "pointer", fontSize: 13, fontFamily: T.mono }}>Cancel</button>
-          <button onClick={() => onConfirm({ exit: parseFloat(exitPrice), closeReason, fees: -(Math.abs(parseFloat(fees) || 0)) })}
+          <button onClick={() => onConfirm({ exit: parseFloat(exitPrice), closeReason, fees: -(Math.abs(parseFloat(fees) || 0)), fundingFees: Math.abs(parseFloat(fundingFees) || 0) })}
             style={{ background: T.redDim, border: `1px solid ${T.red}50`, color: T.red, borderRadius: 7, padding: "9px 22px", cursor: "pointer", fontSize: 13, fontFamily: T.mono, fontWeight: 700 }}>Close Trade</button>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useDashboard } from "../../context/DashboardContext.jsx";
 import { Card, Tag, CoinIcon, ML } from "../shared/index.jsx";
 import { fmt$ } from "../../utils/helpers.js";
@@ -13,91 +13,96 @@ export default function Analytics() {
   );
 
   // ── Pro Metrics ──
-  const wins = closed.filter(t => t.pnl > 0);
-  const losses = closed.filter(t => t.pnl < 0);
-  const grossProfit = wins.reduce((s, t) => s + t.pnl, 0);
-  const grossLoss = Math.abs(losses.reduce((s, t) => s + t.pnl, 0));
-  const profitFactor = grossLoss === 0 ? (grossProfit > 0 ? "∞" : "0.00") : (grossProfit / grossLoss).toFixed(2);
-  const winRateNum = closed.length ? (wins.length / closed.length) : 0;
-  const avgWinNum = wins.length ? grossProfit / wins.length : 0;
-  const avgLossNum = losses.length ? grossLoss / losses.length : 0;
-  const expectancy = (winRateNum * avgWinNum) - ((1 - winRateNum) * avgLossNum);
+  const { wins, losses, profitFactor, expectancy, maxDd, mistakeData, setupData, symData, sorted, curStreak, curType, maxWin, maxLoss, streaks, last20, reasonData } = useMemo(() => {
+    const getNet = t => t.pnl + (t.fees || 0) - (t.fundingFees || 0);
+    const wins = closed.filter(t => getNet(t) > 0);
+    const losses = closed.filter(t => getNet(t) < 0);
+    const grossProfit = wins.reduce((s, t) => s + getNet(t), 0);
+    const grossLoss = Math.abs(losses.reduce((s, t) => s + getNet(t), 0));
+    const profitFactor = grossLoss === 0 ? (grossProfit > 0 ? "∞" : "0.00") : (grossProfit / grossLoss).toFixed(2);
+    const winRateNum = closed.length ? (wins.length / closed.length) : 0;
+    const avgWinNum = wins.length ? grossProfit / wins.length : 0;
+    const avgLossNum = losses.length ? grossLoss / losses.length : 0;
+    const expectancy = (winRateNum * avgWinNum) - ((1 - winRateNum) * avgLossNum);
 
-  let peak = 0, currentBalance = 0, maxDd = 0;
-  const sortedByTime = [...closed].sort((a, b) => a.closeTime - b.closeTime);
-  sortedByTime.forEach(t => {
-    currentBalance += t.pnl;
-    if (currentBalance > peak) peak = currentBalance;
-    const drawdown = peak - currentBalance;
-    if (drawdown > maxDd) maxDd = drawdown;
-  });
+    let peak = 0, currentBalance = 0, maxDd = 0;
+    const sortedByTime = [...closed].sort((a, b) => a.closeTime - b.closeTime);
+    sortedByTime.forEach(t => {
+      currentBalance += getNet(t);
+      if (currentBalance > peak) peak = currentBalance;
+      const drawdown = peak - currentBalance;
+      if (drawdown > maxDd) maxDd = drawdown;
+    });
 
-  // ── Mistake breakdown ──
-  const mistakeMap = {};
-  closed.forEach(t => {
-    if (!t.mistake || t.mistake === "None") return;
-    if (!mistakeMap[t.mistake]) mistakeMap[t.mistake] = { count: 0, pnl: 0 };
-    mistakeMap[t.mistake].count++;
-    mistakeMap[t.mistake].pnl += t.pnl;
-  });
-  const mistakeData = Object.entries(mistakeMap).map(([mistake, d]) => ({
-    mistake, ...d, pnl: parseFloat(d.pnl.toFixed(2))
-  })).sort((a, b) => a.pnl - b.pnl);
+    // ── Mistake breakdown ──
+    const mistakeMap = {};
+    closed.forEach(t => {
+      if (!t.mistake || t.mistake === "None") return;
+      if (!mistakeMap[t.mistake]) mistakeMap[t.mistake] = { count: 0, pnl: 0 };
+      mistakeMap[t.mistake].count++;
+      mistakeMap[t.mistake].pnl += getNet(t);
+    });
+    const mistakeData = Object.entries(mistakeMap).map(([mistake, d]) => ({
+      mistake, ...d, pnl: parseFloat(d.pnl.toFixed(2))
+    })).sort((a, b) => a.pnl - b.pnl);
 
-  // ── Setup performance ──
-  const setupMap = {};
-  closed.forEach(t => {
-    if (!setupMap[t.setup]) setupMap[t.setup] = { wins: 0, losses: 0, pnl: 0, trades: 0 };
-    setupMap[t.setup].trades++;
-    setupMap[t.setup].pnl += t.pnl;
-    if (t.pnl > 0) setupMap[t.setup].wins++; else setupMap[t.setup].losses++;
-  });
-  const setupData = Object.entries(setupMap).map(([setup, d]) => ({
-    setup, ...d, winRate: Math.round((d.wins / d.trades) * 100),
-    avgPnl: parseFloat((d.pnl / d.trades).toFixed(2)),
-    pnl: parseFloat(d.pnl.toFixed(2)),
-  })).sort((a, b) => b.pnl - a.pnl);
+    // ── Setup performance ──
+    const setupMap = {};
+    closed.forEach(t => {
+      if (!setupMap[t.setup]) setupMap[t.setup] = { wins: 0, losses: 0, pnl: 0, trades: 0 };
+      setupMap[t.setup].trades++;
+      setupMap[t.setup].pnl += getNet(t);
+      if (getNet(t) > 0) setupMap[t.setup].wins++; else setupMap[t.setup].losses++;
+    });
+    const setupData = Object.entries(setupMap).map(([setup, d]) => ({
+      setup, ...d, winRate: Math.round((d.wins / d.trades) * 100),
+      avgPnl: parseFloat((d.pnl / d.trades).toFixed(2)),
+      pnl: parseFloat(d.pnl.toFixed(2)),
+    })).sort((a, b) => b.pnl - a.pnl);
 
-  // ── Symbol performance ──
-  const symMap = {};
-  closed.forEach(t => {
-    if (!symMap[t.symbol]) symMap[t.symbol] = { wins: 0, losses: 0, pnl: 0, trades: 0 };
-    symMap[t.symbol].trades++;
-    symMap[t.symbol].pnl += t.pnl;
-    if (t.pnl > 0) symMap[t.symbol].wins++; else symMap[t.symbol].losses++;
-  });
-  const symData = Object.entries(symMap).map(([symbol, d]) => ({
-    symbol, ...d, winRate: Math.round((d.wins / d.trades) * 100),
-    avgPnl: parseFloat((d.pnl / d.trades).toFixed(2)),
-    pnl: parseFloat(d.pnl.toFixed(2)),
-  })).sort((a, b) => b.pnl - a.pnl);
+    // ── Symbol performance ──
+    const symMap = {};
+    closed.forEach(t => {
+      if (!symMap[t.symbol]) symMap[t.symbol] = { wins: 0, losses: 0, pnl: 0, trades: 0 };
+      symMap[t.symbol].trades++;
+      symMap[t.symbol].pnl += getNet(t);
+      if (getNet(t) > 0) symMap[t.symbol].wins++; else symMap[t.symbol].losses++;
+    });
+    const symData = Object.entries(symMap).map(([symbol, d]) => ({
+      symbol, ...d, winRate: Math.round((d.wins / d.trades) * 100),
+      avgPnl: parseFloat((d.pnl / d.trades).toFixed(2)),
+      pnl: parseFloat(d.pnl.toFixed(2)),
+    })).sort((a, b) => b.pnl - a.pnl);
 
-  // ── Streak analysis ──
-  const sorted = [...closed].sort((a, b) => a.closeTime - b.closeTime);
-  let curStreak = 0, curType = null, maxWin = 0, maxLoss = 0;
-  const streaks = [];
-  sorted.forEach(t => {
-    const type = t.pnl > 0 ? "W" : "L";
-    if (type === curType) { curStreak++; }
-    else { if (curType) streaks.push({ type: curType, len: curStreak }); curStreak = 1; curType = type; }
-    if (type === "W") maxWin = Math.max(maxWin, curStreak);
-    else maxLoss = Math.max(maxLoss, curStreak);
-  });
-  if (curType) streaks.push({ type: curType, len: curStreak });
-  const last20 = sorted.slice(-20).map(t => t.pnl > 0 ? "W" : "L");
+    // ── Streak analysis ──
+    const sorted = [...closed].sort((a, b) => a.closeTime - b.closeTime);
+    let curStreak = 0, curType = null, maxWin = 0, maxLoss = 0;
+    const streaks = [];
+    sorted.forEach(t => {
+      const type = getNet(t) > 0 ? "W" : "L";
+      if (type === curType) { curStreak++; }
+      else { if (curType) streaks.push({ type: curType, len: curStreak }); curStreak = 1; curType = type; }
+      if (type === "W") maxWin = Math.max(maxWin, curStreak);
+      else maxLoss = Math.max(maxLoss, curStreak);
+    });
+    if (curType) streaks.push({ type: curType, len: curStreak });
+    const last20 = sorted.slice(-20).map(t => getNet(t) > 0 ? "W" : "L");
 
-  // ── Close reason breakdown ──
-  const reasonMap = {};
-  closed.forEach(t => {
-    if (!reasonMap[t.closeReason]) reasonMap[t.closeReason] = { count: 0, pnl: 0, wins: 0 };
-    reasonMap[t.closeReason].count++;
-    reasonMap[t.closeReason].pnl += t.pnl;
-    if (t.pnl > 0) reasonMap[t.closeReason].wins++;
-  });
-  const reasonData = Object.entries(reasonMap).map(([r, d]) => ({
-    reason: r, ...d, pnl: parseFloat(d.pnl.toFixed(2)),
-    winRate: Math.round((d.wins / d.count) * 100),
-  })).sort((a, b) => b.count - a.count);
+    // ── Close reason breakdown ──
+    const reasonMap = {};
+    closed.forEach(t => {
+      if (!reasonMap[t.closeReason]) reasonMap[t.closeReason] = { count: 0, pnl: 0, wins: 0 };
+      reasonMap[t.closeReason].count++;
+      reasonMap[t.closeReason].pnl += getNet(t);
+      if (getNet(t) > 0) reasonMap[t.closeReason].wins++;
+    });
+    const reasonData = Object.entries(reasonMap).map(([r, d]) => ({
+      reason: r, ...d, pnl: parseFloat(d.pnl.toFixed(2)),
+      winRate: Math.round((d.wins / d.count) * 100),
+    })).sort((a, b) => b.count - a.count);
+
+    return { wins, losses, profitFactor, expectancy, maxDd, mistakeData, setupData, symData, sorted, curStreak, curType, maxWin, maxLoss, streaks, last20, reasonData };
+  }, [closed]);
 
   const maxSetupPnl = Math.max(...setupData.map(s => Math.abs(s.pnl)), 1);
   const maxSymPnl = Math.max(...symData.map(s => Math.abs(s.pnl)), 1);

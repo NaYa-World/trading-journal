@@ -8,7 +8,7 @@ import { createTrade } from "../../utils/tradeFactory.js";
 export default function AddLiveTradeModal({ onAdd, onClose, savedSymbols, initialSymbol }) {
   const { showToast, T } = useDashboard();
   const [form, setForm] = useState({
-    exchange: "Binance", tradeType: "Futures", symbol: initialSymbol || "", side: "Long",
+    exchange: "Binance", tradeType: "Futures", marginType: "USDT-M", symbol: initialSymbol || "", side: "Long",
     entry: "", qty: "", leverage: "1", stopLoss: "", takeProfit: "",
     openTime: "", notes: "",
   });
@@ -44,6 +44,7 @@ export default function AddLiveTradeModal({ onAdd, onClose, savedSymbols, initia
         symbol: sym,
         entry: e, qty: q,
         leverage: parseFloat(form.leverage) || 1,
+        marginType: form.marginType,
         stopLoss: form.stopLoss,
         takeProfit: form.takeProfit,
         openTime: openT,
@@ -127,6 +128,16 @@ export default function AddLiveTradeModal({ onAdd, onClose, savedSymbols, initia
               ))}
             </div>
           </div>
+          
+          {showLeverage && (
+            <div style={{ gridColumn: "1/-1" }}>
+              <label style={LS}>Margin Type</label>
+              <div style={{ display: "flex", background: T.panel2, borderRadius: 6, overflow: "hidden", border: `1px solid ${T.border}` }}>
+                <div onClick={() => set("marginType", "USDT-M")} style={{ flex: 1, textAlign: "center", padding: "8px 0", fontSize: 13, cursor: "pointer", fontFamily: T.mono, fontWeight: 700, background: form.marginType === "USDT-M" ? T.blueDim : "transparent", color: form.marginType === "USDT-M" ? T.blue : T.dim }}>USDT-M</div>
+                <div onClick={() => set("marginType", "COIN-M")} style={{ flex: 1, textAlign: "center", padding: "8px 0", fontSize: 13, cursor: "pointer", fontFamily: T.mono, fontWeight: 700, background: form.marginType === "COIN-M" ? T.orangeDim : "transparent", color: form.marginType === "COIN-M" ? T.orange : T.dim }}>COIN-M</div>
+              </div>
+            </div>
+          )}
 
           <div><label style={LS}>Entry Price ({qc})</label><input style={IS} type="number" inputMode="decimal" value={form.entry} onChange={e => set("entry", e.target.value)} placeholder="0.00" /></div>
           <div><label style={LS}>Quantity</label><input style={IS} type="number" inputMode="decimal" value={form.qty} onChange={e => set("qty", e.target.value)} placeholder="0.00" /></div>

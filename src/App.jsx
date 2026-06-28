@@ -158,58 +158,66 @@ function ConsistencyHeatmap({ trades }) {
 
 // ─── Overview ─────────────────────────────────────────────────────────────────
 function Overview({ trades, allProfileTrades, initialCapital = 0, profiles = [], liveTrades = [], isMobile }) {
-  const allClosed = trades.filter(t => t.status === "closed");
-  const closed = allClosed.filter(t => t.entryType !== "Deposit" && t.entryType !== "Withdrawal" && t.symbol !== "Deposit" && t.symbol !== "Withdrawal");
-  const wins = closed.filter(t => t.pnl > 0);
-  const losses = closed.filter(t => t.pnl < 0);
-  const realizedPnl = closed.reduce((s, t) => s + t.pnl + (t.fees || 0), 0);
-  const winRate = calculateWinRate(closed);
-  const totalFees = closed.reduce((s, t) => s + (t.fees || 0), 0);
-  const totalInvested = closed.reduce((s, t) => s + ((t.entry * t.qty * (t.usdtRate || 1)) / (t.leverage || 1)), 0);
-  const avgWin = wins.length ? wins.reduce((s, t) => s + t.pnl, 0) / wins.length : 0;
-  const avgLoss = losses.length ? Math.abs(losses.reduce((s, t) => s + t.pnl, 0) / losses.length) : 1;
-  const avgRR = avgWin / avgLoss;
-  const profitFactor = calculateProfitFactor(closed);
-  const expectedValue = calculateExpectancy(closed);
-  const spotClosed = closed.filter(t => t.tradeType === "Spot");
-  const futClosed = closed.filter(t => t.tradeType !== "Spot");
-  const spotAvgHold = spotClosed.length ? spotClosed.reduce((s, t) => s + (t.closeTime - t.openTime), 0) / spotClosed.length : 0;
-  const futAvgHold = futClosed.length ? futClosed.reduce((s, t) => s + (t.closeTime - t.openTime), 0) / futClosed.length : 0;
-  const spotH = Math.floor(spotAvgHold / 3600000);
-  const spotM = Math.floor((spotAvgHold % 3600000) / 60000);
-  const futH = Math.floor(futAvgHold / 3600000);
-  const futM = Math.floor((futAvgHold % 3600000) / 60000);
+  const { closed, wins, losses, realizedPnl, winRate, totalFees, totalInvested, avgWin, avgLoss, avgRR, profitFactor, expectedValue, spotClosed, futClosed, spotH, spotM, futH, futM, equitySeries, dailyPnl } = useMemo(() => {
+    const allClosed = trades.filter(t => t.status === "closed");
+    const closed = allClosed.filter(t => t.entryType !== "Deposit" && t.entryType !== "Withdrawal" && t.symbol !== "Deposit" && t.symbol !== "Withdrawal");
+    const wins = closed.filter(t => (t.pnl - (t.fundingFees || 0)) > 0);
+    const losses = closed.filter(t => (t.pnl - (t.fundingFees || 0)) < 0);
+    const realizedPnl = closed.reduce((s, t) => s + t.pnl + (t.fees || 0) - (t.fundingFees || 0), 0);
+    const winRate = calculateWinRate(closed);
+    const totalFees = closed.reduce((s, t) => s + (t.fees || 0) + (t.fundingFees || 0), 0);
+    const totalInvested = closed.reduce((s, t) => s + ((t.entry * t.qty * (t.usdtRate || 1)) / (t.leverage || 1)), 0);
+    const avgWin = wins.length ? wins.reduce((s, t) => s + t.pnl - (t.fundingFees || 0), 0) / wins.length : 0;
+    const avgLoss = losses.length ? Math.abs(losses.reduce((s, t) => s + t.pnl - (t.fundingFees || 0), 0) / losses.length) : 1;
+    const avgRR = avgWin / avgLoss;
+    const profitFactor = calculateProfitFactor(closed);
+    const expectedValue = calculateExpectancy(closed);
+    const spotClosed = closed.filter(t => t.tradeType === "Spot");
+    const futClosed = closed.filter(t => t.tradeType !== "Spot");
+    const spotAvgHold = spotClosed.length ? spotClosed.reduce((s, t) => s + (t.closeTime - t.openTime), 0) / spotClosed.length : 0;
+    const futAvgHold = futClosed.length ? futClosed.reduce((s, t) => s + (t.closeTime - t.openTime), 0) / futClosed.length : 0;
+    
+    let running = 0, peak = 0, maxDD = 0, maxRunup = 0;
+    const equitySeries = [{ date: "Start", val: 0 }, ...closed.sort((a, b) => a.closeTime - b.closeTime).map(t => {
+      running += t.pnl + (t.fees || 0) - (t.fundingFees || 0);
+      if (running > peak) { maxRunup = Math.max(maxRunup, running); peak = running; }
+      maxDD = Math.min(maxDD, running - peak);
+      return { date: fmtDate(t.closeTime), val: parseFloat(running.toFixed(2)) };
+    })];
+
+    const dailyPnl = Object.entries(closed.reduce((acc, t) => {
+      const d = fmtDateShort(t.closeTime);
+      acc[d] = (acc[d] || 0) + t.pnl + (t.fees || 0) - (t.fundingFees || 0);
+      return acc;
+    }, {})).map(([date, val]) => ({ date, val: parseFloat(val.toFixed(2)) }));
+
+    return { 
+      closed, wins, losses, realizedPnl, winRate, totalFees, totalInvested, 
+      avgWin, avgLoss, avgRR, profitFactor, expectedValue, spotClosed, futClosed, 
+      spotH: Math.floor((spotAvgHold || 0) / 3600000), spotM: Math.floor(((spotAvgHold || 0) % 3600000) / 60000),
+      futH: Math.floor((futAvgHold || 0) / 3600000), futM: Math.floor(((futAvgHold || 0) % 3600000) / 60000),
+      equitySeries, dailyPnl
+    };
+  }, [trades]);
+
   const INITIAL_CAPITAL = initialCapital;
 
-  const allProfileClosed = (allProfileTrades || trades).filter(t => t.status === "closed");
-  const firstDeposit = allProfileClosed.find(t => t.entryType === "Deposit" || t.symbol === "Deposit");
-  const startingCapital = firstDeposit ? firstDeposit.qty : (initialCapital || 0);
-  const otherDepositsVal = allProfileClosed
-    .filter(t => (t.entryType === "Deposit" || t.symbol === "Deposit") && t.id !== (firstDeposit ? firstDeposit.id : null))
-    .reduce((s, t) => s + t.qty, 0);
-  const totalAccountDeposits = startingCapital + otherDepositsVal;
-  const withdrawalsVal = allProfileClosed
-    .filter(t => t.entryType === "Withdrawal" || t.symbol === "Withdrawal")
-    .reduce((s, t) => s + t.qty, 0);
+  const { balance } = useMemo(() => {
+    const allProfileClosed = (allProfileTrades || trades).filter(t => t.status === "closed");
+    const firstDeposit = allProfileClosed.find(t => t.entryType === "Deposit" || t.symbol === "Deposit");
+    const startingCapital = firstDeposit ? firstDeposit.qty : (initialCapital || 0);
+    const otherDepositsVal = allProfileClosed
+      .filter(t => (t.entryType === "Deposit" || t.symbol === "Deposit") && t.id !== (firstDeposit ? firstDeposit.id : null))
+      .reduce((s, t) => s + t.qty, 0);
+    const withdrawalsVal = allProfileClosed
+      .filter(t => t.entryType === "Withdrawal" || t.symbol === "Withdrawal")
+      .reduce((s, t) => s + t.qty, 0);
 
-  const profileClosedTrades = allProfileClosed.filter(t => t.entryType !== "Deposit" && t.entryType !== "Withdrawal" && t.symbol !== "Deposit" && t.symbol !== "Withdrawal");
-  const profileRealizedPnl = profileClosedTrades.reduce((s, t) => s + t.pnl, 0);
-  const profileTotalFees = profileClosedTrades.reduce((s, t) => s + (t.fees || 0), 0);
-  const balance = totalAccountDeposits - withdrawalsVal + profileRealizedPnl + profileTotalFees;
-
-  let running = 0, peak = 0, maxDD = 0, maxRunup = 0;
-  const equitySeries = [{ date: "Start", val: 0 }, ...closed.sort((a, b) => a.closeTime - b.closeTime).map(t => {
-    running += t.pnl + (t.fees || 0);
-    if (running > peak) { maxRunup = Math.max(maxRunup, running); peak = running; }
-    maxDD = Math.min(maxDD, running - peak);
-    return { date: fmtDate(t.closeTime), val: parseFloat(running.toFixed(2)) };
-  })];
-
-  const dailyPnl = Object.entries(closed.reduce((acc, t) => {
-    const d = fmtDateShort(t.closeTime);
-    acc[d] = (acc[d] || 0) + t.pnl + (t.fees || 0);
-    return acc;
-  }, {})).map(([date, val]) => ({ date, val: parseFloat(val.toFixed(2)) }));
+    const profileClosedTrades = allProfileClosed.filter(t => t.entryType !== "Deposit" && t.entryType !== "Withdrawal" && t.symbol !== "Deposit" && t.symbol !== "Withdrawal");
+    const profileRealizedPnl = profileClosedTrades.reduce((s, t) => s + t.pnl, 0);
+    const profileTotalFees = profileClosedTrades.reduce((s, t) => s + (t.fees || 0) - (t.fundingFees || 0), 0);
+    return { balance: startingCapital + otherDepositsVal - withdrawalsVal + profileRealizedPnl + profileTotalFees };
+  }, [allProfileTrades, trades, initialCapital]);
 
   const { prices } = usePrices();
   const totalUnrealizedPnl = liveTrades.reduce((sum, t) => {
