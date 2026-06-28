@@ -3,7 +3,7 @@ import { Capacitor } from "@capacitor/core";
 import { NativeBiometric } from "@capgo/capacitor-native-biometric";
 import { App } from "@capacitor/app";
 import CryptoJS from "crypto-js";
-import { setStorageEncryption } from "../utils/storage.js";
+import { setStorageKey } from "../utils/storage.js";
 
 const SecurityContext = createContext(null);
 
@@ -65,37 +65,22 @@ export const SecurityProvider = ({ children }) => {
           }
         } else {
           setIsLocked(false);
-          setMasterKey("cj_serverless_default_key");
+          updateMasterKey("cj_serverless_default_key");
         }
       } catch (e) {
         console.error("Failed to load security preferences:", e);
         setIsLocked(false);
-        setMasterKey("cj_serverless_default_key");
+        updateMasterKey("cj_serverless_default_key");
       }
     };
-
     init();
   }, []);
 
-  // Update storage encryption wrappers whenever masterKey changes
-  useEffect(() => {
-    if (masterKey) {
-      setStorageEncryption(
-        (val) => CryptoJS.AES.encrypt(val, masterKey).toString(),
-        (ciphertext) => {
-          try {
-            const bytes = CryptoJS.AES.decrypt(ciphertext, masterKey);
-            return bytes.toString(CryptoJS.enc.Utf8);
-          } catch (e) {
-            console.error("Decryption failed:", e);
-            return null;
-          }
-        }
-      );
-    } else {
-      setStorageEncryption((v) => v, (v) => null);
-    }
-  }, [masterKey]);
+  // Helper to set both masterKey state and storage key module
+  const updateMasterKey = (key) => {
+    setMasterKey(key);
+    setStorageKey(key);
+  };
 
   // Save preferences helper
   const savePrefs = (updated) => {
@@ -164,7 +149,7 @@ export const SecurityProvider = ({ children }) => {
       }
 
       setKeyOption(option);
-      setMasterKey(derived);
+      updateMasterKey(derived);
       setAppLockEnabled(true);
       setIsLocked(false);
 
@@ -184,7 +169,7 @@ export const SecurityProvider = ({ children }) => {
   // Disable lock
   const disableSecurity = () => {
     setAppLockEnabled(false);
-    setMasterKey("cj_serverless_default_key");
+    updateMasterKey("cj_serverless_default_key");
     setIsLocked(false);
     savePrefs({ appLockEnabled: false });
 
@@ -212,7 +197,7 @@ export const SecurityProvider = ({ children }) => {
             server: APP_LOCK_KEY_SERVER,
           });
           if (credentials && credentials.password) {
-            setMasterKey(credentials.password);
+            updateMasterKey(credentials.password);
             setIsLocked(false);
             return { success: true };
           } else {
@@ -222,14 +207,14 @@ export const SecurityProvider = ({ children }) => {
           // Web fallback
           const fallback = localStorage.getItem("cj_web_bio_fallback");
           if (fallback) {
-            setMasterKey(fallback);
+            updateMasterKey(fallback);
             setIsLocked(false);
             return { success: true };
           } else {
             // First time setup mock
             const key = generateMachineKey();
             localStorage.setItem("cj_web_bio_fallback", key);
-            setMasterKey(key);
+            updateMasterKey(key);
             setIsLocked(false);
             return { success: true };
           }
@@ -244,7 +229,7 @@ export const SecurityProvider = ({ children }) => {
           try {
             const dec = CryptoJS.AES.decrypt(testCipher, derived).toString(CryptoJS.enc.Utf8);
             if (dec === "VERIFIED") {
-              setMasterKey(derived);
+              updateMasterKey(derived);
               setIsLocked(false);
               return { success: true };
             } else {
@@ -257,7 +242,7 @@ export const SecurityProvider = ({ children }) => {
           // First setup validation
           const enc = CryptoJS.AES.encrypt("VERIFIED", derived).toString();
           localStorage.setItem("cj_auth_check_v1", enc);
-          setMasterKey(derived);
+          updateMasterKey(derived);
           setIsLocked(false);
           return { success: true };
         }
@@ -285,7 +270,7 @@ export const SecurityProvider = ({ children }) => {
           // First setup validation
           const enc = CryptoJS.AES.encrypt("VERIFIED", derived).toString();
           localStorage.setItem("cj_auth_check_v1", enc);
-          setMasterKey(derived);
+          updateMasterKey(derived);
           setIsLocked(false);
           return { success: true };
         }
