@@ -54,7 +54,7 @@ export default function TopNav() {
 
   const tabMap = {
     Dashboard: ["Overview"],
-    Analytics: ["Trade Summary", "Time Metrics", "Analytics", "Calendar", "Risk Calc"],
+    Analytics: ["Time Metrics", "Analytics", "Calendar", "Risk Calc", "Trade Summary"],
     Profile: ["Accounts"],
   };
   const viewTabs = tabMap[view] || [];

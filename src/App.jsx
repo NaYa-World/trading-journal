@@ -1108,7 +1108,7 @@ export default function App() {
                   <div style={{ padding: isMobile ? "0" : "0", display: "flex", flexDirection: "column", flex: 1 }}>
                     {isMobile && (
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, padding: "0 16px", marginBottom: 20 }}>
-                        {["Trade Summary", "Time Metrics", "Analytics", "Calendar", "Risk Calc"].map(t => (
+                        {["Time Metrics", "Analytics", "Calendar", "Risk Calc", "Trade Summary"].map(t => (
                           <button
                             key={t}
                             onClick={() => setSubTab(t)}
