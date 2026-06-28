@@ -9,10 +9,11 @@ export default function AccountsManager({ profiles, activeProfileId, switchProfi
   const [editingProfile, setEditingProfile] = useState(null);
   const [showAddProfile, setShowAddProfile] = useState(false);
   const [showThemeSettings, setShowThemeSettings] = useState(false);
+  const [showAccountDropdown, setShowAccountDropdown] = useState(false);
   const [profileForm, setProfileForm] = useState({ name: "", color: "#6366f1", emoji: "💼" });
   
   const activeProfile = profiles.find(p => p.id === activeProfileId) || profiles[0];
-  const { userEmail, authenticateGoogle, clearGoogleSession } = useBackup();
+  const { userEmail, authenticateGoogle, clearGoogleSession, lastSynced, syncing, executeCloudBackup } = useBackup();
   const { setShowCSVModal, downloadCSV, exportPDF, activeThemeKey, setActiveThemeKey } = useDashboard();
   const fileInputRef = useRef(null);
 
@@ -244,17 +245,42 @@ export default function AccountsManager({ profiles, activeProfileId, switchProfi
         marginBottom: 16
       }}>
         {/* Dropdown Header */}
-        <div style={{ 
-          background: T.panel2, border: `1px solid ${T.border}`, borderRadius: 10, 
-          padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, marginBottom: 20
-        }}>
+        <div 
+          onClick={() => setShowAccountDropdown(!showAccountDropdown)}
+          style={{ 
+            background: T.panel2, border: `1px solid ${T.border}`, borderRadius: 10, 
+            padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, marginBottom: 20,
+            cursor: "pointer"
+          }}>
           <div style={{ background: `${T.purple}20`, color: T.purple, padding: 6, borderRadius: 6 }}>💼</div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 11, color: T.dim }}>Active account</div>
             <div style={{ fontSize: 15, fontWeight: 700, color: "#FFF" }}>{activeProfile.name}</div>
           </div>
-          <span style={{ color: T.dim }}>⌄</span>
+          <span style={{ color: T.dim }}>{showAccountDropdown ? "⌃" : "⌄"}</span>
         </div>
+
+        {showAccountDropdown && (
+          <div style={{ background: T.panel2, border: `1px solid ${T.border}`, borderRadius: 10, marginBottom: 20, overflow: "hidden" }}>
+            {profiles.map(p => (
+              <div 
+                key={p.id} 
+                onClick={() => { switchProfile(p.id); setShowAccountDropdown(false); }}
+                style={{ 
+                  padding: "12px 16px", display: "flex", alignItems: "center", gap: 12,
+                  background: p.id === activeProfile.id ? `${T.purple}20` : "transparent",
+                  cursor: "pointer", borderBottom: `1px solid ${T.border}`
+                }}
+              >
+                <div style={{ fontSize: 18 }}>{p.emoji || "💼"}</div>
+                <div style={{ flex: 1, fontSize: 14, fontWeight: p.id === activeProfile.id ? 700 : 500, color: p.id === activeProfile.id ? T.bright : T.dim }}>
+                  {p.name}
+                </div>
+                {p.id === activeProfile.id && <div style={{ color: T.purple }}>✓</div>}
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Account Details */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
@@ -326,10 +352,18 @@ export default function AccountsManager({ profiles, activeProfileId, switchProfi
           <>
             <div style={{ fontSize: 13, color: T.dim, marginBottom: 20, lineHeight: 1.4 }}>
               Logged in as <strong style={{ color: T.bright }}>{userEmail}</strong>. Your trades are being backed up.
+              <div style={{ marginTop: 8, fontSize: 11, color: T.purple }}>
+                Last synced: {lastSynced ? new Date(lastSynced).toLocaleString() : "Never"}
+              </div>
             </div>
-            <button onClick={clearGoogleSession} style={{ width: "100%", background: "transparent", color: T.red, border: `1px solid ${T.red}50`, borderRadius: 10, padding: 14, fontWeight: 700, fontSize: 15 }}>
-              Sign Out
-            </button>
+            <div style={{ display: "flex", gap: 12 }}>
+              <button onClick={() => executeCloudBackup && executeCloudBackup()} disabled={syncing} style={{ flex: 1, background: T.purple, color: "#FFF", border: "none", borderRadius: 10, padding: 14, fontWeight: 700, fontSize: 14, opacity: syncing ? 0.6 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                {syncing ? "Syncing..." : "Sync Now"}
+              </button>
+              <button onClick={clearGoogleSession} style={{ flex: 1, background: "transparent", color: T.red, border: `1px solid ${T.red}50`, borderRadius: 10, padding: 14, fontWeight: 700, fontSize: 14 }}>
+                Sign Out
+              </button>
+            </div>
           </>
         )}
       </div>
