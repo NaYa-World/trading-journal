@@ -51,8 +51,8 @@ export function DashboardProvider({ children }) {
   const [subTab, setSubTab] = useState("Overview");
 
   // Profile manager states
-  const [profiles, setProfiles] = useState(loadProfiles);
-  const [activeProfileId, setActiveProfileId] = useState(loadActiveProfile);
+  const [profiles, setProfiles] = useState([{ id: "default", name: "Main Account", color: "#6366f1", emoji: "💼" }]);
+  const [activeProfileId, setActiveProfileId] = useState("default");
   const [showProfiles, setShowProfiles] = useState(false);
 
   // Capital is now derived from the active profile
@@ -64,26 +64,63 @@ export function DashboardProvider({ children }) {
   };
 
   // API sync key states
-  const [apiKeys, setApiKeys] = useState(loadApiKeys);
+  const [apiKeys, setApiKeys] = useState({});
 
   // Trades state
-  const [allTrades, setAllTrades] = useState(loadTrades);
-  const [allSpotOpen, setAllSpotOpen] = useState(loadSpotOpen);
-  const [allLiveTrades, setAllLiveTrades] = useState(loadLiveTrades);
+  const [allTrades, setAllTrades] = useState([]);
+  const [allSpotOpen, setAllSpotOpen] = useState([]);
+  const [allLiveTrades, setAllLiveTrades] = useState([]);
   
   // Watchlist & symbol settings
-  const [savedSymbols, setSavedSymbols] = useState(loadSavedSymbols);
+  const [savedSymbols, setSavedSymbols] = useState([]);
   
   // Trade Setups
-  const [tradeSetups, setTradeSetups] = useState(loadTradeSetups);
+  const [tradeSetups, setTradeSetups] = useState([]);
 
   // Keyboard undo states
   const [undoTrade, setUndoTrade] = useState(null);
   const undoTimerRef = useRef(null);
 
   // Reviews state
-  const [reviews, setReviews] = useState(loadReviews);
+  const [reviews, setReviews] = useState({});
   const [reviewKey, setReviewKey] = useState(null);
+
+  const [isStorageLoading, setIsStorageLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function initStorage() {
+      try {
+        const [
+          _profiles, _activeProf, _apiKeys, _trades, _spotOpen, _liveTrades,
+          _symbols, _setups, _reviews
+        ] = await Promise.all([
+          loadProfiles(), loadActiveProfile(), loadApiKeys(), loadTrades(), loadSpotOpen(), loadLiveTrades(),
+          loadSavedSymbols(), loadTradeSetups(), loadReviews()
+        ]);
+        
+        if (isMounted) {
+          setProfiles(_profiles);
+          setActiveProfileId(_activeProf);
+          setApiKeys(_apiKeys);
+          setAllTrades(_trades);
+          setAllSpotOpen(_spotOpen);
+          setAllLiveTrades(_liveTrades);
+          setSavedSymbols(_symbols);
+          setTradeSetups(_setups);
+          setReviews(_reviews);
+        }
+      } catch (e) {
+        console.error("Error loading async storage on startup", e);
+      } finally {
+        if (isMounted) {
+          setIsStorageLoading(false);
+        }
+      }
+    }
+    initStorage();
+    return () => { isMounted = false; };
+  }, []);
 
   // Modals state
   const [showDataMenu, setShowDataMenu] = useState(false);
@@ -482,38 +519,98 @@ useEffect(() => {
     setAllSpotOpen(prev => { const next = prev.filter(t => t.id !== id); saveSpotOpen(next); return next; });
   }, []);
 
-  const handleApiSync = async (apiKey, apiSecret) => {
+  const handleApiSync = async (exchange, { apiKey, apiSecret, apiPassphrase }) => {
     if (Capacitor.isNativePlatform()) {
       throw new Error("Direct API Sync is not supported on the mobile app. Please use the Web version.");
     }
-    const timestamp = Date.now();
-    const queryString = `timestamp=${timestamp}`;
-    const signature = CryptoJS.HmacSHA256(queryString, apiSecret).toString(CryptoJS.enc.Hex);
+    
+    let normalizedPositions = [];
 
-    const res = await fetch(`https://fapi.binance.com/fapi/v2/positionRisk?${queryString}&signature=${signature}`, {
-      headers: { "X-MBX-APIKEY": apiKey }
-    });
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(text);
+    if (exchange === "binance") {
+      const timestamp = Date.now();
+      const queryString = `timestamp=${timestamp}`;
+      const signature = CryptoJS.HmacSHA256(queryString, apiSecret).toString(CryptoJS.enc.Hex);
+
+      const res = await fetch(`https://fapi.binance.com/fapi/v2/positionRisk?${queryString}&signature=${signature}`, {
+        headers: { "X-MBX-APIKEY": apiKey }
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      
+      normalizedPositions = data.filter(p => parseFloat(p.positionAmt) !== 0).map(p => ({
+        symbol: p.symbol,
+        side: parseFloat(p.positionAmt) > 0 ? "Long" : "Short",
+        qty: Math.abs(parseFloat(p.positionAmt)),
+        entry: parseFloat(p.entryPrice)
+      }));
+    } else if (exchange === "bybit") {
+      const timestamp = Date.now().toString();
+      const recvWindow = "5000";
+      const queryString = "category=linear&settleCoin=USDT";
+      const signString = timestamp + apiKey + recvWindow + queryString;
+      const signature = CryptoJS.HmacSHA256(signString, apiSecret).toString(CryptoJS.enc.Hex);
+
+      const res = await fetch(`https://api.bybit.com/v5/position/list?${queryString}`, {
+        headers: {
+          "X-BAPI-API-KEY": apiKey,
+          "X-BAPI-TIMESTAMP": timestamp,
+          "X-BAPI-RECV-WINDOW": recvWindow,
+          "X-BAPI-SIGN": signature
+        }
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      if (data.retCode !== 0) throw new Error(data.retMsg);
+      
+      normalizedPositions = (data.result.list || []).filter(p => parseFloat(p.size) !== 0).map(p => ({
+        symbol: p.symbol,
+        side: p.side === "Buy" ? "Long" : "Short",
+        qty: parseFloat(p.size),
+        entry: parseFloat(p.avgPrice)
+      }));
+    } else if (exchange === "bitget") {
+      const timestamp = Date.now().toString();
+      const method = "GET";
+      const requestPath = "/api/v2/mix/position/all-position";
+      const queryString = "productType=USDT-FUMARGIN";
+      const signString = timestamp + method + requestPath + "?" + queryString;
+      const signature = CryptoJS.HmacSHA256(signString, apiSecret).toString(CryptoJS.enc.Base64);
+
+      const res = await fetch(`https://api.bitget.com${requestPath}?${queryString}`, {
+        headers: {
+          "ACCESS-KEY": apiKey,
+          "ACCESS-SIGN": signature,
+          "ACCESS-TIMESTAMP": timestamp,
+          "ACCESS-PASSPHRASE": apiPassphrase,
+          "Content-Type": "application/json"
+        }
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      if (data.code !== "00000") throw new Error(data.msg);
+      
+      normalizedPositions = (data.data || []).filter(p => parseFloat(p.total) !== 0).map(p => ({
+        symbol: p.instId.replace("_UMCBL", ""), // Bitget suffixes USDT futures with _UMCBL usually, but let's be safe
+        side: (p.holdSide === "long" || p.holdSide === "buy") ? "Long" : "Short",
+        qty: parseFloat(p.total),
+        entry: parseFloat(p.averageOpenPrice)
+      }));
+    } else {
+      throw new Error("Unsupported exchange.");
     }
-    const data = await res.json();
-    const openPositions = data.filter(p => parseFloat(p.positionAmt) !== 0);
 
-    openPositions.forEach(p => {
-      const qty = Math.abs(parseFloat(p.positionAmt));
-      const entry = parseFloat(p.entryPrice);
-      const side = parseFloat(p.positionAmt) > 0 ? "Long" : "Short";
-
+    // Add to Live Trades
+    normalizedPositions.forEach(p => {
       setAllLiveTrades(prev => {
         if (prev.some(lt => lt.symbol === p.symbol && lt.profileId === activeProfileId)) return prev;
         const newTrade = createTrade({
           id: Date.now() + Math.random(),
           symbol: p.symbol, tradeType: "Futures",
-          side, action: side, displayType: `Futures ${side}`,
-          entry, qty,
+          side: p.side, action: p.side, displayType: `Futures ${p.side}`,
+          entry: p.entry, qty: p.qty,
           openTime: Date.now(),
-          status: "open", profileId: activeProfileId
+          status: "open", profileId: activeProfileId,
+          exchange: exchange.charAt(0).toUpperCase() + exchange.slice(1)
         });
         const next = [...prev, newTrade];
         saveLiveTrades(next);
@@ -780,7 +877,8 @@ ${review ? `<div class="section">Monthly Review</div>${review.bestTrade ? `<div 
     saveSymbol, handleQuickAdd, addTrade, importTrades, addSpotOpen,
     closeSpotOpen, deleteSpotOpen, handleApiSync, addLiveTrade, closeLiveTrade,
     saveReview, openReview, switchProfile, addProfile, updateProfile, deleteProfile, clearAllData,
-    downloadCSV, exportPDF
+    downloadCSV, exportPDF,
+    isStorageLoading
   }), [
     view, subTab, profiles, activeProfileId, showProfiles, activeProfile,
     activeThemeKey, initialCapital, apiKeys, allTrades, allSpotOpen, allLiveTrades, savedSymbols, tradeSetups,
@@ -793,7 +891,7 @@ ${review ? `<div class="section">Monthly Review</div>${review.bestTrade ? `<div 
     saveSymbol, handleQuickAdd, addTrade, importTrades, addSpotOpen,
     closeSpotOpen, deleteSpotOpen, handleApiSync, addLiveTrade, closeLiveTrade,
     saveReview, openReview, switchProfile, addProfile, updateProfile, deleteProfile, clearAllData,
-    downloadCSV, exportPDF, showToast
+    downloadCSV, exportPDF, showToast, isStorageLoading
   ]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (

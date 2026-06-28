@@ -808,20 +808,37 @@ function TradeFilterBar({ filterSetup, setFilterSetup, filterCoin, setFilterCoin
 }
 
 function ExchangeSyncModal({ onClose, onSync, keys, setKeys }) {
-  const [apiKey, setApiKey] = useState(keys.apiKey || "");
-  const [apiSecret, setApiSecret] = useState(keys.apiSecret || "");
+  const [exchange, setExchange] = useState("binance");
+  const [apiKey, setApiKey] = useState("");
+  const [apiSecret, setApiSecret] = useState("");
+  const [apiPassphrase, setApiPassphrase] = useState("");
   const [status, setStatus] = useState("");
+
+  // Load existing keys when exchange changes
+  useEffect(() => {
+    const exKeys = keys[exchange] || {};
+    setApiKey(exKeys.apiKey || "");
+    setApiSecret(exKeys.apiSecret || "");
+    setApiPassphrase(exKeys.apiPassphrase || "");
+  }, [exchange, keys]);
 
   const handleSync = async () => {
     setStatus("Syncing...");
-    setKeys({ apiKey, apiSecret });
-    saveApiKeys({ apiKey, apiSecret });
+    
+    // Save locally to component state & storage
+    const updatedKeys = {
+      ...keys,
+      [exchange]: { apiKey, apiSecret, apiPassphrase }
+    };
+    setKeys(updatedKeys);
+    saveApiKeys(updatedKeys);
+    
     try {
-      await onSync(apiKey, apiSecret);
+      await onSync(exchange, { apiKey, apiSecret, apiPassphrase });
       setStatus("Sync Complete! ✅");
       setTimeout(onClose, 2000);
     } catch (err) {
-      setStatus(`Error: ${err.message}. (Note: You may need a CORS extension like 'Allow CORS' in Chrome to hit Binance API from localhost).`);
+      setStatus(`Error: ${err.message}.`);
     }
   };
 
@@ -830,16 +847,33 @@ function ExchangeSyncModal({ onClose, onSync, keys, setKeys }) {
     <div style={{ position: "fixed", inset: 0, background: "#000000b0", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, backdropFilter: "blur(6px)" }}>
       <div style={{ background: T.panel, border: `1px solid ${T.border2}`, borderRadius: 14, padding: 26, width: "min(460px,95vw)", boxShadow: "0 30px 80px #00000070" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <div style={{ fontFamily: T.mono, fontSize: 16, color: T.bright }}>🔄 Binance API Sync</div>
+          <div style={{ fontFamily: T.mono, fontSize: 16, color: T.bright }}>🔄 API Sync</div>
           <button onClick={onClose} style={{ background: "none", border: "none", color: T.dim, cursor: "pointer", fontSize: 22 }}>✕</button>
         </div>
         <div style={{ fontSize: 13, color: T.dim, marginBottom: 16, lineHeight: 1.5 }}>
-          Enter a Read-Only Binance API key to automatically pull your open Futures positions into the Live Trades tab.
+          Enter a Read-Only API key to automatically pull your open Futures positions into the Live Trades tab.
         </div>
+        
+        <label style={{ fontSize: 11, color: T.dim, letterSpacing: 1.2, textTransform: "uppercase", display: "block", marginBottom: 5 }}>Exchange</label>
+        <select style={{ ...IS, cursor: "pointer" }} value={exchange} onChange={e => setExchange(e.target.value)}>
+          <option value="binance">Binance</option>
+          <option value="bybit">Bybit</option>
+          <option value="bitget">Bitget</option>
+        </select>
+
         <label style={{ fontSize: 11, color: T.dim, letterSpacing: 1.2, textTransform: "uppercase", display: "block", marginBottom: 5 }}>API Key</label>
         <input style={IS} value={apiKey} onChange={e => setApiKey(e.target.value)} type="password" />
+        
         <label style={{ fontSize: 11, color: T.dim, letterSpacing: 1.2, textTransform: "uppercase", display: "block", marginBottom: 5 }}>API Secret</label>
         <input style={IS} value={apiSecret} onChange={e => setApiSecret(e.target.value)} type="password" />
+
+        {exchange === "bitget" && (
+          <>
+            <label style={{ fontSize: 11, color: T.dim, letterSpacing: 1.2, textTransform: "uppercase", display: "block", marginBottom: 5 }}>API Passphrase</label>
+            <input style={IS} value={apiPassphrase} onChange={e => setApiPassphrase(e.target.value)} type="password" />
+          </>
+        )}
+
         {status && <div style={{ fontSize: 13, color: status.includes("Error") ? T.red : T.cyan, marginBottom: 16, background: status.includes("Error") ? T.redDim : T.panel2, padding: 10, borderRadius: 6 }}>{status}</div>}
         <button onClick={handleSync} style={{ background: T.blue, border: "none", color: "#fff", borderRadius: 8, padding: "10px 0", cursor: "pointer", fontSize: 15, fontWeight: 700, fontFamily: T.mono, width: "100%" }}>Start Sync</button>
       </div>
@@ -894,7 +928,7 @@ export default function App() {
     deleteFinishedTrade, restoreDeletedTrade, handleEditTrade,
     saveSymbol, handleQuickAdd, addTrade, importTrades, addSpotOpen,
     closeSpotOpen, deleteSpotOpen, handleApiSync, addLiveTrade, closeLiveTrade,
-    saveReview, openReview, switchProfile, addProfile, updateProfile, deleteProfile, clearAllData, downloadCSV
+    saveReview, openReview, switchProfile, addProfile, updateProfile, deleteProfile, clearAllData, downloadCSV, isStorageLoading
   } = useDashboard();
 
   const { prices, status } = usePrices();
@@ -976,6 +1010,26 @@ export default function App() {
     setShowSyncModal(false);
     setEditingTrade(null);
   }, [view, setShowAddModal, setShowCSVModal, setShowSyncModal, setEditingTrade]);
+
+  if (isStorageLoading) {
+    return (
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "center", 
+        height: "100vh", background: T.bg, color: T.dim,
+        fontFamily: T.mono, fontSize: 16, letterSpacing: 1
+      }}>
+        <style>{`
+          @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+          }
+        `}</style>
+        <div style={{ animation: "pulse 1.5s infinite" }}>
+          Decrypting Storage...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
