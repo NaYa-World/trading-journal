@@ -171,6 +171,8 @@ useEffect(() => {
   useEffect(() => {
     if (view === "Dashboard") {
       setSubTab("Overview");
+    } else if (view === "Analytics") {
+      setSubTab("Trade Summary");
     } else if (view === "Profile") {
       setSubTab("Accounts");
     } else {

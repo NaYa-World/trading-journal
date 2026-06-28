@@ -7,6 +7,7 @@ const MOBILE_TABS = [
   { id: "Journal", label: "Journal", icon: "📖" },
   { id: "Trade", label: "Trade", isCenter: true },
   { id: "Setup", label: "Setup", icon: "✔" },
+  { id: "Analytics", label: "Analytics", icon: "📈" },
   { id: "Profile", label: "Profile", icon: "👤" }
 ];
 

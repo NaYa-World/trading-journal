@@ -1104,11 +1104,11 @@ export default function App() {
                 {view === "Setup" && (
                   <TradeSetupsManager trades={trades} tradeSetups={tradeSetups} setTradeSetups={setTradeSetups} showToast={showToast} />
                 )}
-                {view === "Profile" && (
+                {view === "Analytics" && (
                   <div style={{ padding: isMobile ? "0" : "0", display: "flex", flexDirection: "column", flex: 1 }}>
                     {isMobile && (
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, padding: "0 16px", marginBottom: 20 }}>
-                        {["Accounts", "Trade Summary", "Time Metrics", "Analytics", "Calendar", "Risk Calc"].map(t => (
+                        {["Trade Summary", "Time Metrics", "Analytics", "Calendar", "Risk Calc"].map(t => (
                           <button
                             key={t}
                             onClick={() => setSubTab(t)}
@@ -1130,19 +1130,6 @@ export default function App() {
                       </div>
                     )}
                     <div style={{ flex: 1 }}>
-                    {subTab === "Accounts" && (
-                      <AccountsManager 
-                        profiles={profiles}
-                        activeProfileId={activeProfileId}
-                        switchProfile={switchProfile}
-                        addProfile={addProfile}
-                        updateProfile={updateProfile}
-                        trades={profileTrades}
-                        liveTrades={liveTrades}
-                        addTrade={addTrade}
-                        showToast={showToast}
-                      />
-                    )}
                     {subTab === "Trade Summary" && (
                       <TradeSummary
                         trades={trades}
@@ -1156,6 +1143,23 @@ export default function App() {
                     {subTab === "Analytics" && <Analytics />}
                     {subTab === "Time Metrics" && <TimeMetrics trades={trades} />}
                     {subTab === "Risk Calc" && <RiskCalculator />}
+                    </div>
+                  </div>
+                )}
+                {view === "Profile" && (
+                  <div style={{ padding: isMobile ? "0" : "0", display: "flex", flexDirection: "column", flex: 1 }}>
+                    <div style={{ flex: 1 }}>
+                      <AccountsManager 
+                        profiles={profiles}
+                        activeProfileId={activeProfileId}
+                        switchProfile={switchProfile}
+                        addProfile={addProfile}
+                        updateProfile={updateProfile}
+                        trades={profileTrades}
+                        liveTrades={liveTrades}
+                        addTrade={addTrade}
+                        showToast={showToast}
+                      />
                     </div>
                   </div>
                 )}
