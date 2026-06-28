@@ -100,7 +100,9 @@ export function DashboardProvider({ children }) {
         ]);
         
         if (isMounted) {
-          setProfiles(_profiles);
+          // Rescue any corrupted profiles that are missing an id
+          const healedProfiles = _profiles.map(p => p.id ? p : { ...p, id: "profile-rescue-" + Math.random().toString(36).substr(2, 9) });
+          setProfiles(healedProfiles);
           setActiveProfileId(_activeProf);
           setApiKeys(_apiKeys);
           setAllTrades(_trades);
