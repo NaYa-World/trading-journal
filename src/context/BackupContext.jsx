@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useSecurity } from "./SecurityContext.jsx";
 import { Network } from "@capacitor/network";
 import { Capacitor } from "@capacitor/core";
@@ -24,7 +25,7 @@ export const useBackup = () => {
 
 const BACKUP_PREFS_KEY = "cj_backup_prefs_v1";
 
-export const BackupProvider = ({ children, dashboardContextValue }) => {
+export const BackupProvider = ({ children }) => {
   const { masterKey } = useSecurity();
   const [googleClientId, setGoogleClientId] = useState("217538466431-j5sqrafrg96th6t5lth9t2bbrb5ofh78.apps.googleusercontent.com");
   const [autoBackupEnabled, setAutoBackupEnabled] = useState(false);
@@ -53,6 +54,7 @@ export const BackupProvider = ({ children, dashboardContextValue }) => {
       const raw = localStorage.getItem(BACKUP_PREFS_KEY);
       if (raw) {
         const prefs = JSON.parse(raw);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setGoogleClientId(prefs.googleClientId || "217538466431-j5sqrafrg96th6t5lth9t2bbrb5ofh78.apps.googleusercontent.com");
         setAutoBackupEnabled(prefs.autoBackupEnabled ?? false);
         setBackupInterval(prefs.backupInterval || "daily");
@@ -122,7 +124,7 @@ export const BackupProvider = ({ children, dashboardContextValue }) => {
       // 1. Check network constraints
       const status = await Network.getStatus();
       if (wifiOnly && status.connectionType !== "wifi") {
-        console.log("Auto-backup skipped: Not on Wi-Fi connection.");
+
         return;
       }
 
@@ -143,10 +145,11 @@ export const BackupProvider = ({ children, dashboardContextValue }) => {
     } catch (e) {
       console.error("Auto backup check failed:", e);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoBackupEnabled, masterKey, wifiOnly, lastSynced, backupInterval]);
 
   // Authenticate Google
-  const authenticateGoogle = async (clientIdVal = googleClientId) => {
+  async function authenticateGoogle(clientIdVal = googleClientId) {
     if (!clientIdVal) throw new Error("Google Client ID is missing. Please set it in Security settings.");
     try {
       setSyncing(true);
@@ -165,7 +168,7 @@ export const BackupProvider = ({ children, dashboardContextValue }) => {
       setSyncing(false);
       throw e;
     }
-  };
+  }
 
   // Check for Google OAuth Redirect Result (Web callback)
   const checkRedirectResult = async (clientIdVal = googleClientId) => {
@@ -201,7 +204,7 @@ export const BackupProvider = ({ children, dashboardContextValue }) => {
   };
 
   // Perform Cloud Backup
-  const executeCloudBackup = async (customKey = null) => {
+  async function executeCloudBackup(customKey = null) {
     const encryptionKey = customKey || masterKey;
     if (!encryptionKey) throw new Error("Journal is locked. Unlock the app first.");
     
@@ -237,7 +240,7 @@ export const BackupProvider = ({ children, dashboardContextValue }) => {
       console.error("Backup failed:", e);
       throw e;
     }
-  };
+  }
 
   // Fetch backups list from Google Drive
   const fetchBackupsList = async () => {
