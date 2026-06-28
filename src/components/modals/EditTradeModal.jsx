@@ -20,8 +20,9 @@ export default function EditTradeModal() {
   const [form, setForm] = useState({
     entry: (trade?.entry || 0).toString(),
     exit: (trade?.exit || 0).toString(),
-    qty: (trade?.qty || 0).toString(),
-    fees: Math.abs(trade?.fees || 0).toString(),
+    qty: trade?.qty ? trade.qty.toString() : "",
+    leverage: trade?.leverage ? trade.leverage.toString() : "1",
+    fees: (trade?.fees || 0) === 0 ? "0" : Math.abs(trade.fees).toString(),
     fundingFees: Math.abs(trade?.fundingFees || 0).toString(),
     marginType: trade?.marginType || "USDT-M",
     setup: trade?.setup || "BREAKOUT",
@@ -111,7 +112,7 @@ export default function EditTradeModal() {
           exit: x,
           qty: q,
           side,
-          leverage: trade.leverage || 1,
+          leverage: (trade.tradeType === "Futures" || trade.tradeType === "Margin") ? (parseFloat(form.leverage) || 1) : 1,
           tradeType: trade.tradeType,
           marginType: form.marginType,
           quoteRateOpen: usdtRate,
@@ -127,6 +128,7 @@ export default function EditTradeModal() {
         entry: e, qty: q,
         fees: -(Math.abs(parseFloat(form.fees) || 0)),
         fundingFees: Math.abs(parseFloat(form.fundingFees) || 0),
+        leverage: (trade.tradeType === "Futures" || trade.tradeType === "Margin") ? (parseFloat(form.leverage) || 1) : 1,
         marginType: form.marginType,
         usdtRate,
         setup: form.setup,
@@ -179,6 +181,15 @@ export default function EditTradeModal() {
             {!isOpen && <div><label style={LS}>Exit Price ({qc})</label><input style={IS} type="number" value={form.exit} onChange={e => set("exit", e.target.value)} /></div>}
             <div><label style={LS}>Quantity</label><input style={IS} type="number" value={form.qty} onChange={e => set("qty", e.target.value)} /></div>
             <div><label style={LS}>Trading Fees ({qc})</label><input style={IS} type="number" value={form.fees} onChange={e => set("fees", e.target.value)} /></div>
+            {(trade.tradeType === "Futures" || trade.tradeType === "Margin") && (
+              <div>
+                <label style={LS}>Leverage</label>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <input style={{ ...IS, width: 80, flexShrink: 0 }} type="number" inputMode="decimal" value={form.leverage} onChange={e => set("leverage", e.target.value)} min="1" max="125" />
+                  <span style={{ fontFamily: T.mono, fontSize: 16, color: T.orange, fontWeight: 700 }}>{form.leverage}×</span>
+                </div>
+              </div>
+            )}
             {trade.tradeType === "Futures" && (
               <>
                 <div><label style={LS}>Funding Fees ({qc})</label><input style={IS} type="number" value={form.fundingFees} onChange={e => set("fundingFees", e.target.value)} /></div>

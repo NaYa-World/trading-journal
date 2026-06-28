@@ -31,7 +31,7 @@ export default function AddTradeModal() {
     symbol: "", action: "Buy", side: "Long",
     exchange: "Binance", marginType: "USDT-M",
     entry: "", exit: "", qty: "", fees: "", fundingFees: "",
-    stopLoss: "",
+    leverage: "1", stopLoss: "",
     setup: "BREAKOUT", closeReason: "Target Hit",
     openTime: "",
     closeTime: "",
@@ -215,7 +215,7 @@ export default function AddTradeModal() {
           exit: x,
           qty: q,
           side,
-          leverage: 1, // AddTradeModal defaults to 1 for realized trades
+          leverage: isDirectional ? (parseFloat(form.leverage) || 1) : 1,
           tradeType,
           marginType: form.marginType,
           quoteRateOpen: usdtRate,
@@ -232,6 +232,7 @@ export default function AddTradeModal() {
           entry: e, exit: x, qty: q,
           fees: -(Math.abs(parseFloat(form.fees) || 0)),
           fundingFees: Math.abs(parseFloat(form.fundingFees) || 0),
+          leverage: isDirectional ? (parseFloat(form.leverage) || 1) : 1,
           nativePnl,
           pnl,
           marginType: form.marginType,
@@ -435,6 +436,15 @@ export default function AddTradeModal() {
                     )}
                   </div>
                   {!isSpotOpen && <div><label style={LS}>Stop Loss ({qc}) <span style={{ color: T.dim }}>(optional)</span></label><input style={IS} type="number" value={form.stopLoss} onChange={e => set("stopLoss", e.target.value)} placeholder="for RR calc" /></div>}
+                  {isDirectional && (
+                    <div>
+                      <label style={LS}>Leverage</label>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <input style={{ ...IS, width: 80, flexShrink: 0 }} type="number" inputMode="decimal" value={form.leverage} onChange={e => set("leverage", e.target.value)} min="1" max="125" />
+                        <span style={{ fontFamily: T.mono, fontSize: 16, color: T.orange, fontWeight: 700 }}>{form.leverage}×</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* ── RR + PnL Live Preview ── */}

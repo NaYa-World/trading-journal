@@ -13,14 +13,14 @@ export function calculatePnL({ entry, exit, qty, side, leverage = 1, tradeType =
       : (entry * qty * quoteRateOpen) - (exit * qty * quoteRateClose);
   } else if (marginType === "COIN-M") {
     // Inverse futures math. `qty` is in contracts/USD. PNL is settled in base asset.
-    nativePnLVal = (1 / entry - 1 / exit) * qty * multiplier * leverage;
+    nativePnLVal = (1 / entry - 1 / exit) * qty * multiplier;
     // For USDT equivalent, multiply the base asset PNL by the exit price (or close rate).
     // Often COIN-M uses the contract value in USD directly, so nativePnLVal * exit gives the USD value.
     pnlUsdtVal = nativePnLVal * exit; 
   } else {
     // Standard linear (USDT-M)
-    nativePnLVal = (exit - entry) * qty * multiplier * leverage;
-    pnlUsdtVal = ((exit * qty * quoteRateClose) - (entry * qty * quoteRateOpen)) * multiplier * leverage;
+    nativePnLVal = (exit - entry) * qty * multiplier;
+    pnlUsdtVal = ((exit * qty * quoteRateClose) - (entry * qty * quoteRateOpen)) * multiplier;
   }
 
   return {
