@@ -20,6 +20,7 @@
     "@capacitor/keyboard": "^8.0.5",
     "@capacitor/network": "^8.0.1",
     "@capacitor/status-bar": "^8.0.2",
+    "@capawesome/capacitor-google-sign-in": "^0.1.2",
     "@capgo/capacitor-native-biometric": "^8.4.11",
     "@fontsource/dm-sans": "^5.2.8",
     "@fontsource/space-mono": "^5.2.9",

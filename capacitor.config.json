@@ -1,6 +1,6 @@
 {
-  "appId": "com.trading.journal",
-  "appName": "Trading Journal",
+  "appId": "com.nayatrading.journal",
+  "appName": "Naya Trading",
   "webDir": "dist",
   "plugins": {
     "CapacitorHttp": {
