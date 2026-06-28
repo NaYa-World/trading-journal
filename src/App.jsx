@@ -165,7 +165,7 @@ function Overview({ trades, allProfileTrades, initialCapital = 0, profiles = [],
   const realizedPnl = closed.reduce((s, t) => s + t.pnl + (t.fees || 0), 0);
   const winRate = calculateWinRate(closed);
   const totalFees = closed.reduce((s, t) => s + (t.fees || 0), 0);
-  const totalInvested = closed.reduce((s, t) => s + (t.entry * t.qty * (t.usdtRate || 1)), 0);
+  const totalInvested = closed.reduce((s, t) => s + ((t.entry * t.qty * (t.usdtRate || 1)) / (t.leverage || 1)), 0);
   const avgWin = wins.length ? wins.reduce((s, t) => s + t.pnl, 0) / wins.length : 0;
   const avgLoss = losses.length ? Math.abs(losses.reduce((s, t) => s + t.pnl, 0) / losses.length) : 1;
   const avgRR = avgWin / avgLoss;
