@@ -76,7 +76,7 @@ const DEMO_SETUPS = [
     typeColor: "#3b82f6", // T.blue
     rulesCount: 6,
     rules: ["Wait for sweep", "Fair Value Gap", "RSI divergence", "Check HTF", "Volume spike", "Confirm close"],
-    image: "",
+    image: "/demo_setup_1.svg",
     timestamp: "5d ago"
   },
   {
@@ -86,7 +86,7 @@ const DEMO_SETUPS = [
     typeColor: "#a855f7", // T.purple
     rulesCount: 5,
     rules: ["15m chart", "Mark ORB", "Candle close outside", "Check volume", "Target 1:2"],
-    image: "",
+    image: "/demo_setup_2.svg",
     timestamp: "5d ago"
   }
 ];
@@ -97,6 +97,11 @@ export const loadTradeSetups = () => {
   return loaded;
 };
 export const saveTradeSetups = (s) => _save(TRADE_SETUPS_KEY, s);
+
+const CUSTOM_TYPES_KEY = "cj_custom_setup_types";
+export const loadCustomSetupTypes = () => _load(CUSTOM_TYPES_KEY, []);
+export const saveCustomSetupTypes = (t) => _save(CUSTOM_TYPES_KEY, t);
+
 export const ALERTS_KEY = "cj_alerts_v1";
 export const loadAlerts = () => _load(ALERTS_KEY, []);
 export const saveAlerts = (a) => _save(ALERTS_KEY, a);

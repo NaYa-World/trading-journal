@@ -1,8 +1,9 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { T } from "../utils/theme.js";
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { useBackup } from "../context/BackupContext.jsx";
+import { loadCustomSetupTypes, saveCustomSetupTypes } from "../utils/storage.js";
 
 const SETUP_TYPES = [
   { id: "Unassigned", label: "🏷 Unassigned", color: T.dim },
@@ -17,6 +18,16 @@ export default function TradeSetupsManager({ trades = [], tradeSetups = [], setT
   const [newSetup, setNewSetup] = useState({ name: "", type: "Unassigned", image: "", rules: [{ id: Date.now().toString(), text: "" }] });
   const { userEmail, authenticateGoogle } = useBackup();
   const fileInputRef = useRef(null);
+
+  const [customTypes, setCustomTypes] = useState([]);
+  const [showAddType, setShowAddType] = useState(false);
+  const [newTypeInput, setNewTypeInput] = useState("");
+
+  useEffect(() => {
+    setCustomTypes(loadCustomSetupTypes());
+  }, []);
+
+  const allSetupTypes = [...SETUP_TYPES, ...customTypes];
 
   // Compute live analytics for each setup
   const computedSetups = tradeSetups.map(setup => {
@@ -64,20 +75,60 @@ export default function TradeSetupsManager({ trades = [], tradeSetups = [], setT
       return;
     }
     const cleanRules = newSetup.rules.map(r => r.text).filter(r => r.trim() !== "");
-    const selectedType = SETUP_TYPES.find(t => t.id === newSetup.type) || SETUP_TYPES[0];
+    const selectedType = allSetupTypes.find(t => t.id === newSetup.type) || allSetupTypes[0];
     
-    setTradeSetups([...tradeSetups, {
-      id: Date.now().toString(),
-      name: newSetup.name,
-      type: newSetup.type,
-      typeColor: selectedType.color,
-      rulesCount: cleanRules.length,
-      rules: cleanRules,
-      image: newSetup.image,
-      timestamp: new Date().toLocaleDateString()
-    }]);
+    if (newSetup.id) {
+      setTradeSetups(tradeSetups.map(s => s.id === newSetup.id ? {
+        ...s,
+        name: newSetup.name,
+        type: newSetup.type,
+        typeColor: selectedType.color,
+        rulesCount: cleanRules.length,
+        rules: cleanRules,
+        image: newSetup.image
+      } : s));
+    } else {
+      setTradeSetups([...tradeSetups, {
+        id: Date.now().toString(),
+        name: newSetup.name,
+        type: newSetup.type,
+        typeColor: selectedType.color,
+        rulesCount: cleanRules.length,
+        rules: cleanRules,
+        image: newSetup.image,
+        timestamp: new Date().toLocaleDateString()
+      }]);
+    }
     setShowAddSetup(false);
     setNewSetup({ name: "", type: "Unassigned", image: "", rules: [{ id: Date.now().toString(), text: "" }] });
+  };
+
+  const handleEditClick = (setup) => {
+    setNewSetup({
+      id: setup.id,
+      name: setup.name,
+      type: setup.type,
+      image: setup.image || "",
+      rules: setup.rules && setup.rules.length > 0 
+        ? setup.rules.map((r, i) => ({ id: i.toString(), text: r }))
+        : [{ id: Date.now().toString(), text: "" }]
+    });
+    setShowAddSetup(true);
+  };
+
+  const handleAddCustomType = () => {
+    if (!newTypeInput.trim()) return;
+    const newType = {
+      id: newTypeInput.trim(),
+      label: `🏷 ${newTypeInput.trim()}`,
+      color: T.purple // Can randomize or default to a brand color
+    };
+    const updated = [...customTypes, newType];
+    setCustomTypes(updated);
+    saveCustomSetupTypes(updated);
+    setNewSetup({ ...newSetup, type: newType.id });
+    setNewTypeInput("");
+    setShowAddType(false);
   };
 
   const handleDelete = (id) => {
@@ -93,7 +144,7 @@ export default function TradeSetupsManager({ trades = [], tradeSetups = [], setT
   const avgWinRate = totalTradesAll > 0 ? Math.round((totalWinsAll / totalTradesAll) * 100) : 0;
   const bestSetup = [...computedSetups].sort((a,b) => b.winRate - a.winRate)[0]?.name || "N/A";
 
-  const getSetupColor = (typeId) => SETUP_TYPES.find(t => t.id === typeId)?.color || T.dim;
+  const getSetupColor = (typeId) => allSetupTypes.find(t => t.id === typeId)?.color || T.dim;
   
   return (
     <div style={{ padding: "env(safe-area-inset-top, 20px) 16px 120px 16px", minHeight: "100%", background: T.bg, fontFamily: T.sans }}>
@@ -179,7 +230,7 @@ export default function TradeSetupsManager({ trades = [], tradeSetups = [], setT
                   <span style={{ fontSize: 14 }}>🕒</span> {setup.timestamp || "4d ago"}
                 </div>
                 <div style={{ display: "flex", gap: 16 }}>
-                  <span style={{ cursor: "pointer", fontSize: 14 }}>✎</span>
+                  <span onClick={() => handleEditClick(setup)} style={{ cursor: "pointer", fontSize: 14 }}>✎</span>
                   <span onClick={() => handleDelete(setup.id)} style={{ color: T.red, cursor: "pointer", fontSize: 14 }}>🗑</span>
                 </div>
               </div>
@@ -250,7 +301,7 @@ export default function TradeSetupsManager({ trades = [], tradeSetups = [], setT
                 ◎
               </div>
               <div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: "#FFF", marginBottom: 2 }}>New Trade Setup</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: "#FFF", marginBottom: 2 }}>{newSetup.id ? "Edit Trade Setup" : "New Trade Setup"}</div>
                 <div style={{ fontSize: 13, color: T.dim }}>Name it, tag the style, attach your chart,<br/>and list what must be true.</div>
               </div>
             </div>
@@ -269,19 +320,56 @@ export default function TradeSetupsManager({ trades = [], tradeSetups = [], setT
 
             <div style={{ fontSize: 11, fontWeight: 700, color: T.dim, letterSpacing: 1, marginBottom: 12, textTransform: "uppercase" }}>Setup Type</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 32 }}>
-              {SETUP_TYPES.map(type => (
+              {allSetupTypes.map(type => (
                 <button
                   key={type.id}
                   onClick={() => setNewSetup({...newSetup, type: type.id})}
                   style={{
                     background: newSetup.type === type.id ? type.color : T.panel2,
                     border: `1px solid ${newSetup.type === type.id ? type.color : T.border}`,
-                    color: "#FFF", padding: "8px 16px", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: "pointer"
+                    color: newSetup.type === type.id ? "#FFF" : T.dim,
+                    padding: "8px 16px",
+                    borderRadius: 8,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: "pointer"
                   }}
                 >
                   {type.label}
                 </button>
               ))}
+              
+              {!showAddType ? (
+                <button
+                  onClick={() => setShowAddType(true)}
+                  style={{
+                    background: T.panel2,
+                    border: `1px dashed ${T.border}`,
+                    color: T.dim,
+                    padding: "8px 16px",
+                    borderRadius: 8,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: "pointer"
+                  }}
+                >
+                  + Add Type
+                </button>
+              ) : (
+                <div style={{ display: "flex", gap: 6 }}>
+                  <input
+                    autoFocus
+                    type="text"
+                    placeholder="Type name..."
+                    value={newTypeInput}
+                    onChange={(e) => setNewTypeInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddCustomType()}
+                    style={{ background: T.bg, border: `1px solid ${T.purple}`, color: "#FFF", borderRadius: 8, padding: "8px 12px", fontSize: 13, outline: "none", width: 120 }}
+                  />
+                  <button onClick={handleAddCustomType} style={{ background: T.purple, color: "#FFF", border: "none", borderRadius: 8, padding: "0 12px", cursor: "pointer", fontWeight: 700 }}>✓</button>
+                  <button onClick={() => setShowAddType(false)} style={{ background: T.panel2, color: T.dim, border: `1px solid ${T.border}`, borderRadius: 8, padding: "0 12px", cursor: "pointer" }}>✕</button>
+                </div>
+              )}
             </div>
 
             {/* Reference Chart */}
