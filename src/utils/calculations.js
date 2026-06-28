@@ -3,8 +3,8 @@ export function calculatePnL({ entry, exit, qty, side, leverage = 1, tradeType =
   const finalSide = isSpot ? (action === "Buy" ? "Long" : "Short") : side;
   const multiplier = finalSide === "Long" ? 1 : -1;
 
-  let nativePnLVal = 0;
-  let pnlUsdtVal = 0;
+  let nativePnLVal;
+  let pnlUsdtVal;
 
   if (isSpot) {
     nativePnLVal = action === "Buy" ? (exit - entry) * qty : (entry - exit) * qty;

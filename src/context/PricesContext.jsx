@@ -16,6 +16,7 @@ export function PricesProvider({ children, symbols }) {
     
     // Disable live price polling on native mobile to save battery and avoid CORS/Network errors.
     if (Capacitor.isNativePlatform()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStatus("ok");
       return;
     }

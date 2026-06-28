@@ -30,6 +30,46 @@ export const SecurityProvider = ({ children }) => {
 
   const backgroundTimeRef = useRef(null);
 
+  // Helper to set both masterKey state and storage key module
+  const updateMasterKey = useCallback((key) => {
+    setMasterKey(key);
+    setStorageKey(key);
+  }, []);
+
+  // Save preferences helper
+  const savePrefs = useCallback((updated) => {
+    const current = {
+      appLockEnabled,
+      lockTimeout,
+      keyOption,
+      salt,
+      machineKey,
+      ...updated,
+    };
+    localStorage.setItem(SECURITY_PREFS_KEY, JSON.stringify(current));
+  }, [appLockEnabled, lockTimeout, keyOption, salt, machineKey]);
+
+  // Generate a random 64-digit hex key
+  const generateMachineKey = useCallback(() => {
+    const array = new Uint8Array(32);
+    window.crypto.getRandomValues(array);
+    return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  }, []);
+
+  // Helper: derive key using PBKDF2
+  const deriveKeyFromPassword = useCallback((password, currentSalt) => {
+    let s = currentSalt;
+    if (!s) {
+      // Generate new salt
+      const array = new Uint8Array(16);
+      window.crypto.getRandomValues(array);
+      s = Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join("");
+      setSalt(s);
+      savePrefs({ salt: s });
+    }
+    return CryptoJS.PBKDF2(password, s, { keySize: 256 / 32, iterations: 50000 }).toString();
+  }, [savePrefs]);
+
   // Initialize biometric availability and load preferences
   useEffect(() => {
     const init = async () => {
@@ -58,7 +98,7 @@ export const SecurityProvider = ({ children }) => {
 
           if (!prefs.appLockEnabled) {
             setIsLocked(false);
-            setMasterKey("cj_serverless_default_key");
+            updateMasterKey("cj_serverless_default_key");
           } else {
             // Need to authenticate
             setIsLocked(true);
@@ -74,50 +114,10 @@ export const SecurityProvider = ({ children }) => {
       }
     };
     init();
-  }, []);
-
-  // Helper to set both masterKey state and storage key module
-  const updateMasterKey = (key) => {
-    setMasterKey(key);
-    setStorageKey(key);
-  };
-
-  // Save preferences helper
-  const savePrefs = (updated) => {
-    const current = {
-      appLockEnabled,
-      lockTimeout,
-      keyOption,
-      salt,
-      machineKey,
-      ...updated,
-    };
-    localStorage.setItem(SECURITY_PREFS_KEY, JSON.stringify(current));
-  };
-
-  // Generate a random 64-digit hex key
-  const generateMachineKey = () => {
-    const array = new Uint8Array(32);
-    window.crypto.getRandomValues(array);
-    return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join("");
-  };
-
-  // Helper: derive key using PBKDF2
-  const deriveKeyFromPassword = (password, currentSalt) => {
-    let s = currentSalt;
-    if (!s) {
-      // Generate new salt
-      const array = new Uint8Array(16);
-      window.crypto.getRandomValues(array);
-      s = Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join("");
-      setSalt(s);
-      savePrefs({ salt: s });
-    }
-    return CryptoJS.PBKDF2(password, s, { keySize: 256 / 32, iterations: 50000 }).toString();
-  };
+  }, [updateMasterKey]);
 
   // Setup security/lock options
-  const setupSecurity = async (option, passwordOrKey = "") => {
+  const setupSecurity = useCallback(async (option, passwordOrKey = "") => {
     try {
       let derived = "";
       let newMachineKey = "";
@@ -164,7 +164,7 @@ export const SecurityProvider = ({ children }) => {
       console.error("Failed to setup security:", e);
       return { success: false, error: e.message };
     }
-  };
+  }, [isBiometricAvailable, generateMachineKey, deriveKeyFromPassword, salt, updateMasterKey, savePrefs]);
 
   // Disable lock
   const disableSecurity = () => {
@@ -280,7 +280,7 @@ export const SecurityProvider = ({ children }) => {
       console.error("Unlock failed:", e);
       return { success: false, error: e.message || "Unlock failed" };
     }
-  }, [keyOption, salt]);
+  }, [keyOption, salt, deriveKeyFromPassword, updateMasterKey, generateMachineKey]);
 
   const loginSession = useCallback((customKey = "nayatrading_default_key") => {
     setMasterKey(customKey);
