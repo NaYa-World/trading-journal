@@ -71,6 +71,7 @@ export default function TradeLog({ trades, title, onEdit, onViewChart, onSave, o
     entry: "",
     exit: "",
     qty: "",
+    leverage: 1,
     setup: SETUPS[0] || "BREAKOUT",
     closeReason: CLOSE_REASONS[0] || "Target Hit"
   });
@@ -477,6 +478,31 @@ export default function TradeLog({ trades, title, onEdit, onViewChart, onSave, o
                     <option value="Long">Long</option>
                     <option value="Short">Short</option>
                   </select>
+                </td>
+
+                {/* Leverage */}
+                <td style={{ padding: "8px 12px" }}>
+                  <div style={{ display: "flex", alignItems: "center", background: T.panel, border: `1px solid ${T.border}`, borderRadius: 6, padding: "0 6px" }}>
+                    <span style={{ color: T.dim, fontSize: 11 }}>x</span>
+                    <input
+                      type="number"
+                      step="any"
+                      min="1"
+                      placeholder="1"
+                      value={quickForm.leverage}
+                      onChange={e => handleQuickFormChange("leverage", e.target.value)}
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        color: T.bright,
+                        padding: "6px 4px",
+                        fontSize: 13,
+                        fontFamily: T.mono,
+                        width: 40,
+                        outline: "none"
+                      }}
+                    />
+                  </div>
                 </td>
 
                 {/* Entry */}

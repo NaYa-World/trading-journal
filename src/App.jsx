@@ -35,6 +35,37 @@ import AlertsView from "./components/views/AlertsView.jsx";
 const ChartModal = lazy(() => import("./components/modals/ChartModal.jsx"));
 const Analytics = lazy(() => import("./components/views/Analytics.jsx"));
 
+const ClearConfirmModal = ({ tradesCount, spotOpenCount, liveCount, onConfirm, onCancel, T }) => {
+  const [text, setText] = useState("");
+  const total = tradesCount + spotOpenCount + liveCount;
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "#00000092", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999, backdropFilter: "blur(6px)" }}>
+      <div style={{ background: T.panel, border: `1px solid ${T.red}40`, borderRadius: 14, padding: 28, width: "min(400px,90vw)", boxShadow: "0 30px 80px #00000070" }}>
+        <div style={{ fontFamily: T.mono, fontSize: 16, color: T.red, letterSpacing: 1, marginBottom: 12 }}>⚠ CLEAR PROFILE DATA</div>
+        <div style={{ fontSize: 15, color: T.text, marginBottom: 12, lineHeight: 1.6 }}>This deletes all {total} trades in the active profile. Other profiles are unaffected. Cannot be undone.</div>
+        <div style={{ fontSize: 14, color: T.dim, marginBottom: 8 }}>Type <strong>DELETE</strong> to confirm:</div>
+        <input 
+          type="text"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="DELETE"
+          style={{ width: "100%", background: T.panel2, border: `1px solid ${T.border}`, borderRadius: 6, color: T.bright, padding: "8px 12px", marginBottom: 20, fontFamily: T.mono, fontSize: 14, boxSizing: "border-box", outline: "none" }}
+        />
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <button onClick={onCancel} style={{ background: "transparent", border: `1px solid ${T.dim}`, color: T.dim, borderRadius: 7, padding: "9px 18px", cursor: "pointer", fontSize: 13, fontFamily: T.mono }}>Cancel</button>
+          <button 
+            onClick={onConfirm} 
+            disabled={text !== "DELETE"}
+            style={{ background: text === "DELETE" ? T.redDim : T.panel2, border: `1px solid ${text === "DELETE" ? T.red + "50" : T.border}`, color: text === "DELETE" ? T.red : T.dim, borderRadius: 7, padding: "9px 22px", cursor: text === "DELETE" ? "pointer" : "not-allowed", fontSize: 13, fontFamily: T.mono, fontWeight: 700 }}
+          >
+            Delete Profile Trades
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── Custom Tooltip ───────────────────────────────────────────────────────────
 function ChartTip({ active, payload, label, prefix = "" }) {
   if (!active || !payload?.length) return null;
@@ -1129,16 +1160,14 @@ export default function App() {
       {showSecurityModal && <SecuritySettingsModal onClose={() => setShowSecurityModal(false)} />}
 
       {showClearConfirm && (
-        <div style={{ position: "fixed", inset: 0, background: "#00000092", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999, backdropFilter: "blur(6px)" }}>
-          <div style={{ background: T.panel, border: `1px solid ${T.red}40`, borderRadius: 14, padding: 28, width: "min(400px,90vw)", boxShadow: "0 30px 80px #00000070" }}>
-            <div style={{ fontFamily: T.mono, fontSize: 16, color: T.red, letterSpacing: 1, marginBottom: 12 }}>⚠ CLEAR PROFILE DATA</div>
-            <div style={{ fontSize: 15, color: T.text, marginBottom: 20, lineHeight: 1.6 }}>This deletes all {trades.length + spotOpen.length} trades in the active profile. Other profiles are unaffected. Cannot be undone.</div>
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <button onClick={() => setShowClearConfirm(false)} style={{ background: "transparent", border: `1px solid ${T.dim}`, color: T.dim, borderRadius: 7, padding: "9px 18px", cursor: "pointer", fontSize: 13, fontFamily: T.mono }}>Cancel</button>
-              <button onClick={clearAllData} style={{ background: T.redDim, border: `1px solid ${T.red}50`, color: T.red, borderRadius: 7, padding: "9px 22px", cursor: "pointer", fontSize: 13, fontFamily: T.mono, fontWeight: 700 }}>Delete Profile Trades</button>
-            </div>
-          </div>
-        </div>
+        <ClearConfirmModal 
+          tradesCount={trades.length} 
+          spotOpenCount={spotOpen.length} 
+          liveCount={liveTrades.length}
+          onConfirm={clearAllData}
+          onCancel={() => setShowClearConfirm(false)}
+          T={T}
+        />
       )}
 
       {/* ── Undo Delete Toast ── */}

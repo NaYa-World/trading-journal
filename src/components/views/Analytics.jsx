@@ -13,7 +13,7 @@ export default function Analytics() {
 
   // ── Pro Metrics ──
   const { profitFactor, expectancy, maxDd, mistakeData, setupData, symData, curStreak, curType, maxWin, maxLoss, streaks, last20, reasonData } = useMemo(() => {
-    if (closed.length === 0) return {};
+    if (closed.length === 0) return { profitFactor: "0.00", expectancy: 0, maxDd: 0, mistakeData: [], setupData: [], symData: [], curStreak: 0, curType: null, maxWin: 0, maxLoss: 0, streaks: [], last20: [], reasonData: [] };
     const getNet = t => t.pnl + (t.fees || 0) - (t.fundingFees || 0);
     const wins = closed.filter(t => getNet(t) > 0);
     const losses = closed.filter(t => getNet(t) < 0);

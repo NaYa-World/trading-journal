@@ -69,12 +69,13 @@ export default function AddTradeModal() {
     const calculateEstimatedFees = () => {
       const e = parseFloat(form.entry), q = parseFloat(form.qty);
       if (isNaN(e) || isNaN(q)) return;
-      const rate = form.tradeType === "Spot" ? 0.001 : 0.0004;
-      const f = (e * q * rate) * (form.tradeType === "Spot" ? 1 : 2);
-      setForm(prev => ({ ...prev, fees: f.toFixed(4) }));
+      const rate = tradeType === "Spot" ? 0.001 : 0.0004;
+      const f = (e * q * rate) * (tradeType === "Spot" ? 1 : 2);
+      setForm(prev => ({ ...prev, fees: f > 0 ? -parseFloat(f.toFixed(4)) : 0 }));
     };
     calculateEstimatedFees();
-  }, [form.entry, form.exit, form.qty, isSpotOpen, tradeType, form.tradeType]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.entry, form.exit, form.qty, isSpotOpen, tradeType]);
 
   // ── Live RR & PnL Preview ─────────────────────────────────────────────────
   const rrPreview = useMemo(() => {

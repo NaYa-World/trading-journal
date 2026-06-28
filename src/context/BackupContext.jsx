@@ -10,10 +10,10 @@ import {
   listDriveBackups,
   downloadDriveBackup,
   rotateDriveBackups,
-  exportLocalFile,
   encryptBackup,
   decryptBackup
 } from "../utils/backup.js";
+import { _load, _save } from "../utils/storage.js";
 
 const BackupContext = createContext(null);
 
@@ -35,7 +35,7 @@ export const BackupProvider = ({ children }) => {
   const [syncing, setSyncing] = useState(false);
   const [googleAccessToken, setGoogleAccessToken] = useState(() => {
     try {
-      return localStorage.getItem("cj_google_access_token") || null;
+      return sessionStorage.getItem("cj_google_access_token") || null;
     } catch {
       return null;
     }
@@ -79,10 +79,8 @@ export const BackupProvider = ({ children }) => {
   };
 
   // Build the complete local payload of the journal
-  const buildBackupPayload = useCallback(() => {
-    // If we have dashboardContextValue passed down, we extract states.
-    // Otherwise, we load directly from storage to be extra safe and decouple components.
-    // Reading directly from raw localStorage keys is serverless-clean and works even if contexts are mounting/demounting.
+  const buildBackupPayload = useCallback(async () => {
+    // We load directly from storage to be extra safe and decouple components.
     const keys = [
       "cj_trades_v2",
       "cj_spot_open_v2",
@@ -100,13 +98,13 @@ export const BackupProvider = ({ children }) => {
     ];
 
     const data = {};
-    keys.forEach(k => {
+    for (const k of keys) {
       try {
-        data[k] = localStorage.getItem(k); // Store raw encrypted states as they are!
+        data[k] = await _load(k, null);
       } catch (e) {
-        console.warn(`Failed to export raw key ${k}:`, e);
+        console.warn(`Failed to export key ${k}:`, e);
       }
-    });
+    }
 
     return JSON.stringify({
       timestamp: Date.now(),
@@ -156,7 +154,7 @@ export const BackupProvider = ({ children }) => {
       const authResult = await loginGoogle(clientIdVal);
       setGoogleAccessToken(authResult.accessToken);
       if (authResult.accessToken) {
-        localStorage.setItem("cj_google_access_token", authResult.accessToken);
+        sessionStorage.setItem("cj_google_access_token", authResult.accessToken);
       }
       if (authResult.email) {
         setUserEmail(authResult.email);
@@ -178,7 +176,7 @@ export const BackupProvider = ({ children }) => {
       const authResult = await handleGoogleRedirect(clientIdVal);
       if (authResult && authResult.accessToken) {
         setGoogleAccessToken(authResult.accessToken);
-        localStorage.setItem("cj_google_access_token", authResult.accessToken);
+        sessionStorage.setItem("cj_google_access_token", authResult.accessToken);
         if (authResult.email) {
           setUserEmail(authResult.email);
           localStorage.setItem("cj_google_user_email", authResult.email);
@@ -200,7 +198,7 @@ export const BackupProvider = ({ children }) => {
     setGoogleAccessToken(null);
     setUserEmail("");
     localStorage.removeItem("cj_google_user_email");
-    localStorage.removeItem("cj_google_access_token");
+    sessionStorage.removeItem("cj_google_access_token");
   };
 
   // Perform Cloud Backup
@@ -215,7 +213,7 @@ export const BackupProvider = ({ children }) => {
         token = await authenticateGoogle();
       }
 
-      const payload = buildBackupPayload();
+      const payload = await buildBackupPayload();
       
       // Encrypt backup payload with master key
       const encryptedData = encryptBackup(payload, encryptionKey);
@@ -289,20 +287,24 @@ export const BackupProvider = ({ children }) => {
         settings: ["cj_symbols_v2", "cj_capital_v2", "cj_profiles_v2", "cj_active_v2", "cj_theme_v2", "cj_other_deposits_v1", "cj_withdrawals_map_v1", "cj_alerts_v1"]
       };
 
-      Object.entries(moduleKeyMap).forEach(([moduleName, storageKeys]) => {
+      for (const [moduleName, storageKeys] of Object.entries(moduleKeyMap)) {
         if (selectedModules[moduleName]) {
-          storageKeys.forEach(k => {
+          for (const k of storageKeys) {
             const backedVal = backup.data[k];
             if (backedVal !== undefined) {
               if (backedVal === null) {
-                localStorage.removeItem(k);
+                await _save(k, null);
               } else {
-                localStorage.setItem(k, backedVal);
+                let valToSave = backedVal;
+                if (typeof backedVal === "string") {
+                  try { valToSave = JSON.parse(backedVal); } catch (e) {}
+                }
+                await _save(k, valToSave);
               }
             }
-          });
+          }
         }
-      });
+      }
 
       setSyncing(false);
       return { success: true };
@@ -317,7 +319,7 @@ export const BackupProvider = ({ children }) => {
   const executeLocalExport = async () => {
     if (!masterKey) throw new Error("Journal is locked.");
     try {
-      const payload = buildBackupPayload();
+      const payload = await buildBackupPayload();
       const encryptedData = encryptBackup(payload, masterKey);
       const dateStr = new Date().toISOString().split("T")[0];
       const filename = `trading_journal_backup_${dateStr}.crypt`;
@@ -365,20 +367,24 @@ export const BackupProvider = ({ children }) => {
         settings: ["cj_symbols_v2", "cj_capital_v2", "cj_profiles_v2", "cj_active_v2", "cj_theme_v2", "cj_other_deposits_v1", "cj_withdrawals_map_v1", "cj_alerts_v1"]
       };
 
-      Object.entries(moduleKeyMap).forEach(([moduleName, storageKeys]) => {
+      for (const [moduleName, storageKeys] of Object.entries(moduleKeyMap)) {
         if (selectedModules[moduleName]) {
-          storageKeys.forEach(k => {
+          for (const k of storageKeys) {
             const backedVal = backup.data[k];
             if (backedVal !== undefined) {
               if (backedVal === null) {
-                localStorage.removeItem(k);
+                await _save(k, null);
               } else {
-                localStorage.setItem(k, backedVal);
+                let valToSave = backedVal;
+                if (typeof backedVal === "string") {
+                  try { valToSave = JSON.parse(backedVal); } catch (e) {}
+                }
+                await _save(k, valToSave);
               }
             }
-          });
+          }
         }
-      });
+      }
 
       return { success: true };
     } catch (e) {

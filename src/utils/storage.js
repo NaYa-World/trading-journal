@@ -11,6 +11,10 @@ export const setStorageKey = (key) => {
   aesKey = key;
 };
 
+export const resetStorageCorrupted = () => {
+  storageCorrupted = false;
+};
+
 // ─── Storage Keys ─────────────────────────────────────────────────────────────
 export const STORAGE_KEY = "cj_trades_v2";
 export const SPOT_OPEN_KEY = "cj_spot_open_v2";
@@ -114,7 +118,11 @@ const DEMO_TRADES = [
 
 export const loadTrades = async () => {
   const loaded = await _load(STORAGE_KEY, null);
-  if (loaded === null) return DEMO_TRADES;
+  if (loaded === null) {
+    const activeProfile = await loadActiveProfile();
+    const pid = activeProfile || "default";
+    return DEMO_TRADES.map(t => ({ ...t, profileId: pid }));
+  }
   return loaded;
 };
 export const saveTrades = (t) => _save(STORAGE_KEY, t);

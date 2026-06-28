@@ -141,7 +141,7 @@ export default function LiveTradesView({ liveTrades, onAdd, onClose, savedSymbol
                     {currentPrice ? (
                       <>
                         <div style={{ fontFamily: T.mono, fontSize: 22, fontWeight: 700, color: T.cyan }}>{currentPrice.toFixed(4)}</div>
-                        <div style={{ fontSize: 12, color: p.change24h >= 0 ? T.green : T.red, fontFamily: T.mono }}>{p.change24h >= 0 ? "+" : ""}{p.change24h?.toFixed(2)}% 24h</div>
+                        <div style={{ fontSize: 12, color: (p?.change24h || 0) >= 0 ? T.green : T.red, fontFamily: T.mono }}>{(p?.change24h || 0) >= 0 ? "+" : ""}{(p?.change24h || 0).toFixed(2)}% 24h</div>
                       </>
                     ) : (
                       <Skeleton width={120} height={20} />
