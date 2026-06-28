@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { T } from "../../utils/theme.js";
 import { getQuoteCurrency, fmtPnl } from "../../utils/helpers.js";
+import { calculatePnL } from "../../utils/calculations.js";
 import { CoinIcon, Skeleton } from "../shared/index.jsx";
 import AddLiveTradeModal from "../modals/AddLiveTradeModal.jsx";
 import CloseLiveTradeModal from "../modals/CloseLiveTradeModal.jsx";
@@ -22,8 +23,20 @@ export default function LiveTradesView({ liveTrades, onAdd, onClose, savedSymbol
     if (!p) return sum;
     const qc = t.quoteCurrency || getQuoteCurrency(t.symbol);
     const liveUsdtRate = qc === "USDT" ? 1 : (prices[`${qc}USDT`]?.price || t.usdtRate || 1);
-    const nativeUnreal = (p.price - t.entry) * t.qty * (t.side === "Long" ? 1 : -1) * (t.leverage || 1);
-    return sum + (nativeUnreal * liveUsdtRate);
+    
+    const { pnl: unrealPnl } = calculatePnL({
+      entry: t.entry,
+      exit: p.price,
+      qty: t.qty,
+      side: t.side,
+      leverage: t.leverage || 1,
+      tradeType: t.tradeType,
+      marginType: t.marginType,
+      quoteRateOpen: t.usdtRate || 1,
+      quoteRateClose: liveUsdtRate,
+      action: t.side
+    });
+    return sum + unrealPnl;
   }, 0);
 
   return (
@@ -66,10 +79,26 @@ export default function LiveTradesView({ liveTrades, onAdd, onClose, savedSymbol
             const liveUsdtRate = qc === "USDT" ? 1 : (prices[`${qc}USDT`]?.price || trade.usdtRate || 1);
             
             const lev = trade.leverage || 1;
-            const nativeUnrealizedPnl = currentPrice
-              ? (currentPrice - trade.entry) * trade.qty * (trade.side === "Long" ? 1 : -1) * lev
-              : null;
-            const unrealizedPnl = nativeUnrealizedPnl !== null ? nativeUnrealizedPnl * liveUsdtRate : null;
+            
+            let nativeUnrealizedPnl = null;
+            let unrealizedPnl = null;
+            if (currentPrice) {
+              const { nativePnl, pnl } = calculatePnL({
+                entry: trade.entry,
+                exit: currentPrice,
+                qty: trade.qty,
+                side: trade.side,
+                leverage: trade.leverage || 1,
+                tradeType: trade.tradeType,
+                marginType: trade.marginType,
+                quoteRateOpen: trade.usdtRate || 1,
+                quoteRateClose: liveUsdtRate,
+                action: trade.side
+              });
+              nativeUnrealizedPnl = nativePnl;
+              unrealizedPnl = pnl;
+            }
+            
             const pnlPct = nativeUnrealizedPnl !== null ? (nativeUnrealizedPnl / (trade.entry * trade.qty * lev)) * 100 : null;
             const distToSL = trade.stopLoss && currentPrice ? ((currentPrice - trade.stopLoss) / currentPrice * 100 * (trade.side === "Long" ? 1 : -1)) : null;
             const distToTP = trade.takeProfit && currentPrice ? ((trade.takeProfit - currentPrice) / currentPrice * 100 * (trade.side === "Long" ? 1 : -1)) : null;

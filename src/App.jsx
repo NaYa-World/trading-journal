@@ -223,7 +223,22 @@ function Overview({ trades, allProfileTrades, initialCapital = 0, profiles = [],
   const totalUnrealizedPnl = liveTrades.reduce((sum, t) => {
     const p = prices[t.symbol];
     if (!p) return sum;
-    return sum + (p.price - t.entry) * t.qty * (t.side === "Long" ? 1 : -1) * (t.leverage || 1);
+    const qc = t.quoteCurrency || getQuoteCurrency(t.symbol);
+    const liveUsdtRate = qc === "USDT" ? 1 : (prices[`${qc}USDT`]?.price || t.usdtRate || 1);
+    
+    const { pnl: unrealPnl } = calculatePnL({
+      entry: t.entry,
+      exit: p.price,
+      qty: t.qty,
+      side: t.side,
+      leverage: t.leverage || 1,
+      tradeType: t.tradeType,
+      marginType: t.marginType,
+      quoteRateOpen: t.usdtRate || 1,
+      quoteRateClose: liveUsdtRate,
+      action: t.side
+    });
+    return sum + unrealPnl;
   }, 0);
 
   if (!isMobile) {

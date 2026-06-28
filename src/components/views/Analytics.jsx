@@ -5,15 +5,15 @@ import { fmt$ } from "../../utils/helpers.js";
 
 export default function Analytics() {
   const { trades, T } = useDashboard();
-  const closed = trades.filter(t => t.status === "closed");
   const [activeTab, setActiveTab] = useState("Setup");
 
-  if (!closed.length) return (
+  if (!trades.some(t => t.status === "closed")) return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 300, color: T.dim, fontSize: 15, fontFamily: T.mono }}>No closed trades to analyse yet.</div>
   );
 
   // ── Pro Metrics ──
-  const { wins, losses, profitFactor, expectancy, maxDd, mistakeData, setupData, symData, sorted, curStreak, curType, maxWin, maxLoss, streaks, last20, reasonData } = useMemo(() => {
+  const { closed, wins, losses, profitFactor, expectancy, maxDd, mistakeData, setupData, symData, sorted, curStreak, curType, maxWin, maxLoss, streaks, last20, reasonData } = useMemo(() => {
+    const closed = trades.filter(t => t.status === "closed");
     const getNet = t => t.pnl + (t.fees || 0) - (t.fundingFees || 0);
     const wins = closed.filter(t => getNet(t) > 0);
     const losses = closed.filter(t => getNet(t) < 0);
@@ -101,8 +101,8 @@ export default function Analytics() {
       winRate: Math.round((d.wins / d.count) * 100),
     })).sort((a, b) => b.count - a.count);
 
-    return { wins, losses, profitFactor, expectancy, maxDd, mistakeData, setupData, symData, sorted, curStreak, curType, maxWin, maxLoss, streaks, last20, reasonData };
-  }, [closed]);
+    return { closed, wins, losses, profitFactor, expectancy, maxDd, mistakeData, setupData, symData, sorted, curStreak, curType, maxWin, maxLoss, streaks, last20, reasonData };
+  }, [trades]);
 
   const maxSetupPnl = Math.max(...setupData.map(s => Math.abs(s.pnl)), 1);
   const maxSymPnl = Math.max(...symData.map(s => Math.abs(s.pnl)), 1);

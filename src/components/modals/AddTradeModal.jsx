@@ -84,16 +84,21 @@ export default function AddTradeModal() {
     const q = parseFloat(form.qty);
     const isLong = isSpot ? form.action === "Buy" : form.side === "Long";
     if (!isNaN(e) && !isNaN(x) && e > 0 && x > 0) {
+      const { nativePnl: estPnl } = calculatePnL({
+        entry: e, exit: x, qty: !isNaN(q) && q > 0 ? q : 1, side: form.side, leverage: form.leverage || 1, tradeType, marginType: form.marginType, action: form.action
+      });
+      // if qty wasn't set, we just want directionality for priceDiff/pct
+      const pct = (isLong ? (x - e) / e : (e - x) / e) * 100;
       const priceDiff = isLong ? (x - e) : (e - x);
-      const pct = (priceDiff / e) * 100;
-      const estPnl = !isNaN(q) && q > 0 ? priceDiff * q : null;
+      const estPnlVal = !isNaN(q) && q > 0 ? estPnl : null;
+      
       const rr = !isNaN(sl) && sl > 0
         ? Math.abs(priceDiff) / Math.abs(e - sl)
         : null;
-      return { pct, estPnl, rr, isWin: priceDiff > 0 };
+      return { pct, estPnl: estPnlVal, rr, isWin: estPnl > 0 };
     }
     return null;
-  }, [form.entry, form.exit, form.stopLoss, form.qty, form.action, form.side]);
+  }, [form.entry, form.exit, form.stopLoss, form.qty, form.action, form.side, form.leverage, form.marginType, tradeType]);
 
   const handle = async () => {
     if (entryType === "Trade") {

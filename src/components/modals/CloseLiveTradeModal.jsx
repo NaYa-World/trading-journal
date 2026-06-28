@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useDashboard } from "../../context/DashboardContext.jsx";
 import { fmtPnl } from "../../utils/helpers.js";
 import { CLOSE_REASONS, MISTAKES } from "../../utils/constants.js";
+import { calculatePnL } from "../../utils/calculations.js";
 
 export default function CloseLiveTradeModal({ trade, currentPrice, onClose: onModalClose, onConfirm }) {
   const { T } = useDashboard();
@@ -21,9 +22,23 @@ export default function CloseLiveTradeModal({ trade, currentPrice, onClose: onMo
   }, [exitPrice, trade]);
 
   const exit = parseFloat(exitPrice);
-  const pnl = !isNaN(exit) && trade
-    ? (exit - trade.entry) * trade.qty * (trade.side === "Long" ? 1 : -1) * (trade.leverage || 1)
-    : null;
+  const pnl = useMemo(() => {
+    if (isNaN(exit) || !trade) return null;
+    const isSpot = trade.tradeType === "Spot";
+    const side = isSpot ? "Long" : trade.side;
+    const action = isSpot ? "Buy" : trade.side;
+    const { nativePnl } = calculatePnL({
+      entry: trade.entry,
+      exit,
+      qty: trade.qty,
+      side,
+      leverage: trade.leverage || 1,
+      tradeType: trade.tradeType,
+      marginType: trade.marginType,
+      action
+    });
+    return nativePnl;
+  }, [exit, trade]);
 
   const IS = { background: "#080d14", border: `1px solid ${T.border}`, borderRadius: 6, color: T.text, padding: "8px 10px", fontSize: 14, width: "100%", fontFamily: T.mono, outline: "none", boxSizing: "border-box" };
   const LS = { fontSize: 11, color: T.dim, letterSpacing: 1.2, textTransform: "uppercase", display: "block", marginBottom: 5, marginTop: 12 };
