@@ -45,7 +45,20 @@ export const _save = (key, v) => {
 };
 
 // ─── Trade storage ────────────────────────────────────────────────────────────
-export const loadTrades = () => _load(STORAGE_KEY, []);
+const DEMO_TRADES = [
+  { id: "demo_dep_1", symbol: "Deposit", tradeType: "Spot", entryType: "Deposit", side: "Long", qty: 10000, entry: 1, closePrice: 1, pnl: 0, fees: 0, status: "closed", openTime: Date.now() - 30 * 24 * 3600000, closeTime: Date.now() - 30 * 24 * 3600000, profileId: "default" },
+  { id: "demo_1", symbol: "BTCUSDT", tradeType: "Futures", entryType: "Breakout", side: "Long", leverage: 10, qty: 0.1, entry: 60000, closePrice: 62000, pnl: 200, fees: 5, status: "closed", openTime: Date.now() - 25 * 24 * 3600000, closeTime: Date.now() - 24 * 24 * 3600000, profileId: "default" },
+  { id: "demo_2", symbol: "ETHUSDT", tradeType: "Futures", entryType: "Reversal", side: "Short", leverage: 20, qty: 1.5, entry: 3500, closePrice: 3400, pnl: 150, fees: 8, status: "closed", openTime: Date.now() - 20 * 24 * 3600000, closeTime: Date.now() - 19 * 24 * 3600000, profileId: "default" },
+  { id: "demo_3", symbol: "SOLUSDT", tradeType: "Spot", entryType: "Trend", side: "Long", leverage: 1, qty: 50, entry: 120, closePrice: 110, pnl: -500, fees: 2, status: "closed", openTime: Date.now() - 15 * 24 * 3600000, closeTime: Date.now() - 10 * 24 * 3600000, profileId: "default" },
+  { id: "demo_4", symbol: "DOGEUSDT", tradeType: "Futures", entryType: "Breakout", side: "Long", leverage: 5, qty: 10000, entry: 0.15, closePrice: 0.18, pnl: 300, fees: 10, status: "closed", openTime: Date.now() - 5 * 24 * 3600000, closeTime: Date.now() - 4 * 24 * 3600000, profileId: "default" },
+  { id: "demo_5", symbol: "AVAXUSDT", tradeType: "Futures", entryType: "Reversal", side: "Short", leverage: 15, qty: 100, entry: 40, closePrice: 42, pnl: -200, fees: 6, status: "closed", openTime: Date.now() - 2 * 24 * 3600000, closeTime: Date.now() - 1 * 24 * 3600000, profileId: "default" },
+];
+
+export const loadTrades = () => {
+  const loaded = _load(STORAGE_KEY, []);
+  if (loaded.length === 0) return DEMO_TRADES;
+  return loaded;
+};
 export const saveTrades = (t) => _save(STORAGE_KEY, t);
 export const loadSpotOpen = () => _load(SPOT_OPEN_KEY, []);
 export const saveSpotOpen = (t) => _save(SPOT_OPEN_KEY, t);

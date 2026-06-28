@@ -53,9 +53,9 @@ function RootApp() {
     return <UnlockScreen />;
   }
 
-  if (!userEmail) {
-    return <SignInScreen />;
-  }
+  // if (!userEmail) {
+  //   return <SignInScreen />;
+  // }
 
   return (
     <DashboardProvider>
