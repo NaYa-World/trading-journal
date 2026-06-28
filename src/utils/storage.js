@@ -68,7 +68,34 @@ export const saveLiveTrades = (t) => _save(LIVE_KEY, t);
 // ─── Settings storage ─────────────────────────────────────────────────────────
 export const loadSavedSymbols = () => _load(SYMBOLS_KEY, []);
 export const saveSavedSymbols = (s) => _save(SYMBOLS_KEY, s);
-export const loadTradeSetups = () => _load(TRADE_SETUPS_KEY, []);
+const DEMO_SETUPS = [
+  {
+    id: "setup_1",
+    name: "XAUUSD Liquidity Sweep",
+    type: "Reversal",
+    typeColor: "#3b82f6", // T.blue
+    rulesCount: 6,
+    rules: ["Wait for sweep", "Fair Value Gap", "RSI divergence", "Check HTF", "Volume spike", "Confirm close"],
+    image: "",
+    timestamp: "5d ago"
+  },
+  {
+    id: "setup_2",
+    name: "Opening Range Breakout",
+    type: "Breakout",
+    typeColor: "#a855f7", // T.purple
+    rulesCount: 5,
+    rules: ["15m chart", "Mark ORB", "Candle close outside", "Check volume", "Target 1:2"],
+    image: "",
+    timestamp: "5d ago"
+  }
+];
+
+export const loadTradeSetups = () => {
+  const loaded = _load(TRADE_SETUPS_KEY, []);
+  if (loaded.length === 0) return DEMO_SETUPS;
+  return loaded;
+};
 export const saveTradeSetups = (s) => _save(TRADE_SETUPS_KEY, s);
 export const ALERTS_KEY = "cj_alerts_v1";
 export const loadAlerts = () => _load(ALERTS_KEY, []);
