@@ -93,10 +93,10 @@ export function DashboardProvider({ children }) {
       try {
         const [
           _profiles, _activeProf, _apiKeys, _trades, _spotOpen, _liveTrades,
-          _symbols, _setups, _reviews
+          _symbols, _setups, _reviews, _alerts
         ] = await Promise.all([
           loadProfiles(), loadActiveProfile(), loadApiKeys(), loadTrades(), loadSpotOpen(), loadLiveTrades(),
-          loadSavedSymbols(), loadTradeSetups(), loadReviews()
+          loadSavedSymbols(), loadTradeSetups(), loadReviews(), loadAlerts()
         ]);
         
         if (isMounted) {
@@ -109,6 +109,7 @@ export function DashboardProvider({ children }) {
           setSavedSymbols(_symbols);
           setTradeSetups(_setups);
           setReviews(_reviews);
+          setAlerts(_alerts);
         }
       } catch (e) {
         console.error("Error loading async storage on startup", e);
@@ -155,7 +156,7 @@ export function DashboardProvider({ children }) {
   const isMobile = width <= 768;
 
   // Price Alerts state
-  const [alerts, setAlerts] = useState(loadAlerts);
+  const [alerts, setAlerts] = useState([]);
   const [notifications, setNotifications] = useState([]);
   
   const [appToast, setAppToast] = useState(null);

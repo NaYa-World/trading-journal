@@ -1,6 +1,7 @@
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Capacitor } from '@capacitor/core';
 import CryptoJS from 'crypto-js';
+import localforage from 'localforage';
 
 // ─── Storage Encryption Wrapper ──────────────────────────────────────────────
 let aesKey = null;
@@ -42,6 +43,14 @@ export const _load = async (key, fb) => {
       }
     } else {
       raw = localStorage.getItem(key);
+      if (raw) {
+        // Legacy data found in localStorage. Migrate to localforage!
+        await localforage.setItem(key, raw);
+        localStorage.removeItem(key);
+      } else {
+        // Load normally from localforage
+        raw = await localforage.getItem(key);
+      }
       if (!raw) return fb;
     }
 
@@ -86,7 +95,7 @@ export const _save = async (key, v) => {
         encoding: Encoding.UTF8,
       });
     } else {
-      localStorage.setItem(key, json);
+      await localforage.setItem(key, json);
     }
   } catch (e) {
     console.error("Storage save failed for key:", key, e);
