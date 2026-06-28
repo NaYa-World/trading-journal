@@ -14,7 +14,7 @@ export { default as TradeLog } from "./views/TradeLog.jsx";
 export { default as TradeSummary } from "./views/TradeSummary.jsx";
 export { default as RiskCalculator } from "./views/RiskCalculator.jsx";
 export { default as TradingCalendar } from "./views/TradingCalendar.jsx";
-export { default as Analytics } from "./views/Analytics.jsx";
+
 export {
   Tag, CoinIcon, InfoDot, Card, ML, MV,
   Placeholder, EmptyState, Skeleton, SemiGauge, DonutGauge, MaskedDateInput,

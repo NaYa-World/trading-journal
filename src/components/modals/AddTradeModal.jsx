@@ -74,7 +74,7 @@ export default function AddTradeModal() {
       setForm(prev => ({ ...prev, fees: f.toFixed(4) }));
     };
     calculateEstimatedFees();
-  }, [form.entry, form.exit, form.qty, isSpotOpen, tradeType]);
+  }, [form.entry, form.exit, form.qty, isSpotOpen, tradeType, form.tradeType]);
 
   // ── Live RR & PnL Preview ─────────────────────────────────────────────────
   const rrPreview = useMemo(() => {
@@ -425,7 +425,15 @@ export default function AddTradeModal() {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                   <div><label style={LS}>Buy Price ({qc})</label><input style={IS} type="number" value={form.entry} onChange={e => set("entry", e.target.value)} placeholder="0.00" /></div>
                   {!isSpotOpen && <div><label style={LS}>Sell Price ({qc})</label><input style={IS} type="number" value={form.exit} onChange={e => set("exit", e.target.value)} placeholder="0.00" /></div>}
-                  <div><label style={LS}>Quantity {form.marginType === "COIN-M" ? "(USD Value)" : "(units)"}</label><input style={IS} type="number" value={form.qty} onChange={e => set("qty", e.target.value)} placeholder="0.00" /></div>
+                  <div>
+                    <label style={LS}>Quantity {form.marginType === "COIN-M" ? "(USD Value)" : "(units)"}</label>
+                    <input style={IS} type="number" value={form.qty} onChange={e => set("qty", e.target.value)} placeholder="0.00" />
+                    {form.marginType === "COIN-M" && tradeType === "Futures" && (
+                      <div style={{ fontSize: 10, color: T.orange, marginTop: 4, fontFamily: T.mono, lineHeight: 1.2 }}>
+                        *Enter total contract value in USD (e.g. $100), not the raw token amount.
+                      </div>
+                    )}
+                  </div>
                   {!isSpotOpen && <div><label style={LS}>Stop Loss ({qc}) <span style={{ color: T.dim }}>(optional)</span></label><input style={IS} type="number" value={form.stopLoss} onChange={e => set("stopLoss", e.target.value)} placeholder="for RR calc" /></div>}
                 </div>
 
