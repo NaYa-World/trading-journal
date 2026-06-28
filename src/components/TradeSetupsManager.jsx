@@ -186,56 +186,67 @@ export default function TradeSetupsManager({ trades = [], tradeSetups = [], setT
 
       {/* Setups Grid */}
       {computedSetups.length > 0 ? (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 16, paddingBottom: 16, marginBottom: 24 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, paddingBottom: 16, marginBottom: 24 }}>
           {computedSetups.map(setup => (
             <div key={setup.id} style={{ 
               background: T.panel, border: `1px solid ${T.border}`, 
-              borderRadius: 16, padding: 16,
+              borderRadius: 14, padding: 12,
               display: "flex", flexDirection: "column"
             }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: "#FFF", marginBottom: 12 }}>{setup.name}</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#FFF", marginBottom: 10, lineHeight: 1.3 }}>{setup.name}</div>
               
-              <div style={{ width: "100%", height: 140, borderRadius: 10, overflow: "hidden", marginBottom: 16, border: `1px solid ${T.border}` }}>
+              <div 
+                onClick={() => !setup.image && handleEditClick(setup)}
+                style={{ 
+                  width: "100%", height: 90, borderRadius: 8, overflow: "hidden", marginBottom: 12, 
+                  border: setup.image ? `1px solid ${T.border}` : `1px dashed ${T.border}`,
+                  cursor: setup.image ? "default" : "pointer"
+                }}
+              >
                 {setup.image ? (
                   <img src={getImageUrl(setup.image)} alt="Setup Chart" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 ) : (
-                  <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: T.panel2, color: T.dim, fontSize: 12 }}>No Image</div>
+                  <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: T.panel2, color: T.dim, fontSize: 11 }}>
+                    <div style={{ fontSize: 20, marginBottom: 4, color: T.purple }}>🖼️</div>
+                    <div style={{ fontWeight: 700, color: "#FFF", marginBottom: 2 }}>Add chart</div>
+                    <div style={{ fontSize: 9 }}>Upload your chart image</div>
+                  </div>
                 )}
               </div>
 
-              <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-                <div style={{ background: getSetupColor(setup.type), color: "#FFF", padding: "6px 12px", borderRadius: 8, fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+                <div style={{ background: getSetupColor(setup.type), color: "#FFF", padding: "4px 8px", borderRadius: 6, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
                   🏷 {setup.type}
                 </div>
-                <div style={{ background: T.panel2, border: `1px solid ${T.border}`, color: T.dim, padding: "6px 12px", borderRadius: 8, fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontSize: 12 }}>☰</span> {setup.rulesCount || 0} rules
+                <div style={{ background: T.panel2, border: `1px solid ${T.border}`, color: T.dim, padding: "4px 8px", borderRadius: 6, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
+                  <span style={{ fontSize: 10 }}>☰</span> {setup.rulesCount || 0} rules
                 </div>
               </div>
 
-              <div style={{ borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`, padding: "12px 0", marginBottom: 16 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, fontSize: 14 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12 }}>
                   <div style={{ color: T.dim }}>Win rate</div>
-                  <div style={{ fontWeight: 700, color: setup.winRate >= 50 ? T.green : T.red }}>{setup.winRate}%</div>
+                  <div style={{ fontWeight: 700, color: setup.winRate >= 50 ? T.green : T.red }}>{setup.totalTrades > 0 ? `${setup.winRate}%` : "—"}</div>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, fontSize: 14 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12 }}>
                   <div style={{ color: T.dim }}>Trades</div>
-                  <div style={{ fontWeight: 700, color: "#FFF" }}>{setup.totalTrades}</div>
+                  <div style={{ fontWeight: 700, color: "#FFF" }}>{setup.totalTrades || "0"}</div>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 14 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12 }}>
                   <div style={{ color: T.dim }}>PnL</div>
-                  <div style={{ fontWeight: 700, color: setup.pnl >= 0 ? T.green : T.red }}>
-                    {setup.pnl >= 0 ? "+" : ""}${setup.pnl.toLocaleString()}
+                  <div style={{ fontWeight: 700, color: setup.pnl > 0 ? T.green : (setup.pnl < 0 ? T.red : T.dim) }}>
+                    {setup.pnl > 0 ? "+" : ""}{setup.pnl !== 0 ? "$" + setup.pnl.toLocaleString() : "—"}
                   </div>
                 </div>
               </div>
 
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "auto", color: T.dim, fontSize: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontSize: 14 }}>🕒</span> {setup.timestamp || "4d ago"}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "auto", color: T.dim, fontSize: 11 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <span style={{ fontSize: 12 }}>🕒</span> {setup.totalTrades > 0 ? (setup.timestamp || "5d ago") : "No trades yet"}
                 </div>
-                <div style={{ display: "flex", gap: 16 }}>
-                  <span onClick={() => handleEditClick(setup)} style={{ cursor: "pointer", fontSize: 14 }}>✎</span>
-                  <span onClick={() => handleDelete(setup.id)} style={{ color: T.red, cursor: "pointer", fontSize: 14 }}>🗑</span>
+                <div style={{ display: "flex", gap: 12 }}>
+                  <span onClick={() => handleEditClick(setup)} style={{ cursor: "pointer", fontSize: 12 }}>✏️</span>
+                  <span onClick={() => handleDelete(setup.id)} style={{ color: T.red, cursor: "pointer", fontSize: 12 }}>🗑</span>
                 </div>
               </div>
             </div>
