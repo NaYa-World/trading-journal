@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useDeferredValue } from "react";
 import { useDashboard } from "../../context/DashboardContext.jsx";
 import { Card, Tag, CoinIcon, ML } from "../shared/index.jsx";
 import { fmt$ } from "../../utils/helpers.js";
@@ -7,13 +7,13 @@ export default function Analytics() {
   const { trades, T } = useDashboard();
   const [activeTab, setActiveTab] = useState("Setup");
 
-  if (!trades.some(t => t.status === "closed")) return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 300, color: T.dim, fontSize: 15, fontFamily: T.mono }}>No closed trades to analyse yet.</div>
-  );
+  const deferredTrades = useDeferredValue(trades);
+  const closed = useMemo(() => deferredTrades.filter(t => t.status === "closed"), [deferredTrades]);
+
 
   // ── Pro Metrics ──
-  const { closed, wins, losses, profitFactor, expectancy, maxDd, mistakeData, setupData, symData, sorted, curStreak, curType, maxWin, maxLoss, streaks, last20, reasonData } = useMemo(() => {
-    const closed = trades.filter(t => t.status === "closed");
+  const { profitFactor, expectancy, maxDd, mistakeData, setupData, symData, curStreak, curType, maxWin, maxLoss, streaks, last20, reasonData } = useMemo(() => {
+    if (closed.length === 0) return {};
     const getNet = t => t.pnl + (t.fees || 0) - (t.fundingFees || 0);
     const wins = closed.filter(t => getNet(t) > 0);
     const losses = closed.filter(t => getNet(t) < 0);
@@ -101,12 +101,16 @@ export default function Analytics() {
       winRate: Math.round((d.wins / d.count) * 100),
     })).sort((a, b) => b.count - a.count);
 
-    return { closed, wins, losses, profitFactor, expectancy, maxDd, mistakeData, setupData, symData, sorted, curStreak, curType, maxWin, maxLoss, streaks, last20, reasonData };
-  }, [trades]);
+    return { profitFactor, expectancy, maxDd, mistakeData, setupData, symData, curStreak, curType, maxWin, maxLoss, streaks, last20, reasonData };
+  }, [closed]);
 
-  const maxSetupPnl = Math.max(...setupData.map(s => Math.abs(s.pnl)), 1);
-  const maxSymPnl = Math.max(...symData.map(s => Math.abs(s.pnl)), 1);
+  const maxSetupPnl = Math.max(...(setupData?.map(s => Math.abs(s.pnl)) || []), 1);
+  const maxSymPnl = Math.max(...(symData?.map(s => Math.abs(s.pnl)) || []), 1);
   const TABS = ["Setup", "Symbol", "Psychology", "Streaks", "Close Reason"];
+
+  if (closed.length === 0) return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 300, color: T.dim, fontSize: 15, fontFamily: T.mono }}>No closed trades to analyse yet.</div>
+  );
 
   return (
     <div>
@@ -153,7 +157,6 @@ export default function Analytics() {
         </div>
       )}
 
-      {/* Psychology Performance */}
       {activeTab === "Psychology" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {mistakeData.length === 0 ? (

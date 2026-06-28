@@ -1,5 +1,5 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect, useRef } from "react";
-import { Capacitor } from '@capacitor/core';
 
 const PricesContext = createContext(null);
 
@@ -14,79 +14,70 @@ export function PricesProvider({ children, symbols }) {
   useEffect(() => {
     if (!symbolsRef.current || !symbolsRef.current.length) return;
     
-    // Disable live price polling on native mobile to save battery and avoid CORS/Network errors.
-    if (Capacitor.isNativePlatform()) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setStatus("ok");
-      return;
-    }
-
     let cancelled = false;
+    let wsBinance = null;
 
-    const fetchAll = async () => {
+    const connectWebSockets = () => {
       setStatus("fetching");
-      const results = {};
       const currentSymbols = symbolsRef.current;
+      
+      const binanceParams = currentSymbols.map(({ symbol }) => {
+        const sym = symbol.toUpperCase().replace("/", "").toLowerCase();
+        return `${sym}@ticker`;
+      });
 
-      await Promise.allSettled(currentSymbols.map(async ({ symbol, exchange }) => {
-        const sym = symbol.toUpperCase().replace("/", "");
-        try {
-          const fetchBinance = async () => {
-            const r = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${sym}`);
-            const data = await r.json();
-            if (data && data.lastPrice) {
-              return { price: parseFloat(data.lastPrice), change24h: parseFloat(data.priceChangePercent), high24h: parseFloat(data.highPrice), low24h: parseFloat(data.lowPrice), vol24h: parseFloat(data.volume), source: "Binance" };
-            }
-            throw new Error("Binance fetch failed");
-          };
+      if (binanceParams.length > 0) {
+        wsBinance = new WebSocket('wss://stream.binance.com:9443/ws');
+        wsBinance.onopen = () => {
+          wsBinance.send(JSON.stringify({
+            method: "SUBSCRIBE",
+            params: binanceParams,
+            id: 1
+          }));
+          setStatus("ok");
+        };
 
-          const fetchBitget = async () => {
-            const r = await fetch(`https://api.bitget.com/api/v2/spot/market/tickers?symbol=${sym}`);
-            const data = await r.json();
-            const item = data?.data?.[0];
-            if (item && item.lastPr) {
-              return { price: parseFloat(item.lastPr), change24h: parseFloat(item.change24h) * 100, high24h: parseFloat(item.high24h), low24h: parseFloat(item.low24h), vol24h: parseFloat(item.baseVolume), source: "Bitget" };
-            }
-            throw new Error("Bitget fetch failed");
-          };
-
-          let prefExchange = exchange || "Binance";
-
+        wsBinance.onmessage = (event) => {
+          if (cancelled) return;
           try {
-            if (prefExchange === "Bitget") {
-              results[symbol] = await fetchBitget();
-            } else {
-              results[symbol] = await fetchBinance();
-            }
-          } catch (e1) {
-            try {
-              if (prefExchange === "Bitget") {
-                const res = await fetchBinance();
-                res.source = "Binance(fb)";
-                results[symbol] = res;
-              } else {
-                const res = await fetchBitget();
-                res.source = "Bitget(fb)";
-                results[symbol] = res;
+            const data = JSON.parse(event.data);
+            if (data.e === "24hrTicker") {
+              // 's' is symbol e.g., BTCUSDT
+              // Let's find the original symbol mapping if needed, or just store by raw symbol
+              // Our UI uses original symbol like BTC/USDT or BTCUSDT
+              const rawSym = data.s;
+              const price = parseFloat(data.c);
+              const change24h = parseFloat(data.P);
+              const high24h = parseFloat(data.h);
+              const low24h = parseFloat(data.l);
+              const vol24h = parseFloat(data.v);
+              
+              // Find matching symbol from symbolsRef
+              const matched = currentSymbols.find(s => s.symbol.toUpperCase().replace("/", "") === rawSym);
+              if (matched) {
+                setPrices(p => ({
+                  ...p,
+                  [matched.symbol]: { price, change24h, high24h, low24h, vol24h, source: "Binance WS" }
+                }));
               }
-            } catch (e2) {
-              // Both APIs failed
             }
+          } catch {
+            // ignore parse errors
           }
-        } catch (err) {
-          // Outer catch for overall safety
-        }
-      }));
+        };
 
-      if (!cancelled) { setPrices(p => ({ ...p, ...results })); setStatus("ok"); }
+        wsBinance.onerror = () => {
+          setStatus("Error connecting to Binance WS");
+        };
+      }
     };
 
-    fetchAll();
-    let id;
-    if (!Capacitor.isNativePlatform()) {
-      id = setInterval(fetchAll, 3000);
-    }
-    return () => { cancelled = true; if (id) clearInterval(id); };
+    connectWebSockets();
+
+    return () => {
+      cancelled = true;
+      if (wsBinance) wsBinance.close();
+    };
   }, [symbolsKey]);
 
   return (

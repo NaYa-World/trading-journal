@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { Capacitor } from "@capacitor/core";
 import { NativeBiometric } from "@capgo/capacitor-native-biometric";
 import { App } from "@capacitor/app";
@@ -23,7 +24,7 @@ export const SecurityProvider = ({ children }) => {
 
   // Security preferences state
   const [appLockEnabled, setAppLockEnabled] = useState(false);
-  const [lockTimeout, setLockTimeout] = useState(5); // in minutes
+  const [lockTimeout, setLockTimeout] = useState(1); // in minutes
   const [keyOption, setKeyOption] = useState("biometric"); // 'biometric' | 'password' | 'machine'
   const [salt, setSalt] = useState("");
   const [machineKey, setMachineKey] = useState("");
@@ -78,8 +79,7 @@ export const SecurityProvider = ({ children }) => {
         try {
           const result = await NativeBiometric.isAvailable();
           setIsBiometricAvailable(result.isAvailable);
-        } catch (e) {
-          console.warn("Biometrics check failed:", e);
+        } catch {
           setIsBiometricAvailable(false);
         }
       } else {
@@ -91,7 +91,7 @@ export const SecurityProvider = ({ children }) => {
         const prefs = JSON.parse(localStorage.getItem(SECURITY_PREFS_KEY));
         if (prefs) {
           setAppLockEnabled(prefs.appLockEnabled ?? false);
-          setLockTimeout(prefs.lockTimeout ?? 5);
+          setLockTimeout(prefs.lockTimeout ?? 1);
           setKeyOption(prefs.keyOption ?? (Capacitor.getPlatform() === "web" ? "password" : "biometric"));
           setSalt(prefs.salt || "");
           if (prefs.machineKey) setMachineKey(prefs.machineKey);
@@ -107,8 +107,7 @@ export const SecurityProvider = ({ children }) => {
           setIsLocked(false);
           updateMasterKey("cj_serverless_default_key");
         }
-      } catch (e) {
-        console.error("Failed to load security preferences:", e);
+      } catch {
         setIsLocked(false);
         updateMasterKey("cj_serverless_default_key");
       }
@@ -160,9 +159,8 @@ export const SecurityProvider = ({ children }) => {
       });
 
       return { success: true, machineKey: newMachineKey };
-    } catch (e) {
-      console.error("Failed to setup security:", e);
-      return { success: false, error: e.message };
+    } catch {
+      return { success: false, error: "Setup failed" };
     }
   }, [isBiometricAvailable, generateMachineKey, deriveKeyFromPassword, salt, updateMasterKey, savePrefs]);
 
@@ -235,8 +233,8 @@ export const SecurityProvider = ({ children }) => {
             } else {
               return { success: false, error: "Incorrect password" };
             }
-          } catch (e) {
-            return { success: false, error: "Incorrect password" };
+          } catch {
+            return { success: false, error: "Legacy unlock failed" };
           }
         } else {
           // First setup validation
@@ -263,7 +261,7 @@ export const SecurityProvider = ({ children }) => {
             } else {
               return { success: false, error: "Invalid recovery key" };
             }
-          } catch (e) {
+          } catch {
             return { success: false, error: "Invalid recovery key" };
           }
         } else {

@@ -6,20 +6,15 @@ import CryptoJS from "crypto-js";
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
 import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis,
-  Tooltip, ResponsiveContainer, Cell,
+  AreaChart, Area
 } from "recharts";
 
 import { T } from "./utils/theme.js";
 import {
-  STABLES, QUOTES, getQuoteCurrency, fetchUsdtRate,
-  fmt$, fmtPnl, fmtDate, fmtDateShort, formatMaskedDate, parseMaskedDate,
-  getOrdinal, sequenceTransactions,
-       
+  getQuoteCurrency, fmt$, fmtDate, fmtDateShort
 } from "./utils/helpers.js";
 import {
-  SETUPS, MISTAKES, CLOSE_REASONS, SIDES, EXCHANGES,
-  CRYPTO_TRADE_TYPES, DEFAULT_SYMBOLS, DEFAULT_PROFILES, NAV_ITEMS,
+  SETUPS
 } from "./utils/constants.js";
 import { calculatePnL, calculateWinRate, calculateProfitFactor, calculateExpectancy } from "./utils/calculations.js";
 import { useDashboard } from "./context/DashboardContext.jsx";
@@ -28,14 +23,11 @@ import AlertsEngine from "./components/AlertsEngine.jsx";
 import {
   Sidebar, TopNav, BottomNav,
   TradeLog, TradeSummary, RiskCalculator, TradingCalendar, Analytics,
-  Tag, CoinIcon, InfoDot, Card, ML, MV,
-  Placeholder, EmptyState, Skeleton, SemiGauge, DonutGauge, MaskedDateInput,
+  InfoDot, Card, ML, MV,
+  EmptyState, Skeleton, SemiGauge,
   Sparkline, WinLossRatioBar, AccountsManager, TradeSetupsManager,
   AddTradeModal, EditTradeModal, CSVImportModal, SecuritySettingsModal, ProfileManagerModal
 } from "./components";
-import AddLiveTradeModal from "./components/modals/AddLiveTradeModal.jsx";
-import CloseLiveTradeModal from "./components/modals/CloseLiveTradeModal.jsx";
-import SellSpotModal from "./components/modals/SellSpotModal.jsx";
 import LiveTradesView from "./components/views/LiveTradesView.jsx";
 import OpenSpotView from "./components/views/OpenSpotView.jsx";
 import WatchlistView from "./components/views/WatchlistView.jsx";
@@ -938,7 +930,6 @@ export default function App() {
 
   const { prices, status } = usePrices();
 
-  // ── Keyboard Shortcuts ───────────────────────────────────────────────────
   const DASH_TABS = ["Overview"];
 
   useEffect(() => {
@@ -973,9 +964,9 @@ export default function App() {
         restoreDeletedTrade();
       }
     };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [view, undoTrade, restoreDeletedTrade, setShowAddModal, setEditingTrade, setShowCSVModal, setShowSyncModal, setViewChartTrade, setShowClearConfirm, setShowDataMenu, setUndoTrade, setSubTab]);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [view, setView, subTab, setSubTab, restoreDeletedTrade, setShowAddModal, setEditingTrade, setShowCSVModal, setShowSyncModal, setViewChartTrade, setShowClearConfirm, setShowDataMenu, setUndoTrade, setSubTab]);
 
   // ── Modal state for back button ──
   const modalsRef = useRef(false);
@@ -986,7 +977,7 @@ export default function App() {
   useEffect(() => {
     // Capacitor hardware back button handling
     let backListener = null;
-    CapApp.addListener('backButton', ({ canGoBack }) => {
+    CapApp.addListener('backButton', () => {
       if (modalsRef.current) {
         setShowAddModal(false);
         setEditingTrade(null);
