@@ -150,7 +150,7 @@ export default function CSVImportModal() {
         setPreviewTrades(mapped);
         setError("");
         setStep("preview");
-      } catch (err) { setError("Failed to parse file. Ensure it's saved as CSV (comma-separated)."); }
+      } catch { setError("Failed to parse file. Ensure it's saved as CSV (comma-separated)."); }
     };
     reader.readAsText(file);
   };

@@ -15,7 +15,7 @@ import {
 export default function AddTradeModal() {
   const {
     addTrade, addSpotOpen, setShowAddModal, savedSymbols, saveSymbol,
-    activeProfileId, initialCapital, allTrades
+    activeProfileId, allTrades
   } = useDashboard();
 
   const onAdd = addTrade;
@@ -98,7 +98,7 @@ export default function AddTradeModal() {
       return { pct, estPnl: estPnlVal, rr, isWin: estPnl > 0 };
     }
     return null;
-  }, [form.entry, form.exit, form.stopLoss, form.qty, form.action, form.side, form.leverage, form.marginType, tradeType]);
+  }, [form.entry, form.exit, form.stopLoss, form.qty, form.action, form.side, form.leverage, form.marginType, tradeType, isSpot]);
 
   const handle = async () => {
     if (entryType === "Trade") {
@@ -258,7 +258,7 @@ export default function AddTradeModal() {
   return (
     <div style={{ position: "fixed", inset: 0, background: "#00000092", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999, backdropFilter: "blur(6px)" }}
       onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{ background: T.panel, border: `1px solid ${T.border2}`, borderRadius: 14, padding: 26, width: entryType === "Trade" ? "min(900px,95vw)" : "min(480px,95vw)", maxHeight: "92vh", overflowY: "auto", boxShadow: "0 30px 80px #00000070", transition: "width 0.3s ease" }}>
+      <div style={{ background: T.panel, border: `1px solid ${T.border2}`, borderRadius: 14, padding: "clamp(16px, 5vw, 26px)", width: entryType === "Trade" ? "min(900px,95vw)" : "min(480px,95vw)", maxHeight: "92vh", overflowY: "auto", boxShadow: "0 30px 80px #00000070", transition: "width 0.3s ease" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
           <div style={{ fontFamily: T.mono, fontSize: 14, color: T.bright, letterSpacing: 1.5 }}>
             {entryType === "Trade" ? "ADD TRADE" : entryType === "Deposit" ? "LOG DEPOSIT" : "LOG WITHDRAWAL"}
@@ -425,7 +425,7 @@ export default function AddTradeModal() {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                   <div><label style={LS}>Buy Price ({qc})</label><input style={IS} type="number" value={form.entry} onChange={e => set("entry", e.target.value)} placeholder="0.00" /></div>
                   {!isSpotOpen && <div><label style={LS}>Sell Price ({qc})</label><input style={IS} type="number" value={form.exit} onChange={e => set("exit", e.target.value)} placeholder="0.00" /></div>}
-                  <div><label style={LS}>Quantity (units)</label><input style={IS} type="number" value={form.qty} onChange={e => set("qty", e.target.value)} placeholder="0.00" /></div>
+                  <div><label style={LS}>Quantity {form.marginType === "COIN-M" ? "(USD Value)" : "(units)"}</label><input style={IS} type="number" value={form.qty} onChange={e => set("qty", e.target.value)} placeholder="0.00" /></div>
                   {!isSpotOpen && <div><label style={LS}>Stop Loss ({qc}) <span style={{ color: T.dim }}>(optional)</span></label><input style={IS} type="number" value={form.stopLoss} onChange={e => set("stopLoss", e.target.value)} placeholder="for RR calc" /></div>}
                 </div>
 

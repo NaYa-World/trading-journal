@@ -14,23 +14,21 @@ export default function EditTradeModal() {
   const onSave = handleEditTrade;
   const onDelete = deleteFinishedTrade;
 
-  if (!trade) return null;
-
-  const isTransaction = trade.entryType === "Deposit" || trade.entryType === "Withdrawal" || trade.symbol === "Deposit" || trade.symbol === "Withdrawal";
-  const isOpen = (trade.tradeType === "Spot" && !trade.exit) || trade.status === "open";
+  const isTransaction = trade?.entryType === "Deposit" || trade?.entryType === "Withdrawal" || trade?.symbol === "Deposit" || trade?.symbol === "Withdrawal";
+  const isOpen = (trade?.tradeType === "Spot" && !trade?.exit) || trade?.status === "open";
 
   const [form, setForm] = useState({
-    entry: (trade.entry || 0).toString(),
-    exit: (trade.exit || 0).toString(),
-    qty: (trade.qty || 0).toString(),
-    fees: Math.abs(trade.fees || 0).toString(),
-    fundingFees: Math.abs(trade.fundingFees || 0).toString(),
-    marginType: trade.marginType || "USDT-M",
-    setup: trade.setup || "BREAKOUT",
-    closeReason: trade.closeReason || "",
-    openTime: formatMaskedDate(new Date(trade.openTime)),
-    closeTime: formatMaskedDate(new Date(trade.closeTime || trade.openTime)),
-    notes: trade.notes || "",
+    entry: (trade?.entry || 0).toString(),
+    exit: (trade?.exit || 0).toString(),
+    qty: (trade?.qty || 0).toString(),
+    fees: Math.abs(trade?.fees || 0).toString(),
+    fundingFees: Math.abs(trade?.fundingFees || 0).toString(),
+    marginType: trade?.marginType || "USDT-M",
+    setup: trade?.setup || "BREAKOUT",
+    closeReason: trade?.closeReason || "",
+    openTime: formatMaskedDate(trade ? new Date(trade.openTime) : new Date()),
+    closeTime: formatMaskedDate(trade ? new Date(trade.closeTime || trade.openTime) : new Date()),
+    notes: trade?.notes || "",
   });
   const [loading, setLoading] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -43,11 +41,14 @@ export default function EditTradeModal() {
     if (!isNaN(e) && !isNaN(q) && e > 0 && q > 0) {
       let f = e * q * 0.0006;
       if (!isNaN(x) && x > 0) f += x * q * 0.0006;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setForm(prev => ({ ...prev, fees: f.toFixed(4) }));
     }
   }, [form.entry, form.exit, form.qty, isTransaction]);
 
-  const qc = getQuoteCurrency(trade.symbol || "USDT") || "USDT";
+  if (!trade) return null;
+
+  const qc = getQuoteCurrency(trade?.symbol || "USDT") || "USDT";
 
   const handle = async () => {
     if (isTransaction) {

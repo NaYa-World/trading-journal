@@ -1,12 +1,10 @@
 import { useState, useRef } from "react";
-import { Capacitor } from "@capacitor/core";
 import { T, THEMES } from "../utils/theme.js";
 import { useBackup } from "../context/BackupContext.jsx";
 import { useDashboard } from "../context/DashboardContext.jsx";
 import { fmt$ } from "../utils/helpers.js";
 
-export default function AccountsManager({ profiles, activeProfileId, switchProfile, addProfile, updateProfile, trades = [], liveTrades = [], addTrade, showToast }) {
-  const [editingProfile, setEditingProfile] = useState(null);
+export default function AccountsManager({ profiles, activeProfileId, switchProfile, addProfile, updateProfile, trades = [], addTrade, showToast }) {
   const [showAddProfile, setShowAddProfile] = useState(false);
   const [showThemeSettings, setShowThemeSettings] = useState(false);
   const [showAccountDropdown, setShowAccountDropdown] = useState(false);

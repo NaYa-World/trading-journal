@@ -15,7 +15,7 @@ const SETUP_TYPES = [
 
 export default function TradeSetupsManager({ trades = [], tradeSetups = [], setTradeSetups, showToast }) {
   const [showAddSetup, setShowAddSetup] = useState(false);
-  const [newSetup, setNewSetup] = useState({ name: "", type: "Unassigned", image: "", rules: [{ id: Date.now().toString(), text: "" }] });
+  const [newSetup, setNewSetup] = useState({ name: "", type: "Unassigned", image: "", rules: [{ id: crypto.randomUUID(), text: "" }] });
   const { userEmail, authenticateGoogle } = useBackup();
   const fileInputRef = useRef(null);
 
@@ -24,6 +24,7 @@ export default function TradeSetupsManager({ trades = [], tradeSetups = [], setT
   const [newTypeInput, setNewTypeInput] = useState("");
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCustomTypes(loadCustomSetupTypes());
   }, []);
 
@@ -59,7 +60,7 @@ export default function TradeSetupsManager({ trades = [], tradeSetups = [], setT
           const fileName = `${Date.now()}_setup.jpg`;
           const savedFile = await Filesystem.writeFile({ path: fileName, data: base64Data, directory: Directory.Data });
           setNewSetup(prev => ({ ...prev, image: savedFile.uri }));
-        } catch (error) {
+        } catch {
           if (showToast) showToast("Failed to save image natively.", "error");
         }
       } else {
@@ -89,7 +90,7 @@ export default function TradeSetupsManager({ trades = [], tradeSetups = [], setT
       } : s));
     } else {
       setTradeSetups([...tradeSetups, {
-        id: Date.now().toString(),
+        id: crypto.randomUUID(),
         name: newSetup.name,
         type: newSetup.type,
         typeColor: selectedType.color,
@@ -100,7 +101,7 @@ export default function TradeSetupsManager({ trades = [], tradeSetups = [], setT
       }]);
     }
     setShowAddSetup(false);
-    setNewSetup({ name: "", type: "Unassigned", image: "", rules: [{ id: Date.now().toString(), text: "" }] });
+    setNewSetup({ name: "", type: "Unassigned", image: "", rules: [{ id: crypto.randomUUID(), text: "" }] });
   };
 
   const handleEditClick = (setup) => {
@@ -111,7 +112,7 @@ export default function TradeSetupsManager({ trades = [], tradeSetups = [], setT
       image: setup.image || "",
       rules: setup.rules && setup.rules.length > 0 
         ? setup.rules.map((r, i) => ({ id: i.toString(), text: r }))
-        : [{ id: Date.now().toString(), text: "" }]
+        : [{ id: crypto.randomUUID(), text: "" }]
     });
     setShowAddSetup(true);
   };
