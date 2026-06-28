@@ -5,7 +5,7 @@ import { CoinIcon, Skeleton } from "../shared/index.jsx";
 import SellSpotModal from "../modals/SellSpotModal.jsx";
 import { usePrices } from "../../context/PricesContext.jsx";
 
-export default function OpenSpotTradesView({ spotOpen, onSell, onDelete, onEdit, savedSymbols }) {
+export default function OpenSpotTradesView({ spotOpen, onSell, onDelete, onEdit }) {
   const [sellingTrade, setSellingTrade] = useState(null);
   const { prices } = usePrices();
 
@@ -51,6 +51,7 @@ export default function OpenSpotTradesView({ spotOpen, onSell, onDelete, onEdit,
           const unreal = livePrice ? (livePrice - trade.entry) * trade.qty : null;
           const unrealUsdt = unreal !== null ? unreal * liveUsdtRate : null;
           const unrPct = unreal !== null ? (unreal / (trade.entry * trade.qty)) * 100 : null;
+          // eslint-disable-next-line react-hooks/purity
           const holdMs = Date.now() - trade.openTime;
           const holdDays = Math.floor(holdMs / 86400000);
           const holdH = Math.floor((holdMs % 86400000) / 3600000);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState } from "react";
 import { useSecurity } from "../../context/SecurityContext.jsx";
 import { useBackup } from "../../context/BackupContext.jsx";
 import { T } from "../../utils/theme.js";
@@ -18,8 +18,6 @@ export default function SecuritySettingsModal({ onClose }) {
   } = useSecurity();
 
   const {
-    googleClientId,
-    setGoogleClientId,
     autoBackupEnabled,
     setAutoBackupEnabled,
     backupInterval,

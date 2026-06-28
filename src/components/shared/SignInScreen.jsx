@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useBackup } from "../../context/BackupContext.jsx";
 import { T } from "../../utils/theme.js";
 

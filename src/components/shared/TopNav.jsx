@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { Capacitor } from "@capacitor/core";
 import { useDashboard } from "../../context/DashboardContext.jsx";
 import { useBackup } from "../../context/BackupContext.jsx";
 import { useSecurity } from "../../context/SecurityContext.jsx";

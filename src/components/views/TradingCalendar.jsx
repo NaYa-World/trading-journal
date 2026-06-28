@@ -66,6 +66,7 @@ export default function TradingCalendar() {
   const yearWins = yearData.reduce((s, m) => s + m.wins, 0);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedDay(null);
   }, [cur, viewMode]);
 

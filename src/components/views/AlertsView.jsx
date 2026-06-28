@@ -11,9 +11,11 @@ export default function AlertsView({ alerts, onAddAlert, onDeleteAlert, savedSym
 
   useEffect(() => {
     if (prefilledSymbol) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSymbolInput(prefilledSymbol);
       if (clearPrefilledSymbol) clearPrefilledSymbol();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefilledSymbol]);
 
   const saved = savedSymbols || DEFAULT_SYMBOLS;
