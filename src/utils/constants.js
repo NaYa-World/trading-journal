@@ -20,4 +20,6 @@ export const NAV_ITEMS = [
   { id: "Finished Trades", icon: "◷" },
   { id: "Watchlist", icon: "⬡" },
   { id: "Alerts", icon: "◻" },
+  { id: "Analytics", icon: "📊" },
+  { id: "Setup", icon: "🛠" },
 ];
