@@ -3,6 +3,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from "rea
 import { useSecurity } from "./SecurityContext.jsx";
 import { Network } from "@capacitor/network";
 import { Capacitor } from "@capacitor/core";
+import { Filesystem, Directory } from '@capacitor/filesystem';
 import {
   loginGoogle,
   handleGoogleRedirect,
@@ -11,11 +12,44 @@ import {
   downloadDriveBackup,
   rotateDriveBackups,
   encryptBackup,
-  decryptBackup
+  decryptBackup,
+  exportLocalFile
 } from "../utils/backup.js";
 import { _load, _save, clearDemoDataIfNeeded } from "../utils/storage.js";
 
 const BackupContext = createContext(null);
+
+const getBase64OfFile = async (fileUrl) => {
+  try {
+    const res = await Filesystem.readFile({ url: fileUrl });
+    let data = res.data;
+    if (data && !data.startsWith("data:")) {
+      data = `data:image/jpeg;base64,${data}`;
+    }
+    return data;
+  } catch (e) {
+    console.error("Failed to read local file as base64:", fileUrl, e);
+    return null;
+  }
+};
+
+const saveBase64AsFile = async (base64Data, filename) => {
+  try {
+    let rawData = base64Data;
+    if (base64Data.includes(";base64,")) {
+      rawData = base64Data.split(";base64,")[1];
+    }
+    const savedFile = await Filesystem.writeFile({
+      path: filename,
+      data: rawData,
+      directory: Directory.Data
+    });
+    return savedFile.uri;
+  } catch (e) {
+    console.error("Failed to write base64 to local file:", e);
+    return null;
+  }
+};
 
 export const useBackup = () => {
   const context = useContext(BackupContext);
@@ -27,7 +61,10 @@ const BACKUP_PREFS_KEY = "cj_backup_prefs_v1";
 
 export const BackupProvider = ({ children }) => {
   const { masterKey } = useSecurity();
-  const [googleClientId, setGoogleClientId] = useState("217538466431-j5sqrafrg96th6t5lth9t2bbrb5ofh78.apps.googleusercontent.com");
+  const [googleClientId, setGoogleClientId] = useState(
+    (typeof import.meta !== "undefined" && import.meta.env?.VITE_GOOGLE_CLIENT_ID) ||
+    "217538466431-j5sqrafrg96th6t5lth9t2bbrb5ofh78.apps.googleusercontent.com"
+  );
   const [autoBackupEnabled, setAutoBackupEnabled] = useState(false);
   const [backupInterval, setBackupInterval] = useState("daily"); // 'daily' | 'weekly' | 'monthly' | 'manual'
   const [wifiOnly, setWifiOnly] = useState(true);
@@ -55,7 +92,11 @@ export const BackupProvider = ({ children }) => {
       if (raw) {
         const prefs = JSON.parse(raw);
         // eslint-disable-next-line react-hooks/set-state-in-effect
-        setGoogleClientId(prefs.googleClientId || "217538466431-j5sqrafrg96th6t5lth9t2bbrb5ofh78.apps.googleusercontent.com");
+        setGoogleClientId(
+          prefs.googleClientId ||
+          (typeof import.meta !== "undefined" && import.meta.env?.VITE_GOOGLE_CLIENT_ID) ||
+          "217538466431-j5sqrafrg96th6t5lth9t2bbrb5ofh78.apps.googleusercontent.com"
+        );
         setAutoBackupEnabled(prefs.autoBackupEnabled ?? false);
         setBackupInterval(prefs.backupInterval || "daily");
         setWifiOnly(prefs.wifiOnly ?? true);
@@ -78,6 +119,35 @@ export const BackupProvider = ({ children }) => {
     localStorage.setItem(BACKUP_PREFS_KEY, JSON.stringify(current));
   };
 
+  const processRestoredKey = async (key, val) => {
+    if (!Capacitor.isNativePlatform() || !val) return val;
+    try {
+      if (key === "cj_profiles_v2" && Array.isArray(val)) {
+        return await Promise.all(val.map(async (p) => {
+          if (p.avatar && p.avatar.startsWith("data:image/")) {
+            const filename = `avatar_${p.id || Date.now()}_${Math.random().toString(36).substr(2, 5)}.jpg`;
+            const fileUri = await saveBase64AsFile(p.avatar, filename);
+            if (fileUri) return { ...p, avatar: fileUri };
+          }
+          return p;
+        }));
+      }
+      if (key === "cj_trade_setups_v2" && Array.isArray(val)) {
+        return await Promise.all(val.map(async (s) => {
+          if (s.image && s.image.startsWith("data:image/")) {
+            const filename = `setup_${s.id || Date.now()}_${Math.random().toString(36).substr(2, 5)}.jpg`;
+            const fileUri = await saveBase64AsFile(s.image, filename);
+            if (fileUri) return { ...s, image: fileUri };
+          }
+          return s;
+        }));
+      }
+    } catch (e) {
+      console.error("Error processing restored key:", key, e);
+    }
+    return val;
+  };
+
   // Build the complete local payload of the journal
   const buildBackupPayload = useCallback(async () => {
     // We load directly from storage to be extra safe and decouple components.
@@ -94,7 +164,8 @@ export const BackupProvider = ({ children }) => {
       "cj_apikeys_v2",
       "cj_other_deposits_v1",
       "cj_withdrawals_map_v1",
-      "cj_alerts_v1"
+      "cj_alerts_v1",
+      "cj_trade_setups_v2"
     ];
 
     const data = {};
@@ -103,6 +174,30 @@ export const BackupProvider = ({ children }) => {
         data[k] = await _load(k, null);
       } catch (e) {
         console.warn(`Failed to export key ${k}:`, e);
+      }
+    }
+
+    // Process native files to base64 for backup
+    if (Capacitor.isNativePlatform()) {
+      if (data["cj_profiles_v2"]) {
+        const processed = await Promise.all(data["cj_profiles_v2"].map(async (p) => {
+          if (p.avatar && p.avatar.startsWith("file://")) {
+            const base64 = await getBase64OfFile(p.avatar);
+            if (base64) return { ...p, avatar: base64 };
+          }
+          return p;
+        }));
+        data["cj_profiles_v2"] = processed;
+      }
+      if (data["cj_trade_setups_v2"]) {
+        const processed = await Promise.all(data["cj_trade_setups_v2"].map(async (s) => {
+          if (s.image && s.image.startsWith("file://")) {
+            const base64 = await getBase64OfFile(s.image);
+            if (base64) return { ...s, image: base64 };
+          }
+          return s;
+        }));
+        data["cj_trade_setups_v2"] = processed;
       }
     }
 
@@ -146,6 +241,68 @@ export const BackupProvider = ({ children }) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoBackupEnabled, masterKey, wifiOnly, lastSynced, backupInterval]);
 
+  // Check if cloud backup needs to be auto-restored (if local database is empty)
+  const checkForAutoRestore = useCallback(async (token) => {
+    try {
+      const [localTrades, localSpot, localLive] = await Promise.all([
+        _load("cj_trades_v2", []),
+        _load("cj_spot_open_v2", []),
+        _load("cj_live_v2", [])
+      ]);
+
+      const isLocalEmpty = (!localTrades || localTrades.length === 0 || localTrades.every(t => String(t.id).startsWith("demo_"))) &&
+                           (!localSpot || localSpot.length === 0) &&
+                           (!localLive || localLive.length === 0);
+
+      if (!isLocalEmpty) {
+        return;
+      }
+
+      const backups = await listDriveBackups(token);
+      if (backups && backups.length > 0) {
+        const latestBackup = backups[0];
+        const ciphertext = await downloadDriveBackup(latestBackup.id, token);
+        const decryptionKey = masterKey || "cj_serverless_default_key";
+        const decryptedJSON = decryptBackup(ciphertext, decryptionKey);
+        const backup = JSON.parse(decryptedJSON);
+
+        if (backup && backup.schemaVersion === 2 && backup.data) {
+          const keys = [
+            "cj_trades_v2",
+            "cj_spot_open_v2",
+            "cj_live_v2",
+            "cj_symbols_v2",
+            "cj_capital_v2",
+            "cj_profiles_v2",
+            "cj_active_v2",
+            "cj_theme_v2",
+            "cj_reviews_v2",
+            "cj_apikeys_v2",
+            "cj_other_deposits_v1",
+            "cj_withdrawals_map_v1",
+            "cj_alerts_v1",
+            "cj_trade_setups_v2"
+          ];
+
+          for (const k of keys) {
+            const backedVal = backup.data[k];
+            if (backedVal !== undefined) {
+              let valToSave = backedVal;
+              if (typeof backedVal === "string") {
+                try { valToSave = JSON.parse(backedVal); } catch { /* ignore */ }
+              }
+              const finalVal = await processRestoredKey(k, valToSave);
+              await _save(k, finalVal);
+            }
+          }
+          window.location.reload();
+        }
+      }
+    } catch (e) {
+      console.error("Auto-restore check failed:", e);
+    }
+  }, [masterKey]);
+
   // Authenticate Google
   async function authenticateGoogle(clientIdVal = googleClientId) {
     if (!clientIdVal) throw new Error("Google Client ID is missing. Please set it in Security settings.");
@@ -162,6 +319,8 @@ export const BackupProvider = ({ children }) => {
       }
       
       await clearDemoDataIfNeeded();
+
+      await checkForAutoRestore(authResult.accessToken);
       
       setSyncing(false);
       return authResult.accessToken;
@@ -172,7 +331,7 @@ export const BackupProvider = ({ children }) => {
   }
 
   // Check for Google OAuth Redirect Result (Web callback)
-  const checkRedirectResult = async (clientIdVal = googleClientId) => {
+  const checkRedirectResult = useCallback(async (clientIdVal = googleClientId) => {
     if (Capacitor.getPlatform() !== "web") return null;
     try {
       setSyncing(true);
@@ -187,6 +346,8 @@ export const BackupProvider = ({ children }) => {
         
         await clearDemoDataIfNeeded();
 
+        await checkForAutoRestore(authResult.accessToken);
+
         setSyncing(false);
         return authResult;
       }
@@ -197,7 +358,21 @@ export const BackupProvider = ({ children }) => {
       console.error("Redirect check failed:", e);
       return null;
     }
-  };
+  }, [googleClientId, checkForAutoRestore]);
+
+  // Handle web redirect result automatically on mount
+  useEffect(() => {
+    if (Capacitor.getPlatform() === "web") {
+      const hasRedirectParams = window.location.hash.includes("access_token") ||
+                                window.location.search.includes("code") ||
+                                window.location.search.includes("state");
+      if (hasRedirectParams) {
+        Promise.resolve().then(() => {
+          checkRedirectResult();
+        });
+      }
+    }
+  }, [checkRedirectResult]);
 
   // Clear Google session on logout
   const clearGoogleSession = () => {
@@ -283,14 +458,12 @@ export const BackupProvider = ({ children }) => {
         throw new Error("Invalid schema version in backup file.");
       }
 
-      // 3. Selective merge
-      // Mapping of checkbox modules to local storage keys
       const moduleKeyMap = {
         trades: ["cj_trades_v2"],
         spot: ["cj_spot_open_v2"],
         live: ["cj_live_v2"],
         keys: ["cj_apikeys_v2"],
-        settings: ["cj_symbols_v2", "cj_capital_v2", "cj_profiles_v2", "cj_active_v2", "cj_theme_v2", "cj_other_deposits_v1", "cj_withdrawals_map_v1", "cj_alerts_v1"]
+        settings: ["cj_symbols_v2", "cj_capital_v2", "cj_profiles_v2", "cj_active_v2", "cj_theme_v2", "cj_other_deposits_v1", "cj_withdrawals_map_v1", "cj_alerts_v1", "cj_trade_setups_v2"]
       };
 
       for (const [moduleName, storageKeys] of Object.entries(moduleKeyMap)) {
@@ -303,9 +476,10 @@ export const BackupProvider = ({ children }) => {
               } else {
                 let valToSave = backedVal;
                 if (typeof backedVal === "string") {
-                  try { valToSave = JSON.parse(backedVal); } catch (e) {}
+                  try { valToSave = JSON.parse(backedVal); } catch { /* ignore parsing errors and fall back to original value */ }
                 }
-                await _save(k, valToSave);
+                const finalVal = await processRestoredKey(k, valToSave);
+                await _save(k, finalVal);
               }
             }
           }
@@ -370,7 +544,7 @@ export const BackupProvider = ({ children }) => {
         spot: ["cj_spot_open_v2"],
         live: ["cj_live_v2"],
         keys: ["cj_apikeys_v2"],
-        settings: ["cj_symbols_v2", "cj_capital_v2", "cj_profiles_v2", "cj_active_v2", "cj_theme_v2", "cj_other_deposits_v1", "cj_withdrawals_map_v1", "cj_alerts_v1"]
+        settings: ["cj_symbols_v2", "cj_capital_v2", "cj_profiles_v2", "cj_active_v2", "cj_theme_v2", "cj_other_deposits_v1", "cj_withdrawals_map_v1", "cj_alerts_v1", "cj_trade_setups_v2"]
       };
 
       for (const [moduleName, storageKeys] of Object.entries(moduleKeyMap)) {
@@ -383,9 +557,10 @@ export const BackupProvider = ({ children }) => {
               } else {
                 let valToSave = backedVal;
                 if (typeof backedVal === "string") {
-                  try { valToSave = JSON.parse(backedVal); } catch (e) {}
+                  try { valToSave = JSON.parse(backedVal); } catch { /* ignore parsing errors and fall back to original value */ }
                 }
-                await _save(k, valToSave);
+                const finalVal = await processRestoredKey(k, valToSave);
+                await _save(k, finalVal);
               }
             }
           }

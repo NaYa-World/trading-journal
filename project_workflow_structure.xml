@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="Naya Trading Journal" version="1.0.1">
+    <architecture>
+        <frontend stack="React 19 + Vite" routing="Tab-based / Conditional Render">
+            <entrypoint path="src/main.jsx" />
+            <root-component path="src/App.jsx" />
+            <contexts>
+                <context name="DashboardContext" file="src/context/DashboardContext.jsx" description="Handles trading state, profiles, and API sync actions." />
+                <context name="SecurityContext" file="src/context/SecurityContext.jsx" description="Manages local locking, password hashing, and PBKDF2 encryption keys." />
+                <context name="PricesContext" file="src/context/PricesContext.jsx" description="Streams live cryptocurrency prices from Binance/Bitget WS APIs." />
+                <context name="BackupContext" file="src/context/BackupContext.jsx" description="Manages backup imports, exports, and Google Drive cloud syncing." />
+            </contexts>
+            <storage-layer adapter="localforage" persistence="IndexedDB">
+                <encryption algorithm="AES-256" key-derivation="PBKDF2" salt="local-profile-salt" />
+                <migration source="localStorage" destination="localforage" file="src/utils/storage.js" />
+            </storage-layer>
+        </frontend>
+        <native-wrapper platform="Android" framework="Capacitor 8.4">
+            <config file="capacitor.config.json" package="com.trading.journal" />
+            <manifest file="android/app/src/main/AndroidManifest.xml" allowBackup="false" dataExtractionRules="@xml/data_extraction_rules" />
+            <security>
+                <key-management store="android/app/release.keystore" gitignore="true" />
+                <biometrics package="@capgo/capacitor-native-biometric" storage="Android Keystore" />
+            </security>
+        </native-wrapper>
+    </architecture>
+    <workflow-flowcharts>
+        <data-flow name="Trade Entry/Modification Flow">
+            <step id="1" actor="User" action="Fills AddTradeModal / EditTradeModal" />
+            <step id="2" actor="React Component" action="Validates form input variables" />
+            <step id="3" actor="calculations.js" action="Computes realized PnL, quote rates, and fees" />
+            <step id="4" actor="DashboardContext" action="Dispatches state modification and profiles sync" />
+            <step id="5" actor="storage.js" action="Encrypts updated state with AES-256 using master key" />
+            <step id="6" actor="localforage" action="Writes encrypted payload to IndexedDB storage" />
+            <step id="7" actor="BackupContext" action="Initiates background sync to Google Drive (if enabled)" />
+        </data-flow>
+        <security-flow name="Application Lock / Unlock Flow">
+            <step id="1" event="App goes to background" action="CapApp backButton/background triggers timer" />
+            <step id="2" event="Timer expires (or force-stop)" action="Sets app lock state to true" />
+            <step id="3" event="App returns to foreground" action="Shows UnlockScreen component" />
+            <step id="4" event="Authentication method selected" action="Prompts for Master Password or Biometrics" />
+            <step id="5" event="Credential verified" action="Derives master key (PBKDF2) -> Decrypts database -> Unlocks UI" />
+        </security-flow>
+        <build-pipeline name="Local Build &amp; Deployment">
+            <stage name="Code Quality" command="npm run lint" />
+            <stage name="Testing" command="npm run test" engine="Vitest" />
+            <stage name="Web Bundle" command="npm run build" output="dist/" />
+            <stage name="Sync Native" command="npx cap sync" description="Copies web bundle to Capacitor android folder" />
+            <stage name="Android Build" command="./gradlew assembleRelease" output="android/app/build/outputs/apk/release/app-release.apk" />
+        </build-pipeline>
+    </workflow-flowcharts>
+</project>

@@ -133,7 +133,7 @@ const EditableValue = ({ val, label, isEditing, setIsEditing, inputVal, setInput
 };
 
 // ─── Main Summary View ──────────────────────────────────────────────────────────
-export default function TradeSummary({ trades, allProfileTrades, initialCapital = 30, profileId = "default", onUpdateCapital }) {
+export default function TradeSummary({ trades, allProfileTrades, initialCapital = 30, profileId = "default", onUpdateCapital, liveTrades = [] }) {
   const closed = trades.filter(t => t.status === "closed");
   const sortedTrades = [...closed].sort((a, b) => a.closeTime - b.closeTime);
 
