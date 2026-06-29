@@ -729,6 +729,8 @@ useEffect(() => {
 
   const addProfile = useCallback((p) => {
     setProfiles(prev => { const next = [...prev, p]; saveProfiles(next); return next; });
+    setActiveProfileId(p.id);
+    saveActiveProfile(p.id);
   }, []);
 
   const updateProfile = useCallback((id, updates) => {
