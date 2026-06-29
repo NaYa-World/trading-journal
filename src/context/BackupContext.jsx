@@ -147,6 +147,66 @@ export const BackupProvider = ({ children }) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoBackupEnabled, masterKey, wifiOnly, lastSynced, backupInterval]);
 
+  // Check if cloud backup needs to be auto-restored (if local database is empty)
+  const checkForAutoRestore = useCallback(async (token) => {
+    try {
+      const [localTrades, localSpot, localLive] = await Promise.all([
+        _load("cj_trades_v2", []),
+        _load("cj_spot_open_v2", []),
+        _load("cj_live_v2", [])
+      ]);
+
+      const isLocalEmpty = (!localTrades || localTrades.length === 0 || localTrades.every(t => String(t.id).startsWith("demo_"))) &&
+                           (!localSpot || localSpot.length === 0) &&
+                           (!localLive || localLive.length === 0);
+
+      if (!isLocalEmpty) {
+        return;
+      }
+
+      const backups = await listDriveBackups(token);
+      if (backups && backups.length > 0) {
+        const latestBackup = backups[0];
+        const ciphertext = await downloadDriveBackup(latestBackup.id, token);
+        const decryptionKey = masterKey || "cj_serverless_default_key";
+        const decryptedJSON = decryptBackup(ciphertext, decryptionKey);
+        const backup = JSON.parse(decryptedJSON);
+
+        if (backup && backup.schemaVersion === 2 && backup.data) {
+          const keys = [
+            "cj_trades_v2",
+            "cj_spot_open_v2",
+            "cj_live_v2",
+            "cj_symbols_v2",
+            "cj_capital_v2",
+            "cj_profiles_v2",
+            "cj_active_v2",
+            "cj_theme_v2",
+            "cj_reviews_v2",
+            "cj_apikeys_v2",
+            "cj_other_deposits_v1",
+            "cj_withdrawals_map_v1",
+            "cj_alerts_v1"
+          ];
+
+          for (const k of keys) {
+            const backedVal = backup.data[k];
+            if (backedVal !== undefined) {
+              let valToSave = backedVal;
+              if (typeof backedVal === "string") {
+                try { valToSave = JSON.parse(backedVal); } catch { /* ignore */ }
+              }
+              await _save(k, valToSave);
+            }
+          }
+          window.location.reload();
+        }
+      }
+    } catch (e) {
+      console.error("Auto-restore check failed:", e);
+    }
+  }, [masterKey]);
+
   // Authenticate Google
   async function authenticateGoogle(clientIdVal = googleClientId) {
     if (!clientIdVal) throw new Error("Google Client ID is missing. Please set it in Security settings.");
@@ -163,6 +223,8 @@ export const BackupProvider = ({ children }) => {
       }
       
       await clearDemoDataIfNeeded();
+
+      await checkForAutoRestore(authResult.accessToken);
       
       setSyncing(false);
       return authResult.accessToken;
@@ -188,6 +250,8 @@ export const BackupProvider = ({ children }) => {
         
         await clearDemoDataIfNeeded();
 
+        await checkForAutoRestore(authResult.accessToken);
+
         setSyncing(false);
         return authResult;
       }
@@ -198,7 +262,7 @@ export const BackupProvider = ({ children }) => {
       console.error("Redirect check failed:", e);
       return null;
     }
-  }, [googleClientId]);
+  }, [googleClientId, checkForAutoRestore]);
 
   // Handle web redirect result automatically on mount
   useEffect(() => {
