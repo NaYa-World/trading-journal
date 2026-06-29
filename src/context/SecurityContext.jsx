@@ -1,9 +1,10 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { Capacitor } from "@capacitor/core";
 import { NativeBiometric } from "@capgo/capacitor-native-biometric";
 import { App } from "@capacitor/app";
 import CryptoJS from "crypto-js";
-import { setStorageEncryption } from "../utils/storage.js";
+import { setStorageKey } from "../utils/storage.js";
 
 const SecurityContext = createContext(null);
 
@@ -23,12 +24,52 @@ export const SecurityProvider = ({ children }) => {
 
   // Security preferences state
   const [appLockEnabled, setAppLockEnabled] = useState(false);
-  const [lockTimeout, setLockTimeout] = useState(5); // in minutes
+  const [lockTimeout, setLockTimeout] = useState(1); // in minutes
   const [keyOption, setKeyOption] = useState("biometric"); // 'biometric' | 'password' | 'machine'
   const [salt, setSalt] = useState("");
   const [machineKey, setMachineKey] = useState("");
 
   const backgroundTimeRef = useRef(null);
+
+  // Helper to set both masterKey state and storage key module
+  const updateMasterKey = useCallback((key) => {
+    setMasterKey(key);
+    setStorageKey(key);
+  }, []);
+
+  // Save preferences helper
+  const savePrefs = useCallback((updated) => {
+    const current = {
+      appLockEnabled,
+      lockTimeout,
+      keyOption,
+      salt,
+      machineKey,
+      ...updated,
+    };
+    localStorage.setItem(SECURITY_PREFS_KEY, JSON.stringify(current));
+  }, [appLockEnabled, lockTimeout, keyOption, salt, machineKey]);
+
+  // Generate a random 64-digit hex key
+  const generateMachineKey = useCallback(() => {
+    const array = new Uint8Array(32);
+    window.crypto.getRandomValues(array);
+    return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  }, []);
+
+  // Helper: derive key using PBKDF2
+  const deriveKeyFromPassword = useCallback((password, currentSalt) => {
+    let s = currentSalt;
+    if (!s) {
+      // Generate new salt
+      const array = new Uint8Array(16);
+      window.crypto.getRandomValues(array);
+      s = Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join("");
+      setSalt(s);
+      savePrefs({ salt: s });
+    }
+    return CryptoJS.PBKDF2(password, s, { keySize: 256 / 32, iterations: 50000 }).toString();
+  }, [savePrefs]);
 
   // Initialize biometric availability and load preferences
   useEffect(() => {
@@ -38,8 +79,7 @@ export const SecurityProvider = ({ children }) => {
         try {
           const result = await NativeBiometric.isAvailable();
           setIsBiometricAvailable(result.isAvailable);
-        } catch (e) {
-          console.warn("Biometrics check failed:", e);
+        } catch {
           setIsBiometricAvailable(false);
         }
       } else {
@@ -51,88 +91,32 @@ export const SecurityProvider = ({ children }) => {
         const prefs = JSON.parse(localStorage.getItem(SECURITY_PREFS_KEY));
         if (prefs) {
           setAppLockEnabled(prefs.appLockEnabled ?? false);
-          setLockTimeout(prefs.lockTimeout ?? 5);
+          setLockTimeout(prefs.lockTimeout ?? 1);
           setKeyOption(prefs.keyOption ?? (Capacitor.getPlatform() === "web" ? "password" : "biometric"));
           setSalt(prefs.salt || "");
           if (prefs.machineKey) setMachineKey(prefs.machineKey);
 
           if (!prefs.appLockEnabled) {
             setIsLocked(false);
-            setMasterKey("cj_serverless_default_key");
+            updateMasterKey("cj_serverless_default_key");
           } else {
             // Need to authenticate
             setIsLocked(true);
           }
         } else {
           setIsLocked(false);
-          setMasterKey("cj_serverless_default_key");
+          updateMasterKey("cj_serverless_default_key");
         }
-      } catch (e) {
-        console.error("Failed to load security preferences:", e);
+      } catch {
         setIsLocked(false);
-        setMasterKey("cj_serverless_default_key");
+        updateMasterKey("cj_serverless_default_key");
       }
     };
-
     init();
-  }, []);
-
-  // Update storage encryption wrappers whenever masterKey changes
-  useEffect(() => {
-    if (masterKey) {
-      setStorageEncryption(
-        (val) => CryptoJS.AES.encrypt(val, masterKey).toString(),
-        (ciphertext) => {
-          try {
-            const bytes = CryptoJS.AES.decrypt(ciphertext, masterKey);
-            return bytes.toString(CryptoJS.enc.Utf8);
-          } catch (e) {
-            console.error("Decryption failed:", e);
-            return null;
-          }
-        }
-      );
-    } else {
-      setStorageEncryption((v) => v, (v) => null);
-    }
-  }, [masterKey]);
-
-  // Save preferences helper
-  const savePrefs = (updated) => {
-    const current = {
-      appLockEnabled,
-      lockTimeout,
-      keyOption,
-      salt,
-      machineKey,
-      ...updated,
-    };
-    localStorage.setItem(SECURITY_PREFS_KEY, JSON.stringify(current));
-  };
-
-  // Generate a random 64-digit hex key
-  const generateMachineKey = () => {
-    const array = new Uint8Array(32);
-    window.crypto.getRandomValues(array);
-    return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join("");
-  };
-
-  // Helper: derive key using PBKDF2
-  const deriveKeyFromPassword = (password, currentSalt) => {
-    let s = currentSalt;
-    if (!s) {
-      // Generate new salt
-      const array = new Uint8Array(16);
-      window.crypto.getRandomValues(array);
-      s = Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join("");
-      setSalt(s);
-      savePrefs({ salt: s });
-    }
-    return CryptoJS.PBKDF2(password, s, { keySize: 256 / 32, iterations: 50000 }).toString();
-  };
+  }, [updateMasterKey]);
 
   // Setup security/lock options
-  const setupSecurity = async (option, passwordOrKey = "") => {
+  const setupSecurity = useCallback(async (option, passwordOrKey = "") => {
     try {
       let derived = "";
       let newMachineKey = "";
@@ -164,7 +148,7 @@ export const SecurityProvider = ({ children }) => {
       }
 
       setKeyOption(option);
-      setMasterKey(derived);
+      updateMasterKey(derived);
       setAppLockEnabled(true);
       setIsLocked(false);
 
@@ -175,16 +159,15 @@ export const SecurityProvider = ({ children }) => {
       });
 
       return { success: true, machineKey: newMachineKey };
-    } catch (e) {
-      console.error("Failed to setup security:", e);
-      return { success: false, error: e.message };
+    } catch {
+      return { success: false, error: "Setup failed" };
     }
-  };
+  }, [isBiometricAvailable, generateMachineKey, deriveKeyFromPassword, salt, updateMasterKey, savePrefs]);
 
   // Disable lock
   const disableSecurity = () => {
     setAppLockEnabled(false);
-    setMasterKey("cj_serverless_default_key");
+    updateMasterKey("cj_serverless_default_key");
     setIsLocked(false);
     savePrefs({ appLockEnabled: false });
 
@@ -212,7 +195,7 @@ export const SecurityProvider = ({ children }) => {
             server: APP_LOCK_KEY_SERVER,
           });
           if (credentials && credentials.password) {
-            setMasterKey(credentials.password);
+            updateMasterKey(credentials.password);
             setIsLocked(false);
             return { success: true };
           } else {
@@ -222,14 +205,14 @@ export const SecurityProvider = ({ children }) => {
           // Web fallback
           const fallback = localStorage.getItem("cj_web_bio_fallback");
           if (fallback) {
-            setMasterKey(fallback);
+            updateMasterKey(fallback);
             setIsLocked(false);
             return { success: true };
           } else {
             // First time setup mock
             const key = generateMachineKey();
             localStorage.setItem("cj_web_bio_fallback", key);
-            setMasterKey(key);
+            updateMasterKey(key);
             setIsLocked(false);
             return { success: true };
           }
@@ -244,20 +227,20 @@ export const SecurityProvider = ({ children }) => {
           try {
             const dec = CryptoJS.AES.decrypt(testCipher, derived).toString(CryptoJS.enc.Utf8);
             if (dec === "VERIFIED") {
-              setMasterKey(derived);
+              updateMasterKey(derived);
               setIsLocked(false);
               return { success: true };
             } else {
               return { success: false, error: "Incorrect password" };
             }
-          } catch (e) {
-            return { success: false, error: "Incorrect password" };
+          } catch {
+            return { success: false, error: "Legacy unlock failed" };
           }
         } else {
           // First setup validation
           const enc = CryptoJS.AES.encrypt("VERIFIED", derived).toString();
           localStorage.setItem("cj_auth_check_v1", enc);
-          setMasterKey(derived);
+          updateMasterKey(derived);
           setIsLocked(false);
           return { success: true };
         }
@@ -278,14 +261,14 @@ export const SecurityProvider = ({ children }) => {
             } else {
               return { success: false, error: "Invalid recovery key" };
             }
-          } catch (e) {
+          } catch {
             return { success: false, error: "Invalid recovery key" };
           }
         } else {
           // First setup validation
           const enc = CryptoJS.AES.encrypt("VERIFIED", derived).toString();
           localStorage.setItem("cj_auth_check_v1", enc);
-          setMasterKey(derived);
+          updateMasterKey(derived);
           setIsLocked(false);
           return { success: true };
         }
@@ -295,7 +278,7 @@ export const SecurityProvider = ({ children }) => {
       console.error("Unlock failed:", e);
       return { success: false, error: e.message || "Unlock failed" };
     }
-  }, [keyOption, salt]);
+  }, [keyOption, salt, deriveKeyFromPassword, updateMasterKey, generateMachineKey]);
 
   const loginSession = useCallback((customKey = "nayatrading_default_key") => {
     setMasterKey(customKey);

@@ -1,19 +1,19 @@
 import { useState, useRef } from "react";
-import { Capacitor } from "@capacitor/core";
 import { T, THEMES } from "../utils/theme.js";
 import { useBackup } from "../context/BackupContext.jsx";
 import { useDashboard } from "../context/DashboardContext.jsx";
 import { fmt$ } from "../utils/helpers.js";
 
-export default function AccountsManager({ profiles, activeProfileId, switchProfile, addProfile, updateProfile, trades = [], liveTrades = [], addTrade, showToast }) {
-  const [editingProfile, setEditingProfile] = useState(null);
+export default function AccountsManager({ profiles, activeProfileId, switchProfile, addProfile, updateProfile, trades = [], addTrade, showToast }) {
   const [showAddProfile, setShowAddProfile] = useState(false);
   const [showThemeSettings, setShowThemeSettings] = useState(false);
+  const [showAccountDropdown, setShowAccountDropdown] = useState(false);
+  const [isTradingAccountsOpen, setIsTradingAccountsOpen] = useState(true);
   const [profileForm, setProfileForm] = useState({ name: "", color: "#6366f1", emoji: "💼" });
   
   const activeProfile = profiles.find(p => p.id === activeProfileId) || profiles[0];
-  const { userEmail, authenticateGoogle, clearGoogleSession } = useBackup();
-  const { setShowCSVModal, downloadCSV, exportPDF, activeThemeKey, setActiveThemeKey } = useDashboard();
+  const { userEmail, authenticateGoogle, clearGoogleSession, lastSynced, syncing, executeCloudBackup } = useBackup();
+  const { setShowCSVModal, downloadCSV, exportPDF, activeThemeKey, setActiveThemeKey, deleteProfile } = useDashboard();
   const fileInputRef = useRef(null);
 
   const handleGoogleSignIn = async () => {
@@ -73,6 +73,30 @@ export default function AccountsManager({ profiles, activeProfileId, switchProfi
     if (newName && newName.trim()) {
       updateProfile(activeProfile.id, { name: newName.trim() });
     }
+  };
+
+  const handleDeleteAccount = () => {
+    if (profiles.length <= 1) {
+      if (showToast) showToast("Cannot delete your only trading account.", "error");
+      else alert("Cannot delete your only trading account.");
+      return;
+    }
+    if (confirm(`Are you sure you want to delete ${activeProfile.name} and all of its trades?`)) {
+      deleteProfile(activeProfile.id);
+    }
+  };
+
+  const handleCreateProfile = () => {
+    if (!profileForm.name.trim()) return;
+    addProfile({
+      name: profileForm.name.trim(),
+      emoji: profileForm.emoji,
+      color: profileForm.color,
+      initialCapital: 0,
+      avatar: null
+    });
+    setShowAddProfile(false);
+    setProfileForm({ name: "", color: "#6366f1", emoji: "💼" });
   };
 
   const handleImageUpload = (e) => {
@@ -231,10 +255,17 @@ export default function AccountsManager({ profiles, activeProfileId, switchProfi
       </div>
 
       {/* Trading Accounts Section */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+      <div 
+        onClick={() => setIsTradingAccountsOpen(!isTradingAccountsOpen)}
+        style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, cursor: "pointer" }}
+      >
         <div style={{ fontSize: 18, fontWeight: 700, color: "#FFF" }}>Trading accounts</div>
-        <span style={{ color: T.dim }}>^</span>
+        <span style={{ color: T.dim }}>{isTradingAccountsOpen ? "^" : "⌄"}</span>
       </div>
+
+      {isTradingAccountsOpen && (
+        <>
+
 
       <div style={{ 
         background: T.panel, 
@@ -244,17 +275,42 @@ export default function AccountsManager({ profiles, activeProfileId, switchProfi
         marginBottom: 16
       }}>
         {/* Dropdown Header */}
-        <div style={{ 
-          background: T.panel2, border: `1px solid ${T.border}`, borderRadius: 10, 
-          padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, marginBottom: 20
-        }}>
+        <div 
+          onClick={() => setShowAccountDropdown(!showAccountDropdown)}
+          style={{ 
+            background: T.panel2, border: `1px solid ${T.border}`, borderRadius: 10, 
+            padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, marginBottom: 20,
+            cursor: "pointer"
+          }}>
           <div style={{ background: `${T.purple}20`, color: T.purple, padding: 6, borderRadius: 6 }}>💼</div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 11, color: T.dim }}>Active account</div>
             <div style={{ fontSize: 15, fontWeight: 700, color: "#FFF" }}>{activeProfile.name}</div>
           </div>
-          <span style={{ color: T.dim }}>⌄</span>
+          <span style={{ color: T.dim }}>{showAccountDropdown ? "⌃" : "⌄"}</span>
         </div>
+
+        {showAccountDropdown && (
+          <div style={{ background: T.panel2, border: `1px solid ${T.border}`, borderRadius: 10, marginBottom: 20, overflow: "hidden" }}>
+            {profiles.map(p => (
+              <div 
+                key={p.id} 
+                onClick={() => { switchProfile(p.id); setShowAccountDropdown(false); }}
+                style={{ 
+                  padding: "12px 16px", display: "flex", alignItems: "center", gap: 12,
+                  background: p.id === activeProfile.id ? `${T.purple}20` : "transparent",
+                  cursor: "pointer", borderBottom: `1px solid ${T.border}`
+                }}
+              >
+                <div style={{ fontSize: 18 }}>{p.emoji || "💼"}</div>
+                <div style={{ flex: 1, fontSize: 14, fontWeight: p.id === activeProfile.id ? 700 : 500, color: p.id === activeProfile.id ? T.bright : T.dim }}>
+                  {p.name}
+                </div>
+                {p.id === activeProfile.id && <div style={{ color: T.purple }}>✓</div>}
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Account Details */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
@@ -265,9 +321,9 @@ export default function AccountsManager({ profiles, activeProfileId, switchProfi
             </div>
           </div>
           <div style={{ display: "flex", gap: 12, color: T.dim }}>
-            <span>✎</span>
-            <span style={{ color: T.yellow }}>🗄</span>
-            <span style={{ color: T.red }}>🗑</span>
+            <span onClick={handleRename} style={{ cursor: "pointer" }}>✎</span>
+            <span style={{ color: T.yellow, cursor: "pointer" }}>🗄</span>
+            <span onClick={handleDeleteAccount} style={{ color: T.red, cursor: "pointer" }}>🗑</span>
           </div>
         </div>
 
@@ -288,12 +344,40 @@ export default function AccountsManager({ profiles, activeProfileId, switchProfi
         </div>
       </div>
 
-      <button style={{ 
+      <button onClick={() => setShowAddProfile(true)} style={{ 
         width: "100%", background: "transparent", border: `1px dashed ${T.border2}`, 
-        color: T.dim, borderRadius: 12, padding: 16, fontWeight: 700, marginBottom: 30 
+        color: T.dim, borderRadius: 12, padding: 16, fontWeight: 700, marginBottom: 30, cursor: "pointer"
       }}>
         + Add Account
       </button>
+
+      {showAddProfile && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.8)", 
+          display: "flex", alignItems: "center", justifyContent: "center", padding: 20
+        }}>
+          <div style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 16, padding: 20, width: "100%", maxWidth: 400 }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: "#FFF", marginBottom: 16 }}>Create New Account</div>
+            
+            <div style={{ fontSize: 12, color: T.dim, marginBottom: 8 }}>Account Name</div>
+            <input 
+              autoFocus
+              type="text" 
+              placeholder="e.g. Prop Firm Challenge" 
+              value={profileForm.name}
+              onChange={e => setProfileForm({...profileForm, name: e.target.value})}
+              style={{ width: "100%", padding: "12px 14px", background: T.bg, border: `1px solid ${T.border}`, color: "#FFF", borderRadius: 10, marginBottom: 16, outline: "none", boxSizing: "border-box" }}
+            />
+
+            <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
+              <button onClick={() => setShowAddProfile(false)} style={{ flex: 1, background: "transparent", border: `1px solid ${T.border}`, color: T.bright, padding: 12, borderRadius: 10, fontWeight: 700, cursor: "pointer" }}>Cancel</button>
+              <button onClick={handleCreateProfile} style={{ flex: 1, background: T.purple, border: "none", color: "#FFF", padding: 12, borderRadius: 10, fontWeight: 700, cursor: "pointer" }}>Create</button>
+            </div>
+          </div>
+        </div>
+      )}
+      </>
+      )}
 
       {/* Cloud Sync */}
       <div style={{ 
@@ -326,10 +410,18 @@ export default function AccountsManager({ profiles, activeProfileId, switchProfi
           <>
             <div style={{ fontSize: 13, color: T.dim, marginBottom: 20, lineHeight: 1.4 }}>
               Logged in as <strong style={{ color: T.bright }}>{userEmail}</strong>. Your trades are being backed up.
+              <div style={{ marginTop: 8, fontSize: 11, color: T.purple }}>
+                Last synced: {lastSynced ? new Date(lastSynced).toLocaleString() : "Never"}
+              </div>
             </div>
-            <button onClick={clearGoogleSession} style={{ width: "100%", background: "transparent", color: T.red, border: `1px solid ${T.red}50`, borderRadius: 10, padding: 14, fontWeight: 700, fontSize: 15 }}>
-              Sign Out
-            </button>
+            <div style={{ display: "flex", gap: 12 }}>
+              <button onClick={() => executeCloudBackup && executeCloudBackup()} disabled={syncing} style={{ flex: 1, background: T.purple, color: "#FFF", border: "none", borderRadius: 10, padding: 14, fontWeight: 700, fontSize: 14, opacity: syncing ? 0.6 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                {syncing ? "Syncing..." : "Sync Now"}
+              </button>
+              <button onClick={clearGoogleSession} style={{ flex: 1, background: "transparent", color: T.red, border: `1px solid ${T.red}50`, borderRadius: 10, padding: 14, fontWeight: 700, fontSize: 14 }}>
+                Sign Out
+              </button>
+            </div>
           </>
         )}
       </div>

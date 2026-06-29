@@ -6,7 +6,6 @@ import { DashboardProvider } from "./context/DashboardContext.jsx";
 import { SecurityProvider, useSecurity } from "./context/SecurityContext.jsx";
 import { BackupProvider, useBackup } from "./context/BackupContext.jsx";
 import UnlockScreen from "./components/shared/UnlockScreen.jsx";
-import SignInScreen from "./components/shared/SignInScreen.jsx";
 import { Capacitor } from "@capacitor/core";
 import { App as CapApp } from "@capacitor/app";
 import { StatusBar, Style } from "@capacitor/status-bar";
@@ -18,7 +17,7 @@ import "@fontsource/dm-sans/700.css";
 
 function RootApp() {
   const { isLocked } = useSecurity();
-  const { runAutoBackupCheck, userEmail } = useBackup();
+  const { runAutoBackupCheck } = useBackup();
   const [isBackground, setIsBackground] = useState(false);
 
   // Monitor app lifecycle for switcher blur and auto-backup sync triggers
@@ -53,9 +52,9 @@ function RootApp() {
     return <UnlockScreen />;
   }
 
-  if (!userEmail) {
-    return <SignInScreen />;
-  }
+  // if (!userEmail) {
+  //   return <SignInScreen />;
+  // }
 
   return (
     <DashboardProvider>

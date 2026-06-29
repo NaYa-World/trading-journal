@@ -176,10 +176,10 @@ export function MaskedDateInput({ value, onChange, style }) {
 
     if (v.length === 1 && parseInt(v[0]) > 3) v = "0" + v;
     if (v.length === 3 && parseInt(v[2]) > 1) v = v.slice(0, 2) + "0" + v[2];
-    if (v.length === 9 && parseInt(v[8]) > 2) v = v.slice(0, 8) + "0" + v[8];
-    if (v.length === 11 && parseInt(v[10]) > 5) v = v.slice(0, 10) + "0" + v[10];
+    if (v.length === 7 && parseInt(v[6]) > 2) v = v.slice(0, 6) + "0" + v[6];
+    if (v.length === 9 && parseInt(v[8]) > 5) v = v.slice(0, 8) + "0" + v[8];
 
-    if (v.length > 12) v = v.slice(0, 12);
+    if (v.length > 10) v = v.slice(0, 10);
 
     if (v.length >= 2) {
       let dd = parseInt(v.slice(0, 2));
@@ -191,31 +191,31 @@ export function MaskedDateInput({ value, onChange, style }) {
       if (mm > 12) v = v.slice(0, 2) + "12" + v.slice(4);
       if (mm === 0 && v.length >= 4) v = v.slice(0, 2) + "01" + v.slice(4);
     }
-    if (v.length >= 8) {
-      let yyyy = parseInt(v.slice(4, 8));
-      const currentYear = new Date().getFullYear();
-      if (yyyy > currentYear && v.slice(4, 8).length === 4) {
-        v = v.slice(0, 4) + currentYear.toString() + v.slice(8);
+    if (v.length >= 6) {
+      let yy = parseInt(v.slice(4, 6));
+      const currentYear = parseInt(new Date().getFullYear().toString().slice(-2));
+      if (yy > currentYear && v.slice(4, 6).length === 2) {
+        v = v.slice(0, 4) + currentYear.toString().padStart(2, '0') + v.slice(6);
       }
     }
-    if (v.length >= 10) {
-      let hh = parseInt(v.slice(8, 10));
-      if (hh > 23) v = v.slice(0, 8) + "23" + v.slice(10);
+    if (v.length >= 8) {
+      let hh = parseInt(v.slice(6, 8));
+      if (hh > 23) v = v.slice(0, 6) + "23" + v.slice(8);
     }
-    if (v.length >= 12) {
-      let mins = parseInt(v.slice(10, 12));
-      if (mins > 59) v = v.slice(0, 10) + "59";
+    if (v.length >= 10) {
+      let mins = parseInt(v.slice(8, 10));
+      if (mins > 59) v = v.slice(0, 8) + "59";
     }
 
     let out = "";
     if (v.length > 0) out += v.slice(0, 2);
     if (v.length >= 2) out += "/" + v.slice(2, 4);
-    if (v.length >= 4) out += "/" + v.slice(4, 8);
-    if (v.length >= 8) out += " " + v.slice(8, 10);
-    if (v.length >= 10) out += ":" + v.slice(10, 12);
+    if (v.length >= 4) out += "/" + v.slice(4, 6);
+    if (v.length >= 6) out += " " + v.slice(6, 8);
+    if (v.length >= 8) out += ":" + v.slice(8, 10);
     onChange(out);
   };
-  return <input style={style} value={value} onChange={handleChange} placeholder="DD/MM/YYYY HH:MM" maxLength={16} />;
+  return <input style={style} value={value} onChange={handleChange} placeholder="DD/MM/YY HH:MM" maxLength={14} />;
 }
 
 // ─── Sparkline ────────────────────────────────────────────────────────────────

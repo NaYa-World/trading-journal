@@ -1,22 +1,20 @@
+/* eslint-disable no-unused-vars */
+/* eslint-disable react-hooks/exhaustive-deps */
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { createChart } from "lightweight-charts";
 import CryptoJS from "crypto-js";
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
 import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis,
-  Tooltip, ResponsiveContainer, Cell,
+  AreaChart, Area
 } from "recharts";
 
 import { T } from "./utils/theme.js";
 import {
-  STABLES, QUOTES, getQuoteCurrency, fetchUsdtRate,
-  fmt$, fmtPnl, fmtDate, fmtDateShort, formatMaskedDate, parseMaskedDate,
-  getOrdinal, sequenceTransactions,
+  getQuoteCurrency, fmt$, fmtDate, fmtDateShort
 } from "./utils/helpers.js";
 import {
-  SETUPS, MISTAKES, CLOSE_REASONS, SIDES, EXCHANGES,
-  CRYPTO_TRADE_TYPES, DEFAULT_SYMBOLS, DEFAULT_PROFILES, NAV_ITEMS,
+  SETUPS
 } from "./utils/constants.js";
 import { calculatePnL, calculateWinRate, calculateProfitFactor, calculateExpectancy } from "./utils/calculations.js";
 import { useDashboard } from "./context/DashboardContext.jsx";
@@ -25,14 +23,11 @@ import AlertsEngine from "./components/AlertsEngine.jsx";
 import {
   Sidebar, TopNav, BottomNav,
   TradeLog, TradeSummary, RiskCalculator, TradingCalendar, Analytics,
-  Tag, CoinIcon, InfoDot, Card, ML, MV,
-  Placeholder, EmptyState, Skeleton, SemiGauge, DonutGauge, MaskedDateInput,
+  InfoDot, Card, ML, MV,
+  EmptyState, Skeleton, SemiGauge,
   Sparkline, WinLossRatioBar, AccountsManager, TradeSetupsManager,
   AddTradeModal, EditTradeModal, CSVImportModal, SecuritySettingsModal, ProfileManagerModal
 } from "./components";
-import AddLiveTradeModal from "./components/modals/AddLiveTradeModal.jsx";
-import CloseLiveTradeModal from "./components/modals/CloseLiveTradeModal.jsx";
-import SellSpotModal from "./components/modals/SellSpotModal.jsx";
 import LiveTradesView from "./components/views/LiveTradesView.jsx";
 import OpenSpotView from "./components/views/OpenSpotView.jsx";
 import WatchlistView from "./components/views/WatchlistView.jsx";
@@ -158,64 +153,88 @@ function ConsistencyHeatmap({ trades }) {
 
 // ─── Overview ─────────────────────────────────────────────────────────────────
 function Overview({ trades, allProfileTrades, initialCapital = 0, profiles = [], liveTrades = [], isMobile }) {
-  const allClosed = trades.filter(t => t.status === "closed");
-  const closed = allClosed.filter(t => t.entryType !== "Deposit" && t.entryType !== "Withdrawal" && t.symbol !== "Deposit" && t.symbol !== "Withdrawal");
-  const wins = closed.filter(t => t.pnl > 0);
-  const losses = closed.filter(t => t.pnl < 0);
-  const realizedPnl = closed.reduce((s, t) => s + t.pnl + (t.fees || 0), 0);
-  const winRate = calculateWinRate(closed);
-  const totalFees = closed.reduce((s, t) => s + (t.fees || 0), 0);
-  const totalInvested = closed.reduce((s, t) => s + (t.entry * t.qty * (t.usdtRate || 1)), 0);
-  const avgWin = wins.length ? wins.reduce((s, t) => s + t.pnl, 0) / wins.length : 0;
-  const avgLoss = losses.length ? Math.abs(losses.reduce((s, t) => s + t.pnl, 0) / losses.length) : 1;
-  const avgRR = avgWin / avgLoss;
-  const profitFactor = calculateProfitFactor(closed);
-  const expectedValue = calculateExpectancy(closed);
-  const spotClosed = closed.filter(t => t.tradeType === "Spot");
-  const futClosed = closed.filter(t => t.tradeType !== "Spot");
-  const spotAvgHold = spotClosed.length ? spotClosed.reduce((s, t) => s + (t.closeTime - t.openTime), 0) / spotClosed.length : 0;
-  const futAvgHold = futClosed.length ? futClosed.reduce((s, t) => s + (t.closeTime - t.openTime), 0) / futClosed.length : 0;
-  const spotH = Math.floor(spotAvgHold / 3600000);
-  const spotM = Math.floor((spotAvgHold % 3600000) / 60000);
-  const futH = Math.floor(futAvgHold / 3600000);
-  const futM = Math.floor((futAvgHold % 3600000) / 60000);
+  const { closed, wins, losses, realizedPnl, winRate, totalFees, totalInvested, avgWin, avgLoss, avgRR, profitFactor, expectedValue, spotClosed, futClosed, spotH, spotM, futH, futM, equitySeries, dailyPnl } = useMemo(() => {
+    const allClosed = trades.filter(t => t.status === "closed");
+    const closed = allClosed.filter(t => t.entryType !== "Deposit" && t.entryType !== "Withdrawal" && t.symbol !== "Deposit" && t.symbol !== "Withdrawal");
+    const wins = closed.filter(t => (t.pnl - (t.fundingFees || 0)) > 0);
+    const losses = closed.filter(t => (t.pnl - (t.fundingFees || 0)) < 0);
+    const realizedPnl = closed.reduce((s, t) => s + t.pnl + (t.fees || 0) - (t.fundingFees || 0), 0);
+    const winRate = calculateWinRate(closed);
+    const totalFees = closed.reduce((s, t) => s + (t.fees || 0) + (t.fundingFees || 0), 0);
+    const totalInvested = closed.reduce((s, t) => s + ((t.entry * t.qty * (t.usdtRate || 1)) / (t.leverage || 1)), 0);
+    const avgWin = wins.length ? wins.reduce((s, t) => s + t.pnl - (t.fundingFees || 0), 0) / wins.length : 0;
+    const avgLoss = losses.length ? Math.abs(losses.reduce((s, t) => s + t.pnl - (t.fundingFees || 0), 0) / losses.length) : 1;
+    const avgRR = avgWin / avgLoss;
+    const profitFactor = calculateProfitFactor(closed);
+    const expectedValue = calculateExpectancy(closed);
+    const spotClosed = closed.filter(t => t.tradeType === "Spot");
+    const futClosed = closed.filter(t => t.tradeType !== "Spot");
+    const spotAvgHold = spotClosed.length ? spotClosed.reduce((s, t) => s + (t.closeTime - t.openTime), 0) / spotClosed.length : 0;
+    const futAvgHold = futClosed.length ? futClosed.reduce((s, t) => s + (t.closeTime - t.openTime), 0) / futClosed.length : 0;
+    
+    let running = 0, peak = 0, maxDD = 0, maxRunup = 0;
+    const equitySeries = [{ date: "Start", val: 0 }, ...closed.sort((a, b) => a.closeTime - b.closeTime).map(t => {
+      // eslint-disable-next-line react-hooks/immutability
+      running += t.pnl + (t.fees || 0) - (t.fundingFees || 0);
+      if (running > peak) { maxRunup = Math.max(maxRunup, running); peak = running; }
+      maxDD = Math.min(maxDD, running - peak);
+      return { date: fmtDate(t.closeTime), val: parseFloat(running.toFixed(2)) };
+    })];
+
+    const dailyPnl = Object.entries(closed.reduce((acc, t) => {
+      const d = fmtDateShort(t.closeTime);
+      acc[d] = (acc[d] || 0) + t.pnl + (t.fees || 0) - (t.fundingFees || 0);
+      return acc;
+    }, {})).map(([date, val]) => ({ date, val: parseFloat(val.toFixed(2)) }));
+
+    return { 
+      closed, wins, losses, realizedPnl, winRate, totalFees, totalInvested, 
+      avgWin, avgLoss, avgRR, profitFactor, expectedValue, spotClosed, futClosed, 
+      spotH: Math.floor((spotAvgHold || 0) / 3600000), spotM: Math.floor(((spotAvgHold || 0) % 3600000) / 60000),
+      futH: Math.floor((futAvgHold || 0) / 3600000), futM: Math.floor(((futAvgHold || 0) % 3600000) / 60000),
+      equitySeries, dailyPnl
+    };
+  }, [trades]);
+
   const INITIAL_CAPITAL = initialCapital;
 
-  const allProfileClosed = (allProfileTrades || trades).filter(t => t.status === "closed");
-  const firstDeposit = allProfileClosed.find(t => t.entryType === "Deposit" || t.symbol === "Deposit");
-  const startingCapital = firstDeposit ? firstDeposit.qty : (initialCapital || 0);
-  const otherDepositsVal = allProfileClosed
-    .filter(t => (t.entryType === "Deposit" || t.symbol === "Deposit") && t.id !== (firstDeposit ? firstDeposit.id : null))
-    .reduce((s, t) => s + t.qty, 0);
-  const totalAccountDeposits = startingCapital + otherDepositsVal;
-  const withdrawalsVal = allProfileClosed
-    .filter(t => t.entryType === "Withdrawal" || t.symbol === "Withdrawal")
-    .reduce((s, t) => s + t.qty, 0);
+  const { balance } = useMemo(() => {
+    const allProfileClosed = (allProfileTrades || trades).filter(t => t.status === "closed");
+    const firstDeposit = allProfileClosed.find(t => t.entryType === "Deposit" || t.symbol === "Deposit");
+    const startingCapital = firstDeposit ? firstDeposit.qty : (initialCapital || 0);
+    const otherDepositsVal = allProfileClosed
+      .filter(t => (t.entryType === "Deposit" || t.symbol === "Deposit") && t.id !== (firstDeposit ? firstDeposit.id : null))
+      .reduce((s, t) => s + t.qty, 0);
+    const withdrawalsVal = allProfileClosed
+      .filter(t => t.entryType === "Withdrawal" || t.symbol === "Withdrawal")
+      .reduce((s, t) => s + t.qty, 0);
 
-  const profileClosedTrades = allProfileClosed.filter(t => t.entryType !== "Deposit" && t.entryType !== "Withdrawal" && t.symbol !== "Deposit" && t.symbol !== "Withdrawal");
-  const profileRealizedPnl = profileClosedTrades.reduce((s, t) => s + t.pnl, 0);
-  const profileTotalFees = profileClosedTrades.reduce((s, t) => s + (t.fees || 0), 0);
-  const balance = totalAccountDeposits - withdrawalsVal + profileRealizedPnl + profileTotalFees;
-
-  let running = 0, peak = 0, maxDD = 0, maxRunup = 0;
-  const equitySeries = [{ date: "Start", val: 0 }, ...closed.sort((a, b) => a.closeTime - b.closeTime).map(t => {
-    running += t.pnl + (t.fees || 0);
-    if (running > peak) { maxRunup = Math.max(maxRunup, running); peak = running; }
-    maxDD = Math.min(maxDD, running - peak);
-    return { date: fmtDate(t.closeTime), val: parseFloat(running.toFixed(2)) };
-  })];
-
-  const dailyPnl = Object.entries(closed.reduce((acc, t) => {
-    const d = fmtDateShort(t.closeTime);
-    acc[d] = (acc[d] || 0) + t.pnl + (t.fees || 0);
-    return acc;
-  }, {})).map(([date, val]) => ({ date, val: parseFloat(val.toFixed(2)) }));
+    const profileClosedTrades = allProfileClosed.filter(t => t.entryType !== "Deposit" && t.entryType !== "Withdrawal" && t.symbol !== "Deposit" && t.symbol !== "Withdrawal");
+    const profileRealizedPnl = profileClosedTrades.reduce((s, t) => s + t.pnl, 0);
+    const profileTotalFees = profileClosedTrades.reduce((s, t) => s + (t.fees || 0) - (t.fundingFees || 0), 0);
+    return { balance: startingCapital + otherDepositsVal - withdrawalsVal + profileRealizedPnl + profileTotalFees };
+  }, [allProfileTrades, trades, initialCapital]);
 
   const { prices } = usePrices();
   const totalUnrealizedPnl = liveTrades.reduce((sum, t) => {
     const p = prices[t.symbol];
     if (!p) return sum;
-    return sum + (p.price - t.entry) * t.qty * (t.side === "Long" ? 1 : -1) * (t.leverage || 1);
+    const qc = t.quoteCurrency || getQuoteCurrency(t.symbol);
+    const liveUsdtRate = qc === "USDT" ? 1 : (prices[`${qc}USDT`]?.price || t.usdtRate || 1);
+    
+    const { pnl: unrealPnl } = calculatePnL({
+      entry: t.entry,
+      exit: p.price,
+      qty: t.qty,
+      side: t.side,
+      leverage: t.leverage || 1,
+      tradeType: t.tradeType,
+      marginType: t.marginType,
+      quoteRateOpen: t.usdtRate || 1,
+      quoteRateClose: liveUsdtRate,
+      action: t.side
+    });
+    return sum + unrealPnl + (t.fees || 0) - (t.fundingFees || 0);
   }, 0);
 
   if (!isMobile) {
@@ -785,20 +804,38 @@ function TradeFilterBar({ filterSetup, setFilterSetup, filterCoin, setFilterCoin
 }
 
 function ExchangeSyncModal({ onClose, onSync, keys, setKeys }) {
-  const [apiKey, setApiKey] = useState(keys.apiKey || "");
-  const [apiSecret, setApiSecret] = useState(keys.apiSecret || "");
+  const [exchange, setExchange] = useState("binance");
+  const [apiKey, setApiKey] = useState("");
+  const [apiSecret, setApiSecret] = useState("");
+  const [apiPassphrase, setApiPassphrase] = useState("");
   const [status, setStatus] = useState("");
+
+  // Load existing keys when exchange changes
+  useEffect(() => {
+    const exKeys = keys[exchange] || {};
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setApiKey(exKeys.apiKey || "");
+    setApiSecret(exKeys.apiSecret || "");
+    setApiPassphrase(exKeys.apiPassphrase || "");
+  }, [exchange, keys]);
 
   const handleSync = async () => {
     setStatus("Syncing...");
-    setKeys({ apiKey, apiSecret });
-    saveApiKeys({ apiKey, apiSecret });
+    
+    // Save locally to component state & storage
+    const updatedKeys = {
+      ...keys,
+      [exchange]: { apiKey, apiSecret, apiPassphrase }
+    };
+    setKeys(updatedKeys);
+    // saveApiKeys is handled by setKeys in context
+    
     try {
-      await onSync(apiKey, apiSecret);
+      await onSync(exchange, { apiKey, apiSecret, apiPassphrase });
       setStatus("Sync Complete! ✅");
       setTimeout(onClose, 2000);
     } catch (err) {
-      setStatus(`Error: ${err.message}. (Note: You may need a CORS extension like 'Allow CORS' in Chrome to hit Binance API from localhost).`);
+      setStatus(`Error: ${err.message}.`);
     }
   };
 
@@ -807,16 +844,33 @@ function ExchangeSyncModal({ onClose, onSync, keys, setKeys }) {
     <div style={{ position: "fixed", inset: 0, background: "#000000b0", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, backdropFilter: "blur(6px)" }}>
       <div style={{ background: T.panel, border: `1px solid ${T.border2}`, borderRadius: 14, padding: 26, width: "min(460px,95vw)", boxShadow: "0 30px 80px #00000070" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <div style={{ fontFamily: T.mono, fontSize: 16, color: T.bright }}>🔄 Binance API Sync</div>
+          <div style={{ fontFamily: T.mono, fontSize: 16, color: T.bright }}>🔄 API Sync</div>
           <button onClick={onClose} style={{ background: "none", border: "none", color: T.dim, cursor: "pointer", fontSize: 22 }}>✕</button>
         </div>
         <div style={{ fontSize: 13, color: T.dim, marginBottom: 16, lineHeight: 1.5 }}>
-          Enter a Read-Only Binance API key to automatically pull your open Futures positions into the Live Trades tab.
+          Enter a Read-Only API key to automatically pull your open Futures positions into the Live Trades tab.
         </div>
+        
+        <label style={{ fontSize: 11, color: T.dim, letterSpacing: 1.2, textTransform: "uppercase", display: "block", marginBottom: 5 }}>Exchange</label>
+        <select style={{ ...IS, cursor: "pointer" }} value={exchange} onChange={e => setExchange(e.target.value)}>
+          <option value="binance">Binance</option>
+          <option value="bybit">Bybit</option>
+          <option value="bitget">Bitget</option>
+        </select>
+
         <label style={{ fontSize: 11, color: T.dim, letterSpacing: 1.2, textTransform: "uppercase", display: "block", marginBottom: 5 }}>API Key</label>
         <input style={IS} value={apiKey} onChange={e => setApiKey(e.target.value)} type="password" />
+        
         <label style={{ fontSize: 11, color: T.dim, letterSpacing: 1.2, textTransform: "uppercase", display: "block", marginBottom: 5 }}>API Secret</label>
         <input style={IS} value={apiSecret} onChange={e => setApiSecret(e.target.value)} type="password" />
+
+        {exchange === "bitget" && (
+          <>
+            <label style={{ fontSize: 11, color: T.dim, letterSpacing: 1.2, textTransform: "uppercase", display: "block", marginBottom: 5 }}>API Passphrase</label>
+            <input style={IS} value={apiPassphrase} onChange={e => setApiPassphrase(e.target.value)} type="password" />
+          </>
+        )}
+
         {status && <div style={{ fontSize: 13, color: status.includes("Error") ? T.red : T.cyan, marginBottom: 16, background: status.includes("Error") ? T.redDim : T.panel2, padding: 10, borderRadius: 6 }}>{status}</div>}
         <button onClick={handleSync} style={{ background: T.blue, border: "none", color: "#fff", borderRadius: 8, padding: "10px 0", cursor: "pointer", fontSize: 15, fontWeight: 700, fontFamily: T.mono, width: "100%" }}>Start Sync</button>
       </div>
@@ -871,12 +925,11 @@ export default function App() {
     deleteFinishedTrade, restoreDeletedTrade, handleEditTrade,
     saveSymbol, handleQuickAdd, addTrade, importTrades, addSpotOpen,
     closeSpotOpen, deleteSpotOpen, handleApiSync, addLiveTrade, closeLiveTrade,
-    saveReview, openReview, switchProfile, addProfile, updateProfile, deleteProfile, clearAllData, downloadCSV
+    saveReview, openReview, switchProfile, addProfile, updateProfile, deleteProfile, clearAllData, downloadCSV, isStorageLoading
   } = useDashboard();
 
   const { prices, status } = usePrices();
 
-  // ── Keyboard Shortcuts ───────────────────────────────────────────────────
   const DASH_TABS = ["Overview"];
 
   useEffect(() => {
@@ -911,9 +964,9 @@ export default function App() {
         restoreDeletedTrade();
       }
     };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [view, undoTrade, restoreDeletedTrade, setShowAddModal, setEditingTrade, setShowCSVModal, setShowSyncModal, setViewChartTrade, setShowClearConfirm, setShowDataMenu, setUndoTrade, setSubTab]);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [view, setView, subTab, setSubTab, restoreDeletedTrade, setShowAddModal, setEditingTrade, setShowCSVModal, setShowSyncModal, setViewChartTrade, setShowClearConfirm, setShowDataMenu, setUndoTrade, setSubTab]);
 
   // ── Modal state for back button ──
   const modalsRef = useRef(false);
@@ -924,7 +977,7 @@ export default function App() {
   useEffect(() => {
     // Capacitor hardware back button handling
     let backListener = null;
-    CapApp.addListener('backButton', ({ canGoBack }) => {
+    CapApp.addListener('backButton', () => {
       if (modalsRef.current) {
         setShowAddModal(false);
         setEditingTrade(null);
@@ -953,6 +1006,26 @@ export default function App() {
     setShowSyncModal(false);
     setEditingTrade(null);
   }, [view, setShowAddModal, setShowCSVModal, setShowSyncModal, setEditingTrade]);
+
+  if (isStorageLoading) {
+    return (
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "center", 
+        height: "100vh", background: T.bg, color: T.dim,
+        fontFamily: T.mono, fontSize: 16, letterSpacing: 1
+      }}>
+        <style>{`
+          @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+          }
+        `}</style>
+        <div style={{ animation: "pulse 1.5s infinite" }}>
+          Decrypting Storage...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -1104,11 +1177,11 @@ export default function App() {
                 {view === "Setup" && (
                   <TradeSetupsManager trades={trades} tradeSetups={tradeSetups} setTradeSetups={setTradeSetups} showToast={showToast} />
                 )}
-                {view === "Profile" && (
+                {view === "Analytics" && (
                   <div style={{ padding: isMobile ? "0" : "0", display: "flex", flexDirection: "column", flex: 1 }}>
                     {isMobile && (
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, padding: "0 16px", marginBottom: 20 }}>
-                        {["Accounts", "Trade Summary", "Time Metrics", "Analytics", "Calendar", "Risk Calc"].map(t => (
+                        {["Time Metrics", "Analytics", "Calendar", "Risk Calc", "Trade Summary"].map(t => (
                           <button
                             key={t}
                             onClick={() => setSubTab(t)}
@@ -1130,19 +1203,6 @@ export default function App() {
                       </div>
                     )}
                     <div style={{ flex: 1 }}>
-                    {subTab === "Accounts" && (
-                      <AccountsManager 
-                        profiles={profiles}
-                        activeProfileId={activeProfileId}
-                        switchProfile={switchProfile}
-                        addProfile={addProfile}
-                        updateProfile={updateProfile}
-                        trades={profileTrades}
-                        liveTrades={liveTrades}
-                        addTrade={addTrade}
-                        showToast={showToast}
-                      />
-                    )}
                     {subTab === "Trade Summary" && (
                       <TradeSummary
                         trades={trades}
@@ -1156,6 +1216,23 @@ export default function App() {
                     {subTab === "Analytics" && <Analytics />}
                     {subTab === "Time Metrics" && <TimeMetrics trades={trades} />}
                     {subTab === "Risk Calc" && <RiskCalculator />}
+                    </div>
+                  </div>
+                )}
+                {view === "Profile" && (
+                  <div style={{ padding: isMobile ? "0" : "0", display: "flex", flexDirection: "column", flex: 1 }}>
+                    <div style={{ flex: 1 }}>
+                      <AccountsManager 
+                        profiles={profiles}
+                        activeProfileId={activeProfileId}
+                        switchProfile={switchProfile}
+                        addProfile={addProfile}
+                        updateProfile={updateProfile}
+                        trades={profileTrades}
+                        liveTrades={liveTrades}
+                        addTrade={addTrade}
+                        showToast={showToast}
+                      />
                     </div>
                   </div>
                 )}

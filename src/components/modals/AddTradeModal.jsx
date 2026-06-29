@@ -15,7 +15,7 @@ import {
 export default function AddTradeModal() {
   const {
     addTrade, addSpotOpen, setShowAddModal, savedSymbols, saveSymbol,
-    activeProfileId, initialCapital, allTrades
+    activeProfileId, allTrades
   } = useDashboard();
 
   const onAdd = addTrade;
@@ -29,8 +29,8 @@ export default function AddTradeModal() {
   const [spotMode, setSpotMode] = useState("open"); // "open" | "closed" — spot only
   const [form, setForm] = useState({
     symbol: "", action: "Buy", side: "Long",
-    exchange: "Binance",
-    entry: "", exit: "", qty: "", fees: "",
+    exchange: "Binance", marginType: "USDT-M",
+    entry: "", exit: "", qty: "", fees: "", fundingFees: "",
     stopLoss: "",
     setup: "BREAKOUT", closeReason: "Target Hit",
     openTime: "",
@@ -66,13 +66,15 @@ export default function AddTradeModal() {
   const selectSymbol = (s) => { set("symbol", s); setSymbolInput(s); setShowDrop(false); };
 
   useEffect(() => {
-    const e = parseFloat(form.entry), q = parseFloat(form.qty), x = parseFloat(form.exit);
-    if (!isNaN(e) && !isNaN(q) && e > 0 && q > 0) {
-      let f = e * q * 0.0006;
-      if (!isNaN(x) && x > 0 && !isSpotOpen) f += x * q * 0.0006;
+    const calculateEstimatedFees = () => {
+      const e = parseFloat(form.entry), q = parseFloat(form.qty);
+      if (isNaN(e) || isNaN(q)) return;
+      const rate = form.tradeType === "Spot" ? 0.001 : 0.0004;
+      const f = (e * q * rate) * (form.tradeType === "Spot" ? 1 : 2);
       setForm(prev => ({ ...prev, fees: f.toFixed(4) }));
-    }
-  }, [form.entry, form.exit, form.qty, isSpotOpen]);
+    };
+    calculateEstimatedFees();
+  }, [form.entry, form.exit, form.qty, isSpotOpen, tradeType]);
 
   // ── Live RR & PnL Preview ─────────────────────────────────────────────────
   const rrPreview = useMemo(() => {
@@ -82,16 +84,21 @@ export default function AddTradeModal() {
     const q = parseFloat(form.qty);
     const isLong = isSpot ? form.action === "Buy" : form.side === "Long";
     if (!isNaN(e) && !isNaN(x) && e > 0 && x > 0) {
+      const { nativePnl: estPnl } = calculatePnL({
+        entry: e, exit: x, qty: !isNaN(q) && q > 0 ? q : 1, side: form.side, leverage: form.leverage || 1, tradeType, marginType: form.marginType, action: form.action
+      });
+      // if qty wasn't set, we just want directionality for priceDiff/pct
+      const pct = (isLong ? (x - e) / e : (e - x) / e) * 100;
       const priceDiff = isLong ? (x - e) : (e - x);
-      const pct = (priceDiff / e) * 100;
-      const estPnl = !isNaN(q) && q > 0 ? priceDiff * q : null;
+      const estPnlVal = !isNaN(q) && q > 0 ? estPnl : null;
+      
       const rr = !isNaN(sl) && sl > 0
         ? Math.abs(priceDiff) / Math.abs(e - sl)
         : null;
-      return { pct, estPnl, rr, isWin: priceDiff > 0 };
+      return { pct, estPnl: estPnlVal, rr, isWin: estPnl > 0 };
     }
     return null;
-  }, [form.entry, form.exit, form.stopLoss, form.qty, form.action, form.side]);
+  }, [form.entry, form.exit, form.stopLoss, form.qty, form.action, form.side, form.leverage, form.marginType, tradeType, isSpot]);
 
   const handle = async () => {
     if (entryType === "Trade") {
@@ -210,6 +217,7 @@ export default function AddTradeModal() {
           side,
           leverage: 1, // AddTradeModal defaults to 1 for realized trades
           tradeType,
+          marginType: form.marginType,
           quoteRateOpen: usdtRate,
           quoteRateClose: closeUsdtRate,
           action
@@ -223,8 +231,10 @@ export default function AddTradeModal() {
           displayType: isSpot ? `Spot ${form.action}` : `${tradeType} ${form.side}`,
           entry: e, exit: x, qty: q,
           fees: -(Math.abs(parseFloat(form.fees) || 0)),
+          fundingFees: Math.abs(parseFloat(form.fundingFees) || 0),
           nativePnl,
           pnl,
+          marginType: form.marginType,
           setup: form.setup, closeReason: form.closeReason,
           openTime: openT,
           closeTime: closeT,
@@ -248,7 +258,7 @@ export default function AddTradeModal() {
   return (
     <div style={{ position: "fixed", inset: 0, background: "#00000092", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999, backdropFilter: "blur(6px)" }}
       onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{ background: T.panel, border: `1px solid ${T.border2}`, borderRadius: 14, padding: 26, width: entryType === "Trade" ? "min(900px,95vw)" : "min(480px,95vw)", maxHeight: "92vh", overflowY: "auto", boxShadow: "0 30px 80px #00000070", transition: "width 0.3s ease" }}>
+      <div style={{ background: T.panel, border: `1px solid ${T.border2}`, borderRadius: 14, padding: "clamp(16px, 5vw, 26px)", width: entryType === "Trade" ? "min(900px,95vw)" : "min(480px,95vw)", maxHeight: "92vh", overflowY: "auto", boxShadow: "0 30px 80px #00000070", transition: "width 0.3s ease" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
           <div style={{ fontFamily: T.mono, fontSize: 14, color: T.bright, letterSpacing: 1.5 }}>
             {entryType === "Trade" ? "ADD TRADE" : entryType === "Deposit" ? "LOG DEPOSIT" : "LOG WITHDRAWAL"}
@@ -388,6 +398,15 @@ export default function AddTradeModal() {
                       })}
                     </div>
                   </div>
+                  {tradeType === "Futures" && (
+                    <div style={{ marginTop: 12 }}>
+                      <label style={LS}>Margin Type</label>
+                      <div style={{ display: "flex", background: T.panel2, borderRadius: 6, overflow: "hidden", border: `1px solid ${T.border}` }}>
+                        <div onClick={() => set("marginType", "USDT-M")} style={{ flex: 1, textAlign: "center", padding: "8px 0", fontSize: 13, cursor: "pointer", fontFamily: T.mono, fontWeight: 700, background: form.marginType === "USDT-M" ? T.blueDim : "transparent", color: form.marginType === "USDT-M" ? T.blue : T.dim }}>USDT-M</div>
+                        <div onClick={() => set("marginType", "COIN-M")} style={{ flex: 1, textAlign: "center", padding: "8px 0", fontSize: 13, cursor: "pointer", fontFamily: T.mono, fontWeight: 700, background: form.marginType === "COIN-M" ? T.orangeDim : "transparent", color: form.marginType === "COIN-M" ? T.orange : T.dim }}>COIN-M</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* ── Row 2: Setup + Close Reason ── */}
@@ -406,7 +425,7 @@ export default function AddTradeModal() {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                   <div><label style={LS}>Buy Price ({qc})</label><input style={IS} type="number" value={form.entry} onChange={e => set("entry", e.target.value)} placeholder="0.00" /></div>
                   {!isSpotOpen && <div><label style={LS}>Sell Price ({qc})</label><input style={IS} type="number" value={form.exit} onChange={e => set("exit", e.target.value)} placeholder="0.00" /></div>}
-                  <div><label style={LS}>Quantity (units)</label><input style={IS} type="number" value={form.qty} onChange={e => set("qty", e.target.value)} placeholder="0.00" /></div>
+                  <div><label style={LS}>Quantity {form.marginType === "COIN-M" ? "(USD Value)" : "(units)"}</label><input style={IS} type="number" value={form.qty} onChange={e => set("qty", e.target.value)} placeholder="0.00" /></div>
                   {!isSpotOpen && <div><label style={LS}>Stop Loss ({qc}) <span style={{ color: T.dim }}>(optional)</span></label><input style={IS} type="number" value={form.stopLoss} onChange={e => set("stopLoss", e.target.value)} placeholder="for RR calc" /></div>}
                 </div>
 
@@ -433,8 +452,17 @@ export default function AddTradeModal() {
                 )}
 
                 {/* ── Row 5: Fees ── */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <div><label style={LS}>Fees ({qc}) <span style={{ color: T.dim }}>(auto)</span></label><input style={IS} type="number" value={form.fees} onChange={e => set("fees", e.target.value)} placeholder="0.00" /></div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={LS}>Trading Fees ({qc}) <span style={{ color: T.dim }}>(auto)</span></label>
+                    <input style={IS} type="number" value={form.fees} onChange={e => set("fees", e.target.value)} placeholder="0.00" />
+                  </div>
+                  {tradeType === "Futures" && (
+                    <div style={{ flex: 1 }}>
+                      <label style={LS}>Funding Fees ({qc})</label>
+                      <input style={IS} type="number" value={form.fundingFees} onChange={e => set("fundingFees", e.target.value)} placeholder="0.00" />
+                    </div>
+                  )}
                 </div>
               </>
             ) : (

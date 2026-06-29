@@ -14,19 +14,21 @@ export default function EditTradeModal() {
   const onSave = handleEditTrade;
   const onDelete = deleteFinishedTrade;
 
-  if (!trade) return null;
+  const isTransaction = trade?.entryType === "Deposit" || trade?.entryType === "Withdrawal" || trade?.symbol === "Deposit" || trade?.symbol === "Withdrawal";
+  const isOpen = (trade?.tradeType === "Spot" && !trade?.exit) || trade?.status === "open";
 
-  const isTransaction = trade.entryType === "Deposit" || trade.entryType === "Withdrawal" || trade.symbol === "Deposit" || trade.symbol === "Withdrawal";
   const [form, setForm] = useState({
-    entry: (trade.entry || 0).toString(),
-    exit: (trade.exit || 0).toString(),
-    qty: (trade.qty || 0).toString(),
-    fees: Math.abs(trade.fees || 0).toString(),
-    setup: trade.setup || "BREAKOUT",
-    closeReason: trade.closeReason || "",
-    openTime: formatMaskedDate(new Date(trade.openTime)),
-    closeTime: formatMaskedDate(new Date(trade.closeTime || trade.openTime)),
-    notes: trade.notes || "",
+    entry: (trade?.entry || 0).toString(),
+    exit: (trade?.exit || 0).toString(),
+    qty: (trade?.qty || 0).toString(),
+    fees: Math.abs(trade?.fees || 0).toString(),
+    fundingFees: Math.abs(trade?.fundingFees || 0).toString(),
+    marginType: trade?.marginType || "USDT-M",
+    setup: trade?.setup || "BREAKOUT",
+    closeReason: trade?.closeReason || "",
+    openTime: formatMaskedDate(trade ? new Date(trade.openTime) : new Date()),
+    closeTime: formatMaskedDate(trade ? new Date(trade.closeTime || trade.openTime) : new Date()),
+    notes: trade?.notes || "",
   });
   const [loading, setLoading] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -39,11 +41,14 @@ export default function EditTradeModal() {
     if (!isNaN(e) && !isNaN(q) && e > 0 && q > 0) {
       let f = e * q * 0.0006;
       if (!isNaN(x) && x > 0) f += x * q * 0.0006;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setForm(prev => ({ ...prev, fees: f.toFixed(4) }));
     }
   }, [form.entry, form.exit, form.qty, isTransaction]);
 
-  const qc = getQuoteCurrency(trade.symbol || "USDT") || "USDT";
+  if (!trade) return null;
+
+  const qc = getQuoteCurrency(trade?.symbol || "USDT") || "USDT";
 
   const handle = async () => {
     if (isTransaction) {
@@ -72,7 +77,8 @@ export default function EditTradeModal() {
     }
 
     const e = parseFloat(form.entry), x = parseFloat(form.exit), q = parseFloat(form.qty);
-    if (isNaN(e) || e <= 0 || isNaN(x) || x <= 0 || isNaN(q) || q <= 0) return;
+    if (isNaN(e) || e <= 0 || isNaN(q) || q <= 0) return;
+    if (!isOpen && (isNaN(x) || x <= 0)) return;
 
     setLoading(true);
     try {
@@ -82,44 +88,58 @@ export default function EditTradeModal() {
       let capped = false;
       if (openT > Date.now()) { openT = Date.now(); capped = true; }
       if (closeT > Date.now()) { closeT = Date.now(); capped = true; }
-      if (closeT < openT) { closeT = openT; capped = true; }
+      if (!isOpen && closeT < openT) { closeT = openT; capped = true; }
 
       if (capped) {
         setDateCappedMsg("Dates were out of range — auto-corrected.");
       }
 
-      const [usdtRate, closeUsdtRate] = await Promise.all([
-        fetchUsdtRate(qc, openT),
-        fetchUsdtRate(qc, closeT)
-      ]);
+      const usdtPromises = [fetchUsdtRate(qc, openT, form.exchange)];
+      if (!isOpen) usdtPromises.push(fetchUsdtRate(qc, closeT, form.exchange));
+      
+      const [usdtRate, closeUsdtRate] = await Promise.all(usdtPromises);
 
       const isSpot = trade.tradeType === "Spot";
       const isLong = trade.side === "Long" || trade.action === "Buy";
       const side = isLong ? "Long" : "Short";
       const action = isSpot ? (isLong ? "Buy" : "Sell") : side;
 
-      const { nativePnl, pnl } = calculatePnL({
-        entry: e,
-        exit: x,
-        qty: q,
-        side,
-        leverage: trade.leverage || 1,
-        tradeType: trade.tradeType,
-        quoteRateOpen: usdtRate,
-        quoteRateClose: closeUsdtRate,
-        action
-      });
+      let nativePnl = 0, pnl = 0;
+      if (!isOpen) {
+        const res = calculatePnL({
+          entry: e,
+          exit: x,
+          qty: q,
+          side,
+          leverage: trade.leverage || 1,
+          tradeType: trade.tradeType,
+          marginType: form.marginType,
+          quoteRateOpen: usdtRate,
+          quoteRateClose: closeUsdtRate,
+          action
+        });
+        nativePnl = res.nativePnl;
+        pnl = res.pnl;
+      }
 
       onSave({
         ...trade,
-        entry: e, exit: x, qty: q,
+        entry: e, qty: q,
         fees: -(Math.abs(parseFloat(form.fees) || 0)),
-        nativePnl: parseFloat(nativePnl.toFixed(6)),
-        pnl: parseFloat(pnl.toFixed(2)),
-        usdtRate, closeUsdtRate,
-        setup: form.setup, closeReason: form.closeReason,
-        openTime: openT, closeTime: closeT,
-        notes: form.notes
+        fundingFees: Math.abs(parseFloat(form.fundingFees) || 0),
+        marginType: form.marginType,
+        usdtRate,
+        setup: form.setup,
+        openTime: openT,
+        notes: form.notes,
+        ...(isOpen ? {} : { 
+          exit: x, 
+          nativePnl: parseFloat(nativePnl.toFixed(6)), 
+          pnl: parseFloat(pnl.toFixed(2)), 
+          closeUsdtRate, 
+          closeReason: form.closeReason, 
+          closeTime: closeT 
+        })
       });
     } finally {
       setLoading(false);
@@ -156,13 +176,25 @@ export default function EditTradeModal() {
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <div><label style={LS}>Entry Price ({qc})</label><input style={IS} type="number" value={form.entry} onChange={e => set("entry", e.target.value)} /></div>
-            <div><label style={LS}>Exit Price ({qc})</label><input style={IS} type="number" value={form.exit} onChange={e => set("exit", e.target.value)} /></div>
+            {!isOpen && <div><label style={LS}>Exit Price ({qc})</label><input style={IS} type="number" value={form.exit} onChange={e => set("exit", e.target.value)} /></div>}
             <div><label style={LS}>Quantity</label><input style={IS} type="number" value={form.qty} onChange={e => set("qty", e.target.value)} /></div>
-            <div><label style={LS}>Fees ({qc})</label><input style={IS} type="number" value={form.fees} onChange={e => set("fees", e.target.value)} /></div>
+            <div><label style={LS}>Trading Fees ({qc})</label><input style={IS} type="number" value={form.fees} onChange={e => set("fees", e.target.value)} /></div>
+            {trade.tradeType === "Futures" && (
+              <>
+                <div><label style={LS}>Funding Fees ({qc})</label><input style={IS} type="number" value={form.fundingFees} onChange={e => set("fundingFees", e.target.value)} /></div>
+                <div>
+                  <label style={LS}>Margin Type</label>
+                  <select style={IS} value={form.marginType} onChange={e => set("marginType", e.target.value)}>
+                    <option value="USDT-M">USDT-M</option>
+                    <option value="COIN-M">COIN-M</option>
+                  </select>
+                </div>
+              </>
+            )}
             <div><label style={LS}>Setup</label><select style={IS} value={form.setup} onChange={e => set("setup", e.target.value)}>{SETUPS.map(s => <option key={s}>{s}</option>)}</select></div>
-            <div><label style={LS}>Close Reason</label><select style={IS} value={form.closeReason} onChange={e => set("closeReason", e.target.value)}>{CLOSE_REASONS.map(r => <option key={r}>{r}</option>)}</select></div>
+            {!isOpen && <div><label style={LS}>Close Reason</label><select style={IS} value={form.closeReason} onChange={e => set("closeReason", e.target.value)}>{CLOSE_REASONS.map(r => <option key={r}>{r}</option>)}</select></div>}
             <div><label style={LS}>Open Time</label><MaskedDateInput style={IS} value={form.openTime} onChange={v => set("openTime", v)} /></div>
-            <div><label style={LS}>Close Time</label><MaskedDateInput style={IS} value={form.closeTime} onChange={v => set("closeTime", v)} /></div>
+            {!isOpen && <div><label style={LS}>Close Time</label><MaskedDateInput style={IS} value={form.closeTime} onChange={v => set("closeTime", v)} /></div>}
           </div>
         )}
 

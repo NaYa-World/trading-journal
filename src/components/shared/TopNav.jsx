@@ -1,9 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useDashboard } from "../../context/DashboardContext.jsx";
+import { useBackup } from "../../context/BackupContext.jsx";
+import { useSecurity } from "../../context/SecurityContext.jsx";
 
 export default function TopNav() {
   const {
     view,
+    setView,
     subTab,
     setSubTab,
     dateRange,
@@ -13,6 +16,7 @@ export default function TopNav() {
     setIsDark,
     setShowCSVModal,
     setShowAddModal,
+    setShowSecurityModal,
     downloadCSV,
     exportPDF,
     activeProfile,
@@ -20,18 +24,45 @@ export default function TopNav() {
     T
   } = useDashboard();
 
-  const [showTools, setShowTools] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const { userEmail, clearGoogleSession } = useBackup();
+  const { lockApp } = useSecurity();
+  const navRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (navRef.current && !navRef.current.contains(event.target)) {
+        setShowSettings(false);
+        setShowCreate(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleLogout = () => {
+    clearGoogleSession();
+    if (Capacitor.getPlatform() !== "web") {
+      lockApp();
+    } else {
+      window.location.reload();
+    }
+    setShowSettings(false);
+  };
 
   const tabMap = {
-    Dashboard: ["Overview", "Trade Summary", "Time Metrics", "Analytics", "Calendar", "Risk Calc"],
+    Dashboard: ["Overview"],
+    Analytics: ["Time Metrics", "Analytics", "Calendar", "Risk Calc", "Trade Summary"],
+    Profile: ["Accounts"],
   };
   const viewTabs = tabMap[view] || [];
 
   const now = new Date();
 
   return (
-    <div style={{
+    <div ref={navRef} style={{
       background: T.panel,
       borderBottom: `1px solid ${T.border}`,
       padding: isMobile ? "10px 12px" : "10px 18px",
@@ -96,15 +127,16 @@ export default function TopNav() {
         ))}
       </div>
 
-      {/* Controls Container */}
-      <div style={{ 
-        display: "flex", 
-        gap: 8, 
-        alignItems: "center", 
-        justifyContent: isMobile ? "flex-start" : "flex-end", 
-        flexShrink: 0,
-        flexWrap: "wrap"
-      }}>
+      {/* Controls Container - Hidden on Mobile */}
+      {!isMobile && (
+        <div style={{ 
+          display: "flex", 
+          gap: 8, 
+          alignItems: "center", 
+          justifyContent: "flex-end", 
+          flexShrink: 0,
+          flexWrap: "wrap"
+        }}>
         {/* Mobile Profile Switcher */}
         {isMobile && (
           <button
@@ -152,43 +184,26 @@ export default function TopNav() {
           </select>
         </div>
 
-        {/* Add Trade Button */}
-        <button 
-          onClick={() => setShowAddModal(true)} 
-          style={{ 
-            background: T.blue, 
-            border: "none", 
-            color: "#fff", 
-            borderRadius: 7, 
-            padding: "7px 16px", 
-            cursor: "pointer", 
-            fontSize: 12, 
-            fontWeight: 700, 
-            fontFamily: T.mono, 
-            letterSpacing: 0.5 
-          }}
-        >
-          + Add Trade
-        </button>
-
-        {/* Tools Dropdown */}
+        {/* Create Dropdown */}
         <div style={{ position: "relative" }}>
           <button 
-            onClick={() => setShowTools(t => !t)} 
+            onClick={() => { setShowCreate(t => !t); setShowSettings(false); }} 
             style={{ 
-              background: T.panel2, 
-              border: `1px solid ${showTools ? T.blue : T.border}`, 
-              color: showTools ? T.blue : T.dim, 
-              borderRadius: 6, 
-              padding: "7px 12px", 
+              background: T.blue, 
+              border: `1px solid ${showCreate ? T.blueDim : T.blue}`, 
+              color: "#fff", 
+              borderRadius: 7, 
+              padding: "7px 16px", 
               cursor: "pointer", 
               fontSize: 12, 
-              fontFamily: T.mono 
+              fontWeight: 700, 
+              fontFamily: T.mono, 
+              letterSpacing: 0.5 
             }}
           >
-            Tools ▾
+            + Create ▾
           </button>
-          {showTools && (
+          {showCreate && (
             <div style={{ 
               position: "absolute", 
               top: "100%", 
@@ -200,10 +215,77 @@ export default function TopNav() {
               marginTop: 4, 
               zIndex: 1050, 
               boxShadow: "0 10px 40px #00000050", 
-              minWidth: 150 
+              minWidth: 160 
             }}>
               <button 
-                onClick={() => { setShowCSVModal(true); setShowTools(false); }} 
+                onClick={() => { setShowAddModal(true); setShowCreate(false); }} 
+                style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", background: "none", border: "none", color: T.bright, cursor: "pointer", fontSize: 12, fontFamily: T.mono, borderRadius: 4 }} 
+                onMouseEnter={e => e.target.style.background = T.panel2} 
+                onMouseLeave={e => e.target.style.background = "none"}
+              >
+                📈 Trade
+              </button>
+              <button 
+                onClick={() => { setView("Watchlist"); setShowCreate(false); }} 
+                style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", background: "none", border: "none", color: T.bright, cursor: "pointer", fontSize: 12, fontFamily: T.mono, borderRadius: 4 }} 
+                onMouseEnter={e => e.target.style.background = T.panel2} 
+                onMouseLeave={e => e.target.style.background = "none"}
+              >
+                ⬡ Watchlist Symbol
+              </button>
+              <button 
+                onClick={() => { setView("Alerts"); setShowCreate(false); }} 
+                style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", background: "none", border: "none", color: T.bright, cursor: "pointer", fontSize: 12, fontFamily: T.mono, borderRadius: 4 }} 
+                onMouseEnter={e => e.target.style.background = T.panel2} 
+                onMouseLeave={e => e.target.style.background = "none"}
+              >
+                🔔 Price Alert
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Settings Dropdown */}
+        <div style={{ position: "relative" }}>
+          <button 
+            onClick={() => { setShowSettings(t => !t); setShowCreate(false); }} 
+            style={{ 
+              background: T.panel2, 
+              border: `1px solid ${showSettings ? T.blue : T.border}`, 
+              color: showSettings ? T.blue : T.dim, 
+              borderRadius: 6, 
+              padding: "7px 12px", 
+              cursor: "pointer", 
+              fontSize: 12, 
+              fontFamily: T.mono 
+            }}
+          >
+            Settings ▾
+          </button>
+          {showSettings && (
+            <div style={{ 
+              position: "absolute", 
+              top: "100%", 
+              right: 0, 
+              background: T.panel, 
+              border: `1px solid ${T.border2}`, 
+              borderRadius: 8, 
+              padding: 4, 
+              marginTop: 4, 
+              zIndex: 1050, 
+              boxShadow: "0 10px 40px #00000050", 
+              minWidth: 160 
+            }}>
+              <button 
+                onClick={() => { setShowSecurityModal(true); setShowSettings(false); }} 
+                style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", background: "none", border: "none", color: T.text, cursor: "pointer", fontSize: 12, fontFamily: T.mono, borderRadius: 4 }} 
+                onMouseEnter={e => e.target.style.background = T.panel2} 
+                onMouseLeave={e => e.target.style.background = "none"}
+              >
+                🔒 Security & Backup
+              </button>
+              <button 
+                onClick={() => { setShowCSVModal(true); setShowSettings(false); }} 
                 style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", background: "none", border: "none", color: T.text, cursor: "pointer", fontSize: 12, fontFamily: T.mono, borderRadius: 4 }} 
                 onMouseEnter={e => e.target.style.background = T.panel2} 
                 onMouseLeave={e => e.target.style.background = "none"}
@@ -211,7 +293,7 @@ export default function TopNav() {
                 ⬆ Import CSV
               </button>
               <button 
-                onClick={() => { downloadCSV(); setShowTools(false); }} 
+                onClick={() => { downloadCSV(); setShowSettings(false); }} 
                 style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", background: "none", border: "none", color: T.text, cursor: "pointer", fontSize: 12, fontFamily: T.mono, borderRadius: 4 }} 
                 onMouseEnter={e => e.target.style.background = T.panel2} 
                 onMouseLeave={e => e.target.style.background = "none"}
@@ -219,7 +301,7 @@ export default function TopNav() {
                 ⬇ Export CSV
               </button>
               <button 
-                onClick={() => { exportPDF(now.getMonth(), now.getFullYear()); setShowTools(false); }} 
+                onClick={() => { exportPDF(now.getMonth(), now.getFullYear()); setShowSettings(false); }} 
                 style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", background: "none", border: "none", color: T.text, cursor: "pointer", fontSize: 12, fontFamily: T.mono, borderRadius: 4 }} 
                 onMouseEnter={e => e.target.style.background = T.panel2} 
                 onMouseLeave={e => e.target.style.background = "none"}
@@ -228,12 +310,36 @@ export default function TopNav() {
               </button>
               {isMobile && (
                 <button 
-                  onClick={() => { setIsDark(d => !d); setShowTools(false); }} 
+                  onClick={() => { setIsDark(d => !d); setShowSettings(false); }} 
                   style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", background: "none", border: "none", color: T.text, cursor: "pointer", fontSize: 12, fontFamily: T.mono, borderRadius: 4, borderTop: `1px solid ${T.border}` }} 
                   onMouseEnter={e => e.target.style.background = T.panel2} 
                   onMouseLeave={e => e.target.style.background = "none"}
                 >
                   {isDark ? "☀ Light Mode" : "🌙 Dark Mode"}
+                </button>
+              )}
+              {userEmail && (
+                <button 
+                  onClick={handleLogout} 
+                  style={{ 
+                    display: "block", 
+                    width: "100%", 
+                    textAlign: "left", 
+                    padding: "8px 12px", 
+                    background: "none", 
+                    border: "none", 
+                    color: T.red, 
+                    cursor: "pointer", 
+                    fontSize: 12, 
+                    fontFamily: T.mono, 
+                    borderRadius: 4, 
+                    borderTop: `1px solid ${T.border}`,
+                    marginTop: 4
+                  }} 
+                  onMouseEnter={e => e.target.style.background = `${T.red}15`} 
+                  onMouseLeave={e => e.target.style.background = "none"}
+                >
+                  🚪 Logout ({userEmail.split("@")[0]})
                 </button>
               )}
             </div>
@@ -304,6 +410,7 @@ export default function TopNav() {
           </>
         )}
       </div>
+      )}
     </div>
   );
 }

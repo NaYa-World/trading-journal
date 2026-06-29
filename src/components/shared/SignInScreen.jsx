@@ -1,11 +1,21 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useBackup } from "../../context/BackupContext.jsx";
 import { T } from "../../utils/theme.js";
 
 export default function SignInScreen() {
-  const { authenticateGoogle } = useBackup();
+  const { authenticateGoogle, checkRedirectResult } = useBackup();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Handle Web OAuth Redirects on mount
+  useEffect(() => {
+    const handleRedirect = async () => {
+      setLoading(true);
+      await checkRedirectResult();
+      setLoading(false);
+    };
+    handleRedirect();
+  }, [checkRedirectResult]);
 
   const handleSignIn = async () => {
     setError("");
