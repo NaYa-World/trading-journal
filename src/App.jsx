@@ -808,6 +808,27 @@ export default function App() {
   const { prices, status } = usePrices();
 
   useEffect(() => {
+    if (isMobile) {
+      if (view === "Finished Trades") {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setJournalTab("Finished");
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setView("Journal");
+      } else if (view === "Open Spot Trades") {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setJournalTab("Ongoing Spot");
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setView("Journal");
+      } else if (view === "Live Trades(ongoing)") {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setJournalTab("Ongoing Futures");
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setView("Journal");
+      }
+    }
+  }, [view, isMobile, setView]);
+
+  useEffect(() => {
     const onKey = (e) => {
       // Ignore when user is typing in an input/textarea/select
       const tag = e.target.tagName;
@@ -984,7 +1005,7 @@ export default function App() {
               </div>
             )}
 
-            {(view === "Finished Trades" || view === "Journal") && (
+            {(view === "Finished Trades" || (view === "Journal" && journalTab === "Finished")) && (
               <TradeFilterBar
                 filterSetup={filterSetup} setFilterSetup={setFilterSetup}
                 filterCoin={filterCoin} setFilterCoin={setFilterCoin}
