@@ -803,9 +803,8 @@ export default function App() {
     saveReview, openReview, switchProfile, addProfile, updateProfile, deleteProfile, clearAllData, downloadCSV, isStorageLoading
   } = useDashboard();
 
+  const [showHelpOverlay, setShowHelpOverlay] = useState(false);
   const { prices, status } = usePrices();
-
-  const DASH_TABS = ["Overview"];
 
   useEffect(() => {
     const onKey = (e) => {
@@ -815,6 +814,10 @@ export default function App() {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
 
       if (e.key === "n" || e.key === "N") { e.preventDefault(); setShowAddModal(true); }
+      if (e.key === "d" || e.key === "D") { e.preventDefault(); setView("Dashboard"); }
+      if (e.key === "c" || e.key === "C") { e.preventDefault(); setView("Analytics"); setSubTab("Fee Calc"); }
+      if (e.key === "?") { e.preventDefault(); setShowHelpOverlay(prev => !prev); }
+
       if (e.key === "Escape") {
         setShowAddModal(false);
         setEditingTrade(null);
@@ -824,15 +827,26 @@ export default function App() {
         setShowClearConfirm(false);
         setShowDataMenu(false);
         setUndoTrade(null);
+        setShowHelpOverlay(false);
       }
-      // Tab shortcuts 1-6 when on Dashboard
-      if (view === "Dashboard") {
-        const idx = parseInt(e.key, 10);
-        if (!isNaN(idx) && idx >= 1 && idx <= DASH_TABS.length) {
-          e.preventDefault();
-          setSubTab(DASH_TABS[idx - 1]);
-        }
+
+      // Switch main views using 1-8
+      const views = [
+        "Dashboard", 
+        "Open Spot Trades", 
+        "Live Trades(ongoing)", 
+        "Finished Trades", 
+        "Watchlist", 
+        "Alerts", 
+        "Analytics", 
+        "Setup"
+      ];
+      const idx = parseInt(e.key, 10);
+      if (!isNaN(idx) && idx >= 1 && idx <= views.length) {
+        e.preventDefault();
+        setView(views[idx - 1]);
       }
+
       // Quick undo
       if ((e.key === "z" || e.key === "Z") && !e.metaKey && !e.ctrlKey && undoTrade) {
         e.preventDefault();
@@ -841,12 +855,12 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [view, setView, subTab, setSubTab, restoreDeletedTrade, setShowAddModal, setEditingTrade, setShowCSVModal, setShowSyncModal, setViewChartTrade, setShowClearConfirm, setShowDataMenu, setUndoTrade, setSubTab]);
+  }, [view, setView, subTab, setSubTab, restoreDeletedTrade, setShowAddModal, setEditingTrade, setShowCSVModal, setShowSyncModal, setViewChartTrade, setShowClearConfirm, setShowDataMenu, setUndoTrade, setSubTab, undoTrade]);
 
   // ── Modal state for back button ──
   const modalsRef = useRef(false);
   useEffect(() => {
-    modalsRef.current = !!(showAddModal || editingTrade || showCSVModal || showSyncModal || viewChartTrade || showClearConfirm || showDataMenu || undoTrade);
+    modalsRef.current = !!(showAddModal || editingTrade || showCSVModal || showSyncModal || viewChartTrade || showClearConfirm || showDataMenu || undoTrade || showHelpOverlay);
   });
 
   useEffect(() => {
@@ -1156,6 +1170,53 @@ export default function App() {
       {showSyncModal && <ExchangeSyncModal onClose={() => setShowSyncModal(false)} onSync={handleApiSync} keys={apiKeys} setKeys={setApiKeys} />}
       {editingTrade && <EditTradeModal />}
       {showSecurityModal && <SecuritySettingsModal onClose={() => setShowSecurityModal(false)} />}
+
+      {showHelpOverlay && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(10, 9, 20, 0.8)", backdropFilter: "blur(6px)",
+          display: "flex", alignItems: "center", justifyContent: "center", zIndex: 3000
+        }}>
+          <div style={{
+            background: T.panel, border: `1px solid ${T.border}`, borderRadius: 14,
+            padding: 24, width: "min(380px, 90vw)", color: T.bright, fontFamily: T.sans,
+            boxShadow: "0 20px 50px rgba(0,0,0,0.5)"
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+                ⌨️ Keyboard Shortcuts
+              </h3>
+              <button onClick={() => setShowHelpOverlay(false)} style={{ background: "none", border: "none", color: T.dim, cursor: "pointer", fontSize: 20, outline: "none" }}>×</button>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, fontSize: 13 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid ${T.border}50`, paddingBottom: 8 }}>
+                <span style={{ color: T.dim }}>New Trade Modal</span>
+                <kbd style={{ background: T.border, color: T.bright, padding: "3px 8px", borderRadius: 6, fontSize: 11, fontFamily: T.mono, border: `1px solid ${T.border2}` }}>N</kbd>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid ${T.border}50`, paddingBottom: 8 }}>
+                <span style={{ color: T.dim }}>Go to Dashboard</span>
+                <kbd style={{ background: T.border, color: T.bright, padding: "3px 8px", borderRadius: 6, fontSize: 11, fontFamily: T.mono, border: `1px solid ${T.border2}` }}>D</kbd>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid ${T.border}50`, paddingBottom: 8 }}>
+                <span style={{ color: T.dim }}>Go to Fee Calculator</span>
+                <kbd style={{ background: T.border, color: T.bright, padding: "3px 8px", borderRadius: 6, fontSize: 11, fontFamily: T.mono, border: `1px solid ${T.border2}` }}>C</kbd>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid ${T.border}50`, paddingBottom: 8 }}>
+                <span style={{ color: T.dim }}>Switch Tabs (1 - 8)</span>
+                <kbd style={{ background: T.border, color: T.bright, padding: "3px 8px", borderRadius: 6, fontSize: 11, fontFamily: T.mono, border: `1px solid ${T.border2}` }}>1 - 8</kbd>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid ${T.border}50`, paddingBottom: 8 }}>
+                <span style={{ color: T.dim }}>Close Modal / Help Overlay</span>
+                <kbd style={{ background: T.border, color: T.bright, padding: "3px 8px", borderRadius: 6, fontSize: 11, fontFamily: T.mono, border: `1px solid ${T.border2}` }}>Esc</kbd>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: 4 }}>
+                <span style={{ color: T.dim }}>Toggle Shortcut Cheatsheet</span>
+                <kbd style={{ background: T.border, color: T.bright, padding: "3px 8px", borderRadius: 6, fontSize: 11, fontFamily: T.mono, border: `1px solid ${T.border2}` }}>?</kbd>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showClearConfirm && (
         <ClearConfirmModal 

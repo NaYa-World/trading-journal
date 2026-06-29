@@ -12,6 +12,15 @@ export default function AlertsEngine() {
     alertsRef.current = alerts;
   }, [alerts]);
 
+  // Request Notification permission on mount
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission === "default") {
+        Notification.requestPermission();
+      }
+    }
+  }, []);
+
   useEffect(() => {
     if (!prices || Object.keys(prices).length === 0) return;
 
@@ -35,6 +44,18 @@ export default function AlertsEngine() {
 
       if (isTriggered) {
         triggeredAny = true;
+
+        // Browser/OS Native Push notification
+        if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+          try {
+            new Notification(`Price Alert: ${alert.symbol}`, {
+              body: `${alert.symbol} is now ${alert.condition} ${alert.targetPrice} (Current: ${currentPrice})`,
+            });
+          } catch (e) {
+            console.error("Failed to fire browser notification:", e);
+          }
+        }
+
         const newNotif = {
           id: Date.now() + Math.random().toString(),
           symbol: alert.symbol,
