@@ -254,6 +254,7 @@ export default function TradeSetupsManager({ trades = [], tradeSetups = [], setT
   const chartDropdownRef = useRef(null);
 
   const [newSetup, setNewSetup] = useState({ name: "", type: "Unassigned", image: "", rules: [{ id: crypto.randomUUID(), text: "" }] });
+  const [setupFilter, setSetupFilter] = useState("all"); // "all", "candlestick", "chart"
   const { userEmail, authenticateGoogle } = useBackup();
   const fileInputRef = useRef(null);
 
@@ -275,7 +276,7 @@ export default function TradeSetupsManager({ trades = [], tradeSetups = [], setT
     return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, []);
 
-  const handleAddPreset = (preset) => {
+  const handleAddPreset = (preset, patternType) => {
     if (tradeSetups.some(s => s.name === preset.name)) {
       if (showToast) showToast(`Setup "${preset.name}" is already added!`, "error");
       return;
@@ -291,6 +292,7 @@ export default function TradeSetupsManager({ trades = [], tradeSetups = [], setT
       rulesCount: preset.rules.length,
       rules: preset.rules,
       image: preset.image,
+      patternType, // "candlestick" or "chart"
       timestamp: new Date().toLocaleDateString()
     }]);
 
@@ -314,6 +316,13 @@ export default function TradeSetupsManager({ trades = [], tradeSetups = [], setT
     const winRate = setupTrades.length ? Math.round((wins.length / setupTrades.length) * 100) : 0;
     const pnl = setupTrades.reduce((sum, t) => sum + t.pnl, 0);
     return { ...setup, winRate, totalTrades: setupTrades.length, pnl, wins: wins.length };
+  });
+
+  const filteredSetups = computedSetups.filter(s => {
+    if (setupFilter === "all") return true;
+    if (setupFilter === "candlestick") return s.patternType === "candlestick";
+    if (setupFilter === "chart") return s.patternType === "chart";
+    return true;
   });
 
   const getImageUrl = (uri) => {
@@ -477,7 +486,7 @@ export default function TradeSetupsManager({ trades = [], tradeSetups = [], setT
                   <div 
                     key={p.name}
                     onClick={() => {
-                      handleAddPreset(p);
+                      handleAddPreset(p, "candlestick");
                       setShowCandleDropdown(false);
                     }}
                     style={{
@@ -525,7 +534,7 @@ export default function TradeSetupsManager({ trades = [], tradeSetups = [], setT
                   <div 
                     key={p.name}
                     onClick={() => {
-                      handleAddPreset(p);
+                      handleAddPreset(p, "chart");
                       setShowChartDropdown(false);
                     }}
                     style={{
@@ -556,10 +565,37 @@ export default function TradeSetupsManager({ trades = [], tradeSetups = [], setT
         </div>
       </div>
 
+      {/* Filter Tabs */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
+        {[
+          { id: "all", label: "All Setups" },
+          { id: "candlestick", label: "🕯️ Candlesticks" },
+          { id: "chart", label: "📈 Chart Patterns" }
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setSetupFilter(tab.id)}
+            style={{
+              background: setupFilter === tab.id ? T.purple : T.panel,
+              border: `1px solid ${setupFilter === tab.id ? T.purple : T.border}`,
+              color: "#FFF",
+              borderRadius: 8,
+              padding: "8px 16px",
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: "pointer",
+              transition: "all 0.2s"
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       {/* Setups Grid */}
-      {computedSetups.length > 0 ? (
+      {filteredSetups.length > 0 ? (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, paddingBottom: 16, marginBottom: 24 }}>
-          {computedSetups.map(setup => (
+          {filteredSetups.map(setup => (
             <div key={setup.id} style={{ 
               background: T.panel, border: `1px solid ${T.border}`, 
               borderRadius: 14, padding: 12,
@@ -626,7 +662,9 @@ export default function TradeSetupsManager({ trades = [], tradeSetups = [], setT
         </div>
       ) : (
         <div style={{ color: T.dim, padding: 40, textAlign: "center", background: T.panel, borderRadius: 16, border: `1px solid ${T.border}`, marginBottom: 24 }}>
-          No setups created yet. Click "+ New Setup" to start tracking!
+          {computedSetups.length === 0 
+            ? 'No setups created yet. Click "+ New Setup" to start tracking!' 
+            : 'No setups found matching this filter.'}
         </div>
       )}
 
