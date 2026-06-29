@@ -1,11 +1,15 @@
-import React, { useState, useEffect } from "react";
+/* eslint-disable react-refresh/only-export-components */
+import { useState, useEffect, StrictMode } from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.jsx";
 import { DashboardProvider } from "./context/DashboardContext.jsx";
 import { SecurityProvider, useSecurity } from "./context/SecurityContext.jsx";
+import { BackupProvider, useBackup } from "./context/BackupContext.jsx";
 import UnlockScreen from "./components/shared/UnlockScreen.jsx";
+import SignInScreen from "./components/shared/SignInScreen.jsx";
 import { Capacitor } from "@capacitor/core";
 import { App as CapApp } from "@capacitor/app";
+import { StatusBar, Style } from "@capacitor/status-bar";
 
 import "@fontsource/space-mono/400.css";
 import "@fontsource/space-mono/700.css";
@@ -14,24 +18,43 @@ import "@fontsource/dm-sans/700.css";
 
 function RootApp() {
   const { isLocked } = useSecurity();
+  const { runAutoBackupCheck, userEmail } = useBackup();
   const [isBackground, setIsBackground] = useState(false);
 
+  // Monitor app lifecycle for switcher blur and auto-backup sync triggers
   useEffect(() => {
     let sub;
     if (Capacitor.isNativePlatform()) {
       CapApp.addListener("appStateChange", (state) => {
         setIsBackground(!state.isActive);
+        if (state.isActive) {
+          // App resumed to foreground: check if backup is due
+          runAutoBackupCheck(false);
+        } else {
+          // App paused to background: check if backup is due
+          runAutoBackupCheck(false);
+        }
       }).then((s) => {
         sub = s;
       });
+      // Initial launch check
+      runAutoBackupCheck(false);
+
+      // Edge-to-Edge UI Configuration
+      StatusBar.setOverlaysWebView({ overlay: true }).catch(() => {});
+      StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
     }
     return () => {
       if (sub) sub.remove();
     };
-  }, []);
+  }, [runAutoBackupCheck]);
 
   if (isLocked) {
     return <UnlockScreen />;
+  }
+
+  if (!userEmail) {
+    return <SignInScreen />;
   }
 
   return (
@@ -52,9 +75,11 @@ function RootApp() {
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(
-  <React.StrictMode>
+  <StrictMode>
     <SecurityProvider>
-      <RootApp />
+      <BackupProvider>
+        <RootApp />
+      </BackupProvider>
     </SecurityProvider>
-  </React.StrictMode>
+  </StrictMode>
 );

@@ -5,6 +5,8 @@ import RiskCalculator from "../views/RiskCalculator.jsx";
 import {
   getQuoteCurrency, getOrdinal, parseMaskedDate, fetchUsdtRate
 } from "../../utils/helpers.js";
+import { T } from "../../utils/theme.js";
+import { createTrade } from "../../utils/tradeFactory.js";
 import { calculatePnL } from "../../utils/calculations.js";
 import {
   CRYPTO_TRADE_TYPES, DEFAULT_SYMBOLS, EXCHANGES, SETUPS, CLOSE_REASONS
@@ -13,7 +15,7 @@ import {
 export default function AddTradeModal() {
   const {
     addTrade, addSpotOpen, setShowAddModal, savedSymbols, saveSymbol,
-    activeProfileId, initialCapital, allTrades, T
+    activeProfileId, initialCapital, allTrades
   } = useDashboard();
 
   const onAdd = addTrade;
@@ -52,8 +54,8 @@ export default function AddTradeModal() {
   const set = (k, v) => { setForm(f => ({ ...f, [k]: v })); setDepositWarning(""); };
 
   const isSpot = tradeType === "Spot";
-  const isDirectional = tradeType === "Margin" || tradeType === "Futures";
   const isSpotOpen = isSpot && spotMode === "open";
+  const isDirectional = tradeType === "Margin" || tradeType === "Futures";
   const qc = getQuoteCurrency(form.symbol) || "USDT";
 
   const saved = savedSymbols || DEFAULT_SYMBOLS;
@@ -131,7 +133,7 @@ export default function AddTradeModal() {
         const ordinal = getOrdinal(count + 1);
         const remark = `${ordinal} ${entryType.toLowerCase()}`;
 
-        onAdd({
+        onAdd(createTrade({
           id: Date.now(),
           entryType,
           symbol: entryType,
@@ -145,7 +147,7 @@ export default function AddTradeModal() {
           notes: form.notes,
           closeReason: remark,
           profileId: profileId || "default",
-        });
+        }));
         onClose();
       } finally {
         setLoading(false);
@@ -179,12 +181,12 @@ export default function AddTradeModal() {
 
       const quoteCurrency = getQuoteCurrency(sym);
       const [usdtRate, closeUsdtRate] = await Promise.all([
-        fetchUsdtRate(quoteCurrency, openT),
-        !isSpotOpen ? fetchUsdtRate(quoteCurrency, closeT) : Promise.resolve(1)
+        fetchUsdtRate(quoteCurrency, openT, form.exchange),
+        !isSpotOpen ? fetchUsdtRate(quoteCurrency, closeT, form.exchange) : Promise.resolve(1)
       ]);
 
       if (isSpotOpen) {
-        onAddSpotOpen({
+        onAddSpotOpen(createTrade({
           id: Date.now(), symbol: sym, tradeType: "Spot",
           exchange: form.exchange, action: "Buy",
           entry: e, qty: q,
@@ -195,7 +197,7 @@ export default function AddTradeModal() {
           profileId: profileId || "default",
           quoteCurrency,
           usdtRate,
-        });
+        }));
       } else {
         const x = parseFloat(form.exit);
         const side = isSpot ? (form.action === "Buy" ? "Long" : "Short") : form.side;
@@ -213,7 +215,7 @@ export default function AddTradeModal() {
           action
         });
 
-        onAdd({
+        onAdd(createTrade({
           id: Date.now(), symbol: sym,
           tradeType, exchange: form.exchange,
           side,
@@ -231,8 +233,8 @@ export default function AddTradeModal() {
           profileId: profileId || "default",
           quoteCurrency,
           usdtRate,
-          closeUsdtRate,
-        });
+          closeUsdtRate
+        }));
       }
       onClose();
     } finally {

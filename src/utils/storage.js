@@ -18,6 +18,7 @@ export const ACTIVE_PROFILE_KEY = "cj_active_v2";
 export const THEME_KEY = "cj_theme_v2";
 export const REVIEWS_KEY = "cj_reviews_v2";
 export const API_KEYS_KEY = "cj_apikeys_v2";
+export const TRADE_SETUPS_KEY = "cj_trade_setups_v2";
 
 // ─── Core storage primitives ──────────────────────────────────────────────────
 export const _load = (key, fb) => {
@@ -54,6 +55,11 @@ export const saveLiveTrades = (t) => _save(LIVE_KEY, t);
 // ─── Settings storage ─────────────────────────────────────────────────────────
 export const loadSavedSymbols = () => _load(SYMBOLS_KEY, []);
 export const saveSavedSymbols = (s) => _save(SYMBOLS_KEY, s);
+export const loadTradeSetups = () => _load(TRADE_SETUPS_KEY, []);
+export const saveTradeSetups = (s) => _save(TRADE_SETUPS_KEY, s);
+export const ALERTS_KEY = "cj_alerts_v1";
+export const loadAlerts = () => _load(ALERTS_KEY, []);
+export const saveAlerts = (a) => _save(ALERTS_KEY, a);
 export const loadCapital = () => _load(CAPITAL_KEY, 0);
 export const saveCapital = (n) => _save(CAPITAL_KEY, n);
 
@@ -74,11 +80,13 @@ export const loadActiveProfile = () => {
 export const saveActiveProfile = (id) => {
   try {
     localStorage.setItem(ACTIVE_PROFILE_KEY, encryptFn(id));
-  } catch {}
+  } catch (e) {
+    console.warn("Failed to save active profile:", e);
+  }
 };
 
 // ─── Theme storage (Theme is not sensitive, so we don't encrypt it) ────────────
-export const loadTheme = () => localStorage.getItem(THEME_KEY) || "dark";
+export const loadTheme = () => localStorage.getItem(THEME_KEY) || "oceanBlue";
 export const saveThemePref = (t) => localStorage.setItem(THEME_KEY, t);
 
 // ─── Review & API key storage ─────────────────────────────────────────────────

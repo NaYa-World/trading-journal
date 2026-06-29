@@ -46,24 +46,24 @@ export const SecurityProvider = ({ children }) => {
         setIsBiometricAvailable(false);
       }
 
-      // 2. Load preferences from raw localStorage (must be plaintext since key is not loaded yet)
+      // 2. Load preferences from raw localStorage
       try {
         const prefs = JSON.parse(localStorage.getItem(SECURITY_PREFS_KEY));
         if (prefs) {
           setAppLockEnabled(prefs.appLockEnabled ?? false);
           setLockTimeout(prefs.lockTimeout ?? 5);
-          setKeyOption(prefs.keyOption ?? "biometric");
+          setKeyOption(prefs.keyOption ?? (Capacitor.getPlatform() === "web" ? "password" : "biometric"));
           setSalt(prefs.salt || "");
           if (prefs.machineKey) setMachineKey(prefs.machineKey);
 
-          // If lock is disabled, we don't need to lock the app on launch
           if (!prefs.appLockEnabled) {
             setIsLocked(false);
-            // In web, use a default fallback master key for encryption
             setMasterKey("cj_serverless_default_key");
+          } else {
+            // Need to authenticate
+            setIsLocked(true);
           }
         } else {
-          // Default: no lock
           setIsLocked(false);
           setMasterKey("cj_serverless_default_key");
         }
@@ -297,6 +297,11 @@ export const SecurityProvider = ({ children }) => {
     }
   }, [keyOption, salt]);
 
+  const loginSession = useCallback((customKey = "nayatrading_default_key") => {
+    setMasterKey(customKey);
+    setIsLocked(false);
+  }, []);
+
   // Lock App
   const lockApp = useCallback(() => {
     if (appLockEnabled) {
@@ -372,6 +377,7 @@ export const SecurityProvider = ({ children }) => {
         setupSecurity,
         disableSecurity,
         authenticate,
+        loginSession,
         lockApp,
         encryptData,
         decryptData,
