@@ -13,8 +13,244 @@ const SETUP_TYPES = [
   { id: "Fakeout", label: "🏷 Fakeout", color: T.orange }
 ];
 
+const CANDLESTICK_PRESETS = [
+  {
+    name: "Bullish Hammer Reversal",
+    type: "Reversal",
+    rules: [
+      "Prior downtrend in place",
+      "Hammer candle shows long lower wick (2x body)",
+      "Next candle closes bullish to confirm",
+      "RSI indicator is oversold (< 30)",
+      "Reversal occurs on high volume"
+    ],
+    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48bGluZSB4MT0iNTAiIHkxPSIzMCIgeDI9IjUwIiB5Mj0iOTAiIHN0cm9rZT0iIzIyYzU1ZSIgc3Ryb2tlLXdpZHRoPSI0Ii8+PHJlY3QgeD0iNDAiIHk9IjMwIiB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIGZpbGw9IiMyMmM1NWUiIHJ4PSIyIi8+PC9zdmc+"
+  },
+  {
+    name: "Bearish Shooting Star",
+    type: "Reversal",
+    rules: [
+      "Prior uptrend in place",
+      "Shooting Star candle has long upper wick (2x body)",
+      "RSI indicator is overbought (> 70)",
+      "Entry trigger below Shooting Star low",
+      "Stop Loss set above upper wick high"
+    ],
+    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4gPGxpbmUgeDE9IjUwIiB5MT0iMTAiIHgyPSI1MCIgeTI9IjcwIiBzdHJva2U9IiNlZjQ0NDQiIHN0cm9rZT0iNCIvPjxyZWN0IHg9IjQwIiB5PSI1MCIgd2lkdGg9IjIwIiBlaWdodD0iMjAiIGZpbGw9IiNlZjQ0NDQiIHJ4PSIyIi8+PC9zdmc+"
+  },
+  {
+    name: "Bullish Engulfing Breakout",
+    type: "Breakout",
+    rules: [
+      "Prior downtrend approaching support zone",
+      "Bullish body completely engulfs previous bearish body",
+      "Volume spikes significantly on engulfing candle",
+      "Confirm breakout above the engulfing high"
+    ],
+    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSIyNSIgeT0iNDAiIHdpZHRoPSIxNSIgaGVpZ2h0PSIzMCIgZmlsbD0iI2VmNDQ0NCIgcng9IjIiLz48bGluZSB4MT0iMzIiIHkxPSIzMCIgeDI9IjMyIiB5Mj0iODAiIHN0cm9rZT0iI2VmNDQ0NCIgc3Ryb2tlLXdpZHRoPSIyIi8+PHJlY3QgeD0iNTUiIHk9IjI1IiB3aWR0aD0iMjAiIGhlaWdodD0iNjAiIGZpbGw9IiMyMmM1NWUiIHJ4PSIyIi8+PGxpbmUgeDE9IjY1IiB5MT0iMTUiIHgyPSI2NSIgeTI9IjkwIiBzdHJva2U9IiMyMmM1NWUiIHN0cm9rZS13aWR0aD0iMiIvPjwvc3ZnPg=="
+  },
+  {
+    name: "Bearish Engulfing Reversal",
+    type: "Reversal",
+    rules: [
+      "Prior uptrend approaching key resistance zone",
+      "Bearish body completely engulfs previous bullish body",
+      "Volume spikes significantly on engulfing candle",
+      "Confirm breakdown below the engulfing low"
+    ],
+    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSIyNSIgeT0iMzUiIHdpZHRoPSIxNSIgaGVpZ2h0PSI0MCIgZmlsbD0iIzIyYzU1ZSIgcng9IjIiLz48bGluZSB4MT0iMzIiIHkxPSIyMCIgeDI9IjMyIiB5Mj0iOTAiIHN0cm9rZT0iIzIyYzU1ZSIgc3Ryb2tlLXdpZHRoPSIyIi8+PHJlY3QgeD0iNTUiIHk9IjI1IiB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIGZpbGw9IiNlZjQ0NDQiIHJ4PSIyIi8+PGxpbmUgeDE9IjY1IiB5MT0iMTUiIHgyPSI2NSIgeTI9IjkwIiBzdHJva2U9IiNlZjQ0NDQiIHN0cm9rZS13aWR0aD0iMiIvPjwvc3ZnPg=="
+  },
+  {
+    name: "Morning Star Bullish Reversal",
+    type: "Reversal",
+    rules: [
+      "Candle 1: Large bearish candle continuation",
+      "Candle 2: Small body star (gaps down or lower)",
+      "Candle 3: Large bullish candle closes > 50% of Candle 1",
+      "Occurs on strong support level",
+      "Confirm with volume spike on Candle 3"
+    ],
+    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSIxNSIgeT0iMjAiIHdpZHRoPSIxNSIgaGVpZ2h0PSI1MCIgZmlsbD0iI2VmNDQ0NCIgcng9IjIiLz48cmVjdCB4PSI0MiIgeT0iNjUiIHdpZHRoPSIxNSIgaGVpZ2h0PSIxNSIgZmlsbD0iIzNiODJmNiIgcng9IjIiLz48cmVjdCB4PSI3MCIgeT0iMzAiIHdpZHRoPSIxNSIgaGVpZ2h0PSI0NSIgZmlsbD0iIzIyYzU1ZSIgcng9IjIiLz48L3N2Zz4="
+  },
+  {
+    name: "Evening Star Bearish Reversal",
+    type: "Reversal",
+    rules: [
+      "Candle 1: Large bullish candle continuation",
+      "Candle 2: Small body star (gaps up or higher)",
+      "Candle 3: Large bearish candle closes > 50% of Candle 1",
+      "Occurs on strong resistance level",
+      "Confirm with volume spike on Candle 3"
+    ],
+    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSIxNSIgeT0iMzAiIHdpZHRoPSIxNSIgaGVpZ2h0PSI0NSIgZmlsbD0iIzIyYzU1ZSIgcng9IjIiLz48cmVjdCB4PSI0MiIgeT0iMjAiIHdpZHRoPSIxNSIgaGVpZ2h0PSIxNSIgZmlsbD0iIzNiODJmNiIgcng9IjIiLz48cmVjdCB4PSI3MCIgeT0iMzUiIHdpZHRoPSIxNSIgaGVpZ2h0PSI0NSIgZmlsbD0iI2VmNDQ0NCIgcng9IjIiLz48L3N2Zz4="
+  },
+  {
+    name: "Doji Decision Breakout",
+    type: "Breakout",
+    rules: [
+      "Price trading in consolidated narrow range",
+      "Doji candle formed (open and close are nearly identical)",
+      "Enter on break of Doji high (long) or low (short)",
+      "Volume expansion confirms the breakout direction"
+    ],
+    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48bGluZSB4MT0iNTAiIHkxPSIxMCIgeDI9IjUwIiB5Mj0iOTAiIHN0cm9rZT0iIzhiOTQ5ZSIgc3Ryb2tlLXdpZHRoPSI0Ii8+PGxpbmUgeDE9IjMwIiB5MT0iNTAiIHgyPSI3MCIgeTI9IjUwIiBzdHJva2U9IiM4Yjk0OWUiIHN0cm9rZT0iZDkiLz48L3N2Zz4="
+  },
+  {
+    name: "Bullish Harami Continuation",
+    type: "Continuation",
+    rules: [
+      "Downtrend slowing near major support zone",
+      "Candle 1: Large bearish candle",
+      "Candle 2: Small bullish candle contained inside Candle 1 body",
+      "Trigger long trade when price breaks above Candle 1 high"
+    ],
+    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSIyMCIgeT0iMjAiIHdpZHRoPSIyMCIgaGVpZ2h0PSI2MCIgZmlsbD0iI2VmNDQ0NCIgcng9IjIiLz48cmVjdCB4PSI1NSIgeT0iNDAiIHdpZHRoPSIxNSIgaGVpZ2h0PSIyMCIgZmlsbD0iIzIyYzU1ZSIgcng9IjIiLz48L3N2Zz4="
+  },
+  {
+    name: "Bearish Harami Continuation",
+    type: "Continuation",
+    rules: [
+      "Uptrend slowing near major resistance zone",
+      "Candle 1: Large bullish candle",
+      "Candle 2: Small bearish candle contained inside Candle 1 body",
+      "Trigger short trade when price breaks below Candle 1 low"
+    ],
+    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSIyMCIgeT0iMjAiIHdpZHRoPSIyMCIgaGVpZ2h0PSI2MCIgZmlsbD0iIzIyYzU1ZSIgcng9IjIiLz48cmVjdCB4PSI1NSIgeT0iNDAiIHdpZHRoPSIxNSIgaGVpZ2h0PSIyMCIgZmlsbD0iI2VmNDQ0NCIgIHJ4PSIyIi8+PC9zdmc+"
+  },
+  {
+    name: "Three White Soldiers",
+    type: "Continuation",
+    rules: [
+      "Prior downtrend bottoming out",
+      "Three consecutive long-bodied green candles",
+      "Each candle opens within previous body and closes near high",
+      "Volume increases on each successive candle"
+    ],
+    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4gPHJlY3QgeD0iMTUiIHk9IjYwIiB3aWR0aD0iMTUiIGhlaWdodD0iMjUiIGZpbGw9IiMyMmM1NWUiIHJ4PSIyIi8+PHJlY3QgeD0iNDIiIHk9IjQwIiB3aWR0aD0iMTUiIGhlaWdodD0iMzAiIGZpbGw9IiMyMmM1NWUiIHJ4PSIyIi8+PHJlY3QgeD0iNzAiIHk9IjIwIiB3aWR0aD0iMTUiIGhlaWdodD0iMzUiIGZpbGw9IiMyMmM1NWUiIHJ4PSIyIi8+PC9zdmc+"
+  }
+];
+
+const CHART_PRESETS = [
+  {
+    name: "Head and Shoulders Reversal",
+    type: "Reversal",
+    rules: [
+      "Identify established uptrend",
+      "Left shoulder peaks, then higher Head peak forms",
+      "Right shoulder peak forms matching Left Shoulder high",
+      "Neckline trendline connects the interim lows",
+      "Enter short trade on Neckline breakdown with high volume"
+    ],
+    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTAgODAgTDMwIDUwIEw0MCA2MCBMNTAgMzAgTDYwIDYwIEw3MCA1MCBMOTAgODAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2VmNDQ0NCIgc3Ryb2tlLXdpZHRoPSI0Ii8+PGxpbmUgeDE9IjI1IiB5MT0iNjAiIHgyPSI3NSIgeTI9IjYwIiBzdHJva2U9IiM4Yjk0OWUiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWRhc2hhcnJheT0iNCw0Ii8+PC9zdmc+"
+  },
+  {
+    name: "Double Top Reversal",
+    type: "Reversal",
+    rules: [
+      "Prior strong uptrend in place",
+      "Two distinct peaks formed at similar resistance level",
+      "Neckline level is mapped at the intermediate valley low",
+      "Enter short on candle close breakdown below neckline",
+      "Stop Loss positioned just above double top peak heights"
+    ],
+    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTAgODAgTDMwIDMwIEw1MCA2MCBMNzAgMzAgTDkwIDgwIiBmaWxsPSJub25lIiBzdHJva2U9IiNlZjQ0NDQiIHN0cm9rZS13aWR0aD0iNCIvPjxsaW5lIHgxPSIyMCIgeTE9IjYwIiB4Mj0iODAiIHkyPSI2MCIgc3Ryb2tlPSIjOGI5NDllIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1kYXNoYXJyYXk9IjQsNCIvPjwvc3ZnPg=="
+  },
+  {
+    name: "Double Bottom Reversal",
+    type: "Reversal",
+    rules: [
+      "Prior strong downtrend in place",
+      "Two distinct valleys formed at similar support level",
+      "Neckline level is mapped at the intermediate peak high",
+      "Enter long on candle close breakout above neckline",
+      "Stop Loss positioned just below double bottom valley lows"
+    ],
+    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTAgMjAgTDMwIDcwIEw1MCA0MCBMNzAgNzAgTDkwIDgwIiBmaWxsPSJub25lIiBzdHJva2U9IiMyMmM1NWUiIHN0cm9rZT0iNCIvPjxsaW5lIHgxPSIyMCIgeTE9IjQwIiB4Mj0iODAiIHkyPSI0MCIgc3Ryb2tlPSIjOGI5NDllIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1kYXNoYXJyYXk9IjQsNCIvPjwvc3ZnPg=="
+  },
+  {
+    name: "Bull Flag Continuation",
+    type: "Continuation",
+    rules: [
+      "Sharp near-vertical upward pole price action",
+      "Orderly downward sloping consolidation flag channel",
+      "Enter long trade upon clear breakout of upper flag boundary",
+      "Stop Loss set right below the lowest flag consolidation point"
+    ],
+    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48bGluZSB4MT0iMjUiIHkxPSI4MCIgeDI9IjI1IiB5Mj0iMjAiIHN0cm9rZT0iIzIyYzU1ZSIgc3Ryb2tlLXdpZHRoPSI0Ii8+PHBhdGggZD0iTTI1IDIwIEw2MCAzMCBMNTUgNDUgTDI1IDM1IFoiIGZpbGw9IiMyMmM1NWUiIG9wYWNpdHk9IjAuMyIgc3Ryb2tlPSIjMjJjNTVlIiBzdHJva2Utd2lkdGg9IjIiLz48L3N2Zz4="
+  },
+  {
+    name: "Bear Flag Continuation",
+    type: "Continuation",
+    rules: [
+      "Sharp near-vertical downward pole price action",
+      "Orderly upward sloping consolidation flag channel",
+      "Enter short trade upon clear breakdown of lower flag boundary",
+      "Stop Loss set right above the highest flag consolidation point"
+    ],
+    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48bGluZSB4MT0iMjUiIHkxPSI4MCIgeDI9IjI1IiB5Mj0iMjAiIHN0cm9rZT0iI2VmNDQ0NCIgc3Ryb2tlLXdpZHRoPSI0Ii8+PHBhdGggZD0iTTI1IDgwIEw2MCA3MCBMNTUgNTUgTDI1IDY1IFoiIGZpbGw9IiNlZjQ0NDQiIG9wYWNpdHk9IjAuMyIgc3Ryb2tlPSIjZWY0NDQ0IiBzdHJva2Utd2lkdGg9IjIiLz48L3N2Zz4="
+  },
+  {
+    name: "Ascending Triangle Breakout",
+    type: "Breakout",
+    rules: [
+      "Flat horizontal resistance ceiling line",
+      "Upward-sloping support baseline showing higher lows",
+      "Price compresses as converging lines meet at apex",
+      "Enter long trade on high-volume breakout above resistance"
+    ],
+    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48bGluZSB4MT0iMTAiIHkxPSIzMCIgeDI9IjkwIiB5Mj0iMzAiIHN0cm9rZT0iIzhiOTQ5ZSIgc3Ryb2tlLXdpZHRoPSIyIi8+PHBhdGggZD0iTTEwIDcwIEw0MCA1MCBMNjAgNDAgTDkwIDMwIiBmaWxsPSJub25lIiBzdHJva2U9IiMyMmM1NWUiIHN0cm9rZT0iNCIvPjwvc3ZnPg=="
+  },
+  {
+    name: "Descending Triangle Breakout",
+    type: "Breakout",
+    rules: [
+      "Flat horizontal support floor line",
+      "Downward-sloping resistance baseline showing lower highs",
+      "Price compresses as converging lines meet at apex",
+      "Enter short trade on high-volume breakdown below support"
+    ],
+    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48bGluZSB4MT0iMTAiIHkxPSI3MCIgeDI9IjkwIiB5Mj0iNzAiIHN0cm9rZT0iIzhiOTQ5ZSIgc3Ryb2tlLXdpZHRoPSIyIi8+PHBhdGggZD0iTTEwIDMwIEw0MCA1MCBMNjAgNjAgTDkwIDcwIiBmaWxsPSJub25lIiBzdHJva2U9IiNlZjQ0NDQiIHN0cm9rZT0iNCIvPjwvc3ZnPg=="
+  },
+  {
+    name: "Symmetrical Triangle Decision",
+    type: "Breakout",
+    rules: [
+      "Downward-sloping resistance trendline on top",
+      "Upward-sloping support trendline on bottom",
+      "Converging lines showing lower highs and higher lows",
+      "Enter in direction of high-volume breakout from either line"
+    ],
+    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48bGluZSB4MT0iMTAiIHkxPSIyMCIgeDI9IjgwIiB5Mj0iNTAiIHN0cm9rZT0iIzhiOTQ5ZSIgc3Ryb2tlLXdpZHRoPSIyIi8+PGxpbmUgeDE9IjEwIiB5MT0iODAiIHgyPSI4MCIgeTI9IjUwIiBzdHJva2U9IiM4Yjk0OWUiIHN0cm9rZT0iMiIvPjwvc3ZnPg=="
+  },
+  {
+    name: "Cup and Handle Continuation",
+    type: "Continuation",
+    rules: [
+      "Smooth U-shaped round bowl consolidation (Cup)",
+      "Flag-like downward sloping brief consolidation (Handle)",
+      "Enter long trade when price breaks out above Handle resistance",
+      "Set Stop Loss near the bottom pivot point of the Handle"
+    ],
+    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTAgMzAgQzI1IDgwIDc1IDgwIDgwIDMwIEw4NSA0NSBMNzUgNTUgTDgwIDMwIiBmaWxsPSJub25lIiBzdHJva2U9IiMyMmM1NWUiIHN0cm9rZT0iNCIvPjwvc3ZnPg=="
+  },
+  {
+    name: "Falling Wedge Reversal",
+    type: "Reversal",
+    rules: [
+      "Two converging downward sloping boundary lines",
+      "Price making lower highs and lower lows narrowing together",
+      "Wedge slopes against the primary trend slope direction",
+      "Enter long trade on high-volume breakout of upper wedge line"
+    ],
+    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48bGluZSB4MT0iMTAiIHkxPSIyMCIgeDI9IjgwIiB5Mj0iNjAiIHN0cm9rZT0iIzhiOTQ5ZSIgc3Ryb2tlLXdpZHRoPSIyIi8+PGxpbmUgeDE9IjEwIiB5MT0iNTAiIHgyPSI4MCIgeTI9IjcwIiBzdHJva2U9IiM4Yjk0OWUiIHN0cm9rZT0iMiIvPjwvc3ZnPg=="
+  }
+];
+
 export default function TradeSetupsManager({ trades = [], tradeSetups = [], setTradeSetups, showToast }) {
   const [showAddSetup, setShowAddSetup] = useState(false);
+  const [showPresetDropdown, setShowPresetDropdown] = useState(false);
+  const dropdownRef = useRef(null);
+
   const [newSetup, setNewSetup] = useState({ name: "", type: "Unassigned", image: "", rules: [{ id: crypto.randomUUID(), text: "" }] });
   const { userEmail, authenticateGoogle } = useBackup();
   const fileInputRef = useRef(null);
@@ -22,6 +258,39 @@ export default function TradeSetupsManager({ trades = [], tradeSetups = [], setT
   const [customTypes, setCustomTypes] = useState([]);
   const [showAddType, setShowAddType] = useState(false);
   const [newTypeInput, setNewTypeInput] = useState("");
+
+  // Handle clicking outside the preset dropdown to close it
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setShowPresetDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
+
+  const handleAddPreset = (preset) => {
+    if (tradeSetups.some(s => s.name === preset.name)) {
+      if (showToast) showToast(`Setup "${preset.name}" is already added!`, "error");
+      return;
+    }
+
+    const selectedType = allSetupTypes.find(t => t.id === preset.type) || allSetupTypes[0];
+
+    setTradeSetups([...tradeSetups, {
+      id: crypto.randomUUID(),
+      name: preset.name,
+      type: preset.type,
+      typeColor: selectedType.color,
+      rulesCount: preset.rules.length,
+      rules: preset.rules,
+      image: preset.image,
+      timestamp: new Date().toLocaleDateString()
+    }]);
+
+    if (showToast) showToast(`Added preset: ${preset.name}`, "success");
+  };
 
   useEffect(() => {
     loadCustomSetupTypes().then(types => {
@@ -175,13 +444,82 @@ export default function TradeSetupsManager({ trades = [], tradeSetups = [], setT
           <div style={{ fontSize: 28, fontWeight: 800, color: "#FFF", marginBottom: 4, letterSpacing: "-0.5px" }}>Trade Setups</div>
           <div style={{ fontSize: 14, color: T.dim }}>Plan. Track. Improve.</div>
         </div>
-        <button onClick={() => setShowAddSetup(true)} style={{ 
-          background: T.purple, border: "none", color: "#FFF", 
-          borderRadius: 10, padding: "10px 16px", fontWeight: 700, display: "flex", alignItems: "center", gap: 6,
-          fontSize: 14, cursor: "pointer"
-        }}>
-          <span style={{ fontSize: 18, fontWeight: 400 }}>+</span> New Setup
-        </button>
+        <div style={{ display: "flex", gap: 10, position: "relative" }} ref={dropdownRef}>
+          {/* Preset Dropdown Button */}
+          <div style={{ position: "relative" }}>
+            <button 
+              onClick={() => setShowPresetDropdown(!showPresetDropdown)} 
+              style={{ 
+                background: T.panel2, border: `1px solid ${T.border}`, color: "#FFF", 
+                borderRadius: 10, padding: "10px 16px", fontWeight: 700, display: "flex", alignItems: "center", gap: 6,
+                fontSize: 14, cursor: "pointer", outline: "none"
+              }}
+            >
+              📚 Add Preset ▾
+            </button>
+            
+            {showPresetDropdown && (
+              <div style={{
+                position: "absolute", top: "110%", right: 0,
+                background: T.panel, border: `1px solid ${T.border}`, borderRadius: 12,
+                width: 260, maxHeight: 320, overflowY: "auto", zIndex: 100,
+                boxShadow: "0 10px 30px rgba(0,0,0,0.5)", padding: "8px 0"
+              }}>
+                <div style={{ padding: "8px 16px", fontSize: 11, fontWeight: 700, color: T.purple, letterSpacing: 0.8, textTransform: "uppercase" }}>
+                  🕯️ Candlestick Patterns
+                </div>
+                {CANDLESTICK_PRESETS.map(p => (
+                  <div 
+                    key={p.name}
+                    onClick={() => {
+                      handleAddPreset(p);
+                      setShowPresetDropdown(false);
+                    }}
+                    style={{
+                      padding: "8px 16px", fontSize: 13, color: T.bright, cursor: "pointer",
+                      transition: "background 0.2s"
+                    }}
+                    onMouseEnter={e => e.target.style.background = T.border}
+                    onMouseLeave={e => e.target.style.background = "none"}
+                  >
+                    {p.name}
+                  </div>
+                ))}
+                
+                <div style={{ height: 1, background: T.border, margin: "8px 0" }}></div>
+                
+                <div style={{ padding: "8px 16px", fontSize: 11, fontWeight: 700, color: T.blue, letterSpacing: 0.8, textTransform: "uppercase" }}>
+                  📈 Chart Patterns
+                </div>
+                {CHART_PRESETS.map(p => (
+                  <div 
+                    key={p.name}
+                    onClick={() => {
+                      handleAddPreset(p);
+                      setShowPresetDropdown(false);
+                    }}
+                    style={{
+                      padding: "8px 16px", fontSize: 13, color: T.bright, cursor: "pointer",
+                      transition: "background 0.2s"
+                    }}
+                    onMouseEnter={e => e.target.style.background = T.border}
+                    onMouseLeave={e => e.target.style.background = "none"}
+                  >
+                    {p.name}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <button onClick={() => setShowAddSetup(true)} style={{ 
+            background: T.purple, border: "none", color: "#FFF", 
+            borderRadius: 10, padding: "10px 16px", fontWeight: 700, display: "flex", alignItems: "center", gap: 6,
+            fontSize: 14, cursor: "pointer"
+          }}>
+            <span style={{ fontSize: 18, fontWeight: 400 }}>+</span> New Setup
+          </button>
+        </div>
       </div>
 
       {/* Setups Grid */}
