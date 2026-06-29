@@ -52,9 +52,7 @@ function RootApp() {
     return <UnlockScreen />;
   }
 
-  // if (!userEmail) {
-  //   return <SignInScreen />;
-  // }
+  // Authentication check removed/handled by UnlockScreen
 
   return (
     <DashboardProvider>

@@ -37,7 +37,7 @@ export const _load = async (key, fb) => {
           encoding: Encoding.UTF8,
         });
         raw = result.data;
-      } catch (e) {
+      } catch {
         // File might not exist yet
         return fb;
       }
@@ -63,7 +63,7 @@ export const _load = async (key, fb) => {
           return fb;
         }
         return JSON.parse(decrypted) ?? fb;
-      } catch (err) {
+      } catch {
         console.error("Failed to decrypt native storage file for key:", key);
         storageCorrupted = true;
         return fb;
@@ -113,8 +113,8 @@ const DEMO_TRADES = [
 ];
 
 export const loadTrades = async () => {
-  const loaded = await _load(STORAGE_KEY, []);
-  if (loaded.length === 0) return DEMO_TRADES;
+  const loaded = await _load(STORAGE_KEY, null);
+  if (loaded === null) return DEMO_TRADES;
   return loaded;
 };
 export const saveTrades = (t) => _save(STORAGE_KEY, t);
@@ -151,8 +151,8 @@ const DEMO_SETUPS = [
 ];
 
 export const loadTradeSetups = async () => {
-  const loaded = await _load(TRADE_SETUPS_KEY, []);
-  if (loaded.length === 0) return DEMO_SETUPS;
+  const loaded = await _load(TRADE_SETUPS_KEY, null);
+  if (loaded === null) return DEMO_SETUPS;
   return loaded;
 };
 export const saveTradeSetups = (s) => _save(TRADE_SETUPS_KEY, s);

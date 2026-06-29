@@ -89,6 +89,7 @@ export default function AccountsManager({ profiles, activeProfileId, switchProfi
   const handleCreateProfile = () => {
     if (!profileForm.name.trim()) return;
     addProfile({
+      id: "profile-" + Date.now(),
       name: profileForm.name.trim(),
       emoji: profileForm.emoji,
       color: profileForm.color,

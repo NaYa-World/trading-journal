@@ -229,7 +229,7 @@ export const rotateDriveBackups = async (accessToken) => {
       const toDelete = files.slice(5);
       for (const file of toDelete) {
         await deleteDriveBackup(file.id, accessToken);
-        console.log("Deleted old backup file:", file.name);
+
       }
     }
   } catch (e) {
