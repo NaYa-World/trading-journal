@@ -190,232 +190,233 @@ export default function FeeCalculator() {
         </div>
       </div>
 
+      {/* ─── TOP: TRADE SETUP (Full Width) ─── */}
+      <Card>
+        <div style={{ fontSize: 13, fontWeight: 700, color: T.bright, marginBottom: 14, letterSpacing: 0.8, textTransform: "uppercase", display: "flex", alignItems: "center" }}>
+          <span style={{ color: "#38bdf8", marginRight: 8, fontWeight: 900 }}>I</span> TRADE SETUP
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {/* Row 1: Exchange & Trade Type */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div>
+              <label style={LS}>Exchange</label>
+              <select
+                value={exchange}
+                onChange={(e) => {
+                  setExchange(e.target.value);
+                  if (e.target.value !== "binance") setUseBnbDiscount(false);
+                }}
+                style={IS}
+              >
+                <option value="binance">Binance</option>
+                <option value="bitget">Bitget</option>
+              </select>
+            </div>
+            <div>
+              <label style={LS}>Trade type</label>
+              <div style={segStyle}>
+                <button
+                  onClick={() => setTradeType("spot")}
+                  style={btnStyle(tradeType === "spot")}
+                >Spot</button>
+                <button
+                  onClick={() => setTradeType("futures")}
+                  style={btnStyle(tradeType === "futures")}
+                >Futures</button>
+              </div>
+            </div>
+          </div>
+
+          {/* Row 2: Direction & Leverage */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div>
+              <label style={LS}>Direction</label>
+              <div style={segStyle}>
+                <button
+                  onClick={() => setDirection("long")}
+                  style={btnStyle(direction === "long")}
+                >Long</button>
+                <button
+                  onClick={() => setDirection("short")}
+                  style={btnStyle(direction === "short")}
+                >Short</button>
+              </div>
+            </div>
+            {tradeType === "futures" ? (
+              <div>
+                <label style={LS}>Leverage (×</label>
+                <input
+                  type="number"
+                  value={leverage}
+                  min="1"
+                  max="125"
+                  onChange={(e) => setLeverage(e.target.value)}
+                  style={IS}
+                />
+              </div>
+            ) : null}
+          </div>
+
+          {/* Row 3: Entry & Exit Price */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div>
+              <label style={LS}>Entry price (USDT)</label>
+              <input
+                type="number"
+                value={entryPrice}
+                step="0.01"
+                placeholder="0.00"
+                onChange={(e) => setEntryPrice(e.target.value)}
+                style={IS}
+              />
+            </div>
+            <div>
+              <label style={LS}>Exit price (USDT)</label>
+              <input
+                type="number"
+                value={exitPrice}
+                step="0.01"
+                placeholder="0.00"
+                onChange={(e) => setExitPrice(e.target.value)}
+                style={IS}
+              />
+            </div>
+          </div>
+
+          {/* Row 4: Quantity & Stop Loss */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div>
+              <label style={LS}>Quantity (base asset)</label>
+              <input
+                type="number"
+                value={quantity}
+                step="0.001"
+                placeholder="0.000"
+                onChange={(e) => setQuantity(e.target.value)}
+                style={IS}
+              />
+            </div>
+            <div>
+              <label style={LS}>Stop loss (USDT)</label>
+              <input
+                type="number"
+                value={stopLoss}
+                step="0.01"
+                placeholder="0.00"
+                onChange={(e) => setStopLoss(e.target.value)}
+                style={IS}
+              />
+            </div>
+          </div>
+
+          <div style={dividerStyle}></div>
+
+          {/* Row 5: Maker/Taker Types */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div>
+              <label style={LS}>Entry order type</label>
+              <div style={segStyle}>
+                <button
+                  onClick={() => setEntryOrderType("maker")}
+                  style={btnStyle(entryOrderType === "maker")}
+                >Maker</button>
+                <button
+                  onClick={() => setEntryOrderType("taker")}
+                  style={btnStyle(entryOrderType === "taker")}
+                >Taker</button>
+              </div>
+            </div>
+            <div>
+              <label style={LS}>Exit order type</label>
+              <div style={segStyle}>
+                <button
+                  onClick={() => setExitOrderType("maker")}
+                  style={btnStyle(exitOrderType === "maker")}
+                >Maker</button>
+                <button
+                  onClick={() => setExitOrderType("taker")}
+                  style={btnStyle(exitOrderType === "taker")}
+                >Taker</button>
+              </div>
+            </div>
+          </div>
+
+          {/* Row 6: Discounts & Standard vs. Custom */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignItems: "center" }}>
+            {exchange === "binance" ? (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <label style={{ fontSize: 13, color: T.bright, cursor: "pointer", fontWeight: 500 }} htmlFor="bnb-toggle">
+                  Pay fees in BNB (-25%)
+                </label>
+                <input
+                  type="checkbox"
+                  id="bnb-toggle"
+                  checked={useBnbDiscount}
+                  onChange={(e) => setUseBnbDiscount(e.target.checked)}
+                  style={{
+                    width: 18,
+                    height: 18,
+                    accentColor: T.blue,
+                    cursor: "pointer",
+                  }}
+                />
+              </div>
+            ) : (
+              <div style={{ opacity: 0.3, pointerEvents: "none", display: "flex", alignItems: "center" }}>
+                <label style={{ fontSize: 13, color: T.dim }}>No BNB Discount</label>
+              </div>
+            )}
+            <div>
+              <label style={LS}>Custom fee rate override</label>
+              <div style={segStyle}>
+                <button
+                  onClick={() => setUseCustomRates(false)}
+                  style={btnStyle(!useCustomRates)}
+                >Standard</button>
+                <button
+                  onClick={() => setUseCustomRates(true)}
+                  style={btnStyle(useCustomRates)}
+                >Custom</button>
+              </div>
+            </div>
+          </div>
+
+          {/* Row 7: Custom rates override (only shown when custom) */}
+          {useCustomRates && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 4 }}>
+              <div>
+                <label style={LS}>Custom Maker (%)</label>
+                <input
+                  type="number"
+                  value={customMakerRate}
+                  step="0.001"
+                  min="0"
+                  onChange={(e) => setCustomMakerRate(e.target.value)}
+                  style={IS}
+                />
+              </div>
+              <div>
+                <label style={LS}>Custom Taker (%)</label>
+                <input
+                  type="number"
+                  value={customTakerRate}
+                  step="0.001"
+                  min="0"
+                  onChange={(e) => setCustomTakerRate(e.target.value)}
+                  style={IS}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* ─── BOTTOM: 2 COLUMNS ─── */}
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, alignItems: "start" }}>
         
-        {/* ─── LEFT COLUMN: SETUP, HERO, BREAKDOWN ─── */}
+        {/* Left Column: Net P&L Hero + Fee Breakdown */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <Card>
-            <div style={{ fontSize: 13, fontWeight: 700, color: T.bright, marginBottom: 14, letterSpacing: 0.8, textTransform: "uppercase", display: "flex", alignItems: "center" }}>
-              <span style={{ color: "#38bdf8", marginRight: 8, fontWeight: 900 }}>I</span> TRADE SETUP
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {/* Row 1: Exchange & Trade Type */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div>
-                  <label style={LS}>Exchange</label>
-                  <select
-                    value={exchange}
-                    onChange={(e) => {
-                      setExchange(e.target.value);
-                      if (e.target.value !== "binance") setUseBnbDiscount(false);
-                    }}
-                    style={IS}
-                  >
-                    <option value="binance">Binance</option>
-                    <option value="bitget">Bitget</option>
-                  </select>
-                </div>
-                <div>
-                  <label style={LS}>Trade type</label>
-                  <div style={segStyle}>
-                    <button
-                      onClick={() => setTradeType("spot")}
-                      style={btnStyle(tradeType === "spot")}
-                    >Spot</button>
-                    <button
-                      onClick={() => setTradeType("futures")}
-                      style={btnStyle(tradeType === "futures")}
-                    >Futures</button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Row 2: Direction & Leverage */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div>
-                  <label style={LS}>Direction</label>
-                  <div style={segStyle}>
-                    <button
-                      onClick={() => setDirection("long")}
-                      style={btnStyle(direction === "long")}
-                    >Long</button>
-                    <button
-                      onClick={() => setDirection("short")}
-                      style={btnStyle(direction === "short")}
-                    >Short</button>
-                  </div>
-                </div>
-                {tradeType === "futures" ? (
-                  <div>
-                    <label style={LS}>Leverage (×</label>
-                    <input
-                      type="number"
-                      value={leverage}
-                      min="1"
-                      max="125"
-                      onChange={(e) => setLeverage(e.target.value)}
-                      style={IS}
-                    />
-                  </div>
-                ) : null}
-              </div>
-
-              {/* Row 3: Entry & Exit Price */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div>
-                  <label style={LS}>Entry price (USDT)</label>
-                  <input
-                    type="number"
-                    value={entryPrice}
-                    step="0.01"
-                    placeholder="0.00"
-                    onChange={(e) => setEntryPrice(e.target.value)}
-                    style={IS}
-                  />
-                </div>
-                <div>
-                  <label style={LS}>Exit price (USDT)</label>
-                  <input
-                    type="number"
-                    value={exitPrice}
-                    step="0.01"
-                    placeholder="0.00"
-                    onChange={(e) => setExitPrice(e.target.value)}
-                    style={IS}
-                  />
-                </div>
-              </div>
-
-              {/* Row 4: Quantity & Stop Loss */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div>
-                  <label style={LS}>Quantity (base asset)</label>
-                  <input
-                    type="number"
-                    value={quantity}
-                    step="0.001"
-                    placeholder="0.000"
-                    onChange={(e) => setQuantity(e.target.value)}
-                    style={IS}
-                  />
-                </div>
-                <div>
-                  <label style={LS}>Stop loss (USDT)</label>
-                  <input
-                    type="number"
-                    value={stopLoss}
-                    step="0.01"
-                    placeholder="0.00"
-                    onChange={(e) => setStopLoss(e.target.value)}
-                    style={IS}
-                  />
-                </div>
-              </div>
-
-              <div style={dividerStyle}></div>
-
-              {/* Row 5: Maker/Taker Types */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div>
-                  <label style={LS}>Entry order type</label>
-                  <div style={segStyle}>
-                    <button
-                      onClick={() => setEntryOrderType("maker")}
-                      style={btnStyle(entryOrderType === "maker")}
-                    >Maker</button>
-                    <button
-                      onClick={() => setEntryOrderType("taker")}
-                      style={btnStyle(entryOrderType === "taker")}
-                    >Taker</button>
-                  </div>
-                </div>
-                <div>
-                  <label style={LS}>Exit order type</label>
-                  <div style={segStyle}>
-                    <button
-                      onClick={() => setExitOrderType("maker")}
-                      style={btnStyle(exitOrderType === "maker")}
-                    >Maker</button>
-                    <button
-                      onClick={() => setExitOrderType("taker")}
-                      style={btnStyle(exitOrderType === "taker")}
-                    >Taker</button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Row 6: Discounts & Standard vs. Custom */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignItems: "center" }}>
-                {exchange === "binance" ? (
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <label style={{ fontSize: 13, color: T.bright, cursor: "pointer", fontWeight: 500 }} htmlFor="bnb-toggle">
-                      Pay fees in BNB (-25%)
-                    </label>
-                    <input
-                      type="checkbox"
-                      id="bnb-toggle"
-                      checked={useBnbDiscount}
-                      onChange={(e) => setUseBnbDiscount(e.target.checked)}
-                      style={{
-                        width: 18,
-                        height: 18,
-                        accentColor: T.blue,
-                        cursor: "pointer",
-                      }}
-                    />
-                  </div>
-                ) : (
-                  <div style={{ opacity: 0.3, pointerEvents: "none", display: "flex", alignItems: "center" }}>
-                    <label style={{ fontSize: 13, color: T.dim }}>No BNB Discount</label>
-                  </div>
-                )}
-                <div>
-                  <label style={LS}>Custom fee rate override</label>
-                  <div style={segStyle}>
-                    <button
-                      onClick={() => setUseCustomRates(false)}
-                      style={btnStyle(!useCustomRates)}
-                    >Standard</button>
-                    <button
-                      onClick={() => setUseCustomRates(true)}
-                      style={btnStyle(useCustomRates)}
-                    >Custom</button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Row 7: Custom rates override (only shown when custom) */}
-              {useCustomRates && (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 4 }}>
-                  <div>
-                    <label style={LS}>Custom Maker (%)</label>
-                    <input
-                      type="number"
-                      value={customMakerRate}
-                      step="0.001"
-                      min="0"
-                      onChange={(e) => setCustomMakerRate(e.target.value)}
-                      style={IS}
-                    />
-                  </div>
-                  <div>
-                    <label style={LS}>Custom Taker (%)</label>
-                    <input
-                      type="number"
-                      value={customTakerRate}
-                      step="0.001"
-                      min="0"
-                      onChange={(e) => setCustomTakerRate(e.target.value)}
-                      style={IS}
-                    />
-                  </div>
-                </div>
-              )}
-
-            </div>
-          </Card>
-
           {/* Big PNL display hero */}
           <div style={{
             background: isProfit ? T.greenDim : T.redDim,
@@ -525,7 +526,7 @@ export default function FeeCalculator() {
           </Card>
         </div>
 
-        {/* ─── RIGHT COLUMN: TP LEVELS & REFERENCES ─── */}
+        {/* Right Column: TP Levels & References */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {/* TP levels card */}
           <Card>
@@ -643,7 +644,6 @@ export default function FeeCalculator() {
             </div>
           </Card>
         </div>
-
       </div>
     </div>
   );
