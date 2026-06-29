@@ -61,7 +61,10 @@ const BACKUP_PREFS_KEY = "cj_backup_prefs_v1";
 
 export const BackupProvider = ({ children }) => {
   const { masterKey } = useSecurity();
-  const [googleClientId, setGoogleClientId] = useState("217538466431-j5sqrafrg96th6t5lth9t2bbrb5ofh78.apps.googleusercontent.com");
+  const [googleClientId, setGoogleClientId] = useState(
+    (typeof import.meta !== "undefined" && import.meta.env?.VITE_GOOGLE_CLIENT_ID) ||
+    "217538466431-j5sqrafrg96th6t5lth9t2bbrb5ofh78.apps.googleusercontent.com"
+  );
   const [autoBackupEnabled, setAutoBackupEnabled] = useState(false);
   const [backupInterval, setBackupInterval] = useState("daily"); // 'daily' | 'weekly' | 'monthly' | 'manual'
   const [wifiOnly, setWifiOnly] = useState(true);
@@ -89,7 +92,11 @@ export const BackupProvider = ({ children }) => {
       if (raw) {
         const prefs = JSON.parse(raw);
         // eslint-disable-next-line react-hooks/set-state-in-effect
-        setGoogleClientId(prefs.googleClientId || "217538466431-j5sqrafrg96th6t5lth9t2bbrb5ofh78.apps.googleusercontent.com");
+        setGoogleClientId(
+          prefs.googleClientId ||
+          (typeof import.meta !== "undefined" && import.meta.env?.VITE_GOOGLE_CLIENT_ID) ||
+          "217538466431-j5sqrafrg96th6t5lth9t2bbrb5ofh78.apps.googleusercontent.com"
+        );
         setAutoBackupEnabled(prefs.autoBackupEnabled ?? false);
         setBackupInterval(prefs.backupInterval || "daily");
         setWifiOnly(prefs.wifiOnly ?? true);
