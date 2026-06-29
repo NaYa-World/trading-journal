@@ -1,12 +1,8 @@
 /* eslint-disable no-unused-vars */
 /* eslint-disable react-hooks/exhaustive-deps */
-import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from "react";
-import CryptoJS from "crypto-js";
+import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
-import {
-  AreaChart, Area
-} from "recharts";
 
 import { T } from "./utils/theme.js";
 import {
@@ -191,7 +187,7 @@ function Overview({ trades, allProfileTrades, initialCapital = 0, profiles = [],
     const closed = allClosed.filter(t => t.entryType !== "Deposit" && t.entryType !== "Withdrawal" && t.symbol !== "Deposit" && t.symbol !== "Withdrawal");
     const wins = closed.filter(t => (t.pnl - (t.fundingFees || 0)) > 0);
     const losses = closed.filter(t => (t.pnl - (t.fundingFees || 0)) < 0);
-    const realizedPnl = closed.reduce((s, t) => s + t.pnl + (t.fees || 0) - (t.fundingFees || 0), 0);
+    const realizedPnl = closed.reduce((s, t) => s + t.pnl, 0);
     const winRate = calculateWinRate(closed);
     const totalFees = closed.reduce((s, t) => s + (t.fees || 0) + (t.fundingFees || 0), 0);
     const totalInvested = closed.reduce((s, t) => s + ((t.entry * t.qty * (t.usdtRate || 1)) / (t.leverage || 1)), 0);
@@ -1089,6 +1085,7 @@ export default function App() {
                         initialCapital={initialCapital}
                         profileId={activeProfileId}
                         onUpdateCapital={(val) => { setInitialCapital(val); }}
+                        liveTrades={liveTrades}
                       />
                     )}
                     {subTab === "Calendar" && <TradingCalendar />}

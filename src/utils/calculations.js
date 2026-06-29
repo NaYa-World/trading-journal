@@ -1,4 +1,4 @@
-export function calculatePnL({ entry, exit, qty, side, leverage = 1, tradeType = "Spot", marginType = "USDT-M", quoteRateOpen = 1, quoteRateClose = 1, action = "Buy", fundingFees = 0 }) {
+export function calculatePnL({ entry, exit, qty, side, tradeType = "Spot", marginType = "USDT-M", quoteRateOpen = 1, quoteRateClose = 1, action = "Buy", fundingFees = 0 }) {
   const isSpot = tradeType === "Spot";
   const finalSide = isSpot ? (action === "Buy" ? "Long" : "Short") : side;
   const multiplier = finalSide === "Long" ? 1 : -1;
