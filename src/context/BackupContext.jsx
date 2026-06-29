@@ -323,6 +323,7 @@ export const BackupProvider = ({ children }) => {
       await checkForAutoRestore(authResult.accessToken);
       
       setSyncing(false);
+      window.location.reload();
       return authResult.accessToken;
     } catch (e) {
       setSyncing(false);
@@ -349,6 +350,7 @@ export const BackupProvider = ({ children }) => {
         await checkForAutoRestore(authResult.accessToken);
 
         setSyncing(false);
+        window.location.reload();
         return authResult;
       }
       setSyncing(false);

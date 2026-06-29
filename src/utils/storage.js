@@ -132,12 +132,21 @@ export const loadLiveTrades = async () => await _load(LIVE_KEY, []);
 export const saveLiveTrades = (t) => _save(LIVE_KEY, t);
 
 export const clearDemoDataIfNeeded = async () => {
+  // Clear demo trades
   const loaded = await _load(STORAGE_KEY, null);
-  if (loaded !== null && loaded.length > 0) {
-    const hasOnlyDemo = loaded.every(t => String(t.id).startsWith("demo_"));
-    if (hasOnlyDemo) {
-      await _save(STORAGE_KEY, []);
-    }
+  if (loaded !== null) {
+    const filtered = loaded.filter(t => !String(t.id).startsWith("demo_"));
+    await _save(STORAGE_KEY, filtered);
+  }
+
+  // Clear demo setups so the user starts fresh
+  const loadedSetups = await _load(TRADE_SETUPS_KEY, null);
+  if (loadedSetups !== null) {
+    const filteredSetups = loadedSetups.filter(s => !String(s.id).startsWith("setup_"));
+    await _save(TRADE_SETUPS_KEY, filteredSetups);
+  } else {
+    // If they were using default demo setups, initialize as empty
+    await _save(TRADE_SETUPS_KEY, []);
   }
 };
 
@@ -148,23 +157,157 @@ export const saveSavedSymbols = (s) => _save(SYMBOLS_KEY, s);
 const DEMO_SETUPS = [
   {
     id: "setup_1",
-    name: "XAUUSD Liquidity Sweep",
+    name: "Bullish Hammer Reversal",
     type: "Reversal",
-    typeColor: "#3b82f6", // T.blue
-    rulesCount: 6,
-    rules: ["Wait for sweep", "Fair Value Gap", "RSI divergence", "Check HTF", "Volume spike", "Confirm close"],
-    image: "/demo_setup_1.svg",
-    timestamp: "5d ago"
+    typeColor: "#22c55e", // T.green
+    rulesCount: 5,
+    rules: [
+      "Prior downtrend in place",
+      "Hammer candle shows long lower wick (2x body)",
+      "Next candle closes bullish to confirm",
+      "RSI indicator is oversold (< 30)",
+      "Reversal occurs on high volume"
+    ],
+    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48bGluZSB4MT0iNTAiIHkxPSIzMCIgeDI9IjUwIiB5Mj0iOTAiIHN0cm9rZT0iIzIyYzU1ZSIgc3Ryb2tlLXdpZHRoPSI0Ii8+PHJlY3QgeD0iNDAiIHk9IjMwIiB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIGZpbGw9IiMyMmM1NWUiIHJ4PSIyIi8+PC9zdmc+",
+    timestamp: "1d ago"
   },
   {
     id: "setup_2",
-    name: "Opening Range Breakout",
-    type: "Breakout",
-    typeColor: "#a855f7", // T.purple
+    name: "Bearish Shooting Star",
+    type: "Reversal",
+    typeColor: "#ef4444", // T.red
     rulesCount: 5,
-    rules: ["15m chart", "Mark ORB", "Candle close outside", "Check volume", "Target 1:2"],
-    image: "/demo_setup_2.svg",
-    timestamp: "5d ago"
+    rules: [
+      "Prior uptrend in place",
+      "Shooting Star candle has long upper wick (2x body)",
+      "RSI indicator is overbought (> 70)",
+      "Entry trigger below Shooting Star low",
+      "Stop Loss set above upper wick high"
+    ],
+    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4gPGxpbmUgeDE9IjUwIiB5MT0iMTAiIHgyPSI1MCIgeTI9IjcwIiBzdHJva2U9IiNlZjQ0NDQiIHN0cm9rZS13aWR0aD0iNCIvPjxyZWN0IHg9IjQwIiB5PSI1MCIgd2lkdGg9IjIwIiBlaWdodD0iMjAiIGZpbGw9IiNlZjQ0NDQiIHJ4PSIyIi8+PC9zdmc+",
+    timestamp: "1d ago"
+  },
+  {
+    id: "setup_3",
+    name: "Bullish Engulfing Breakout",
+    type: "Breakout",
+    typeColor: "#22c55e",
+    rulesCount: 4,
+    rules: [
+      "Prior downtrend approaching support zone",
+      "Bullish body completely engulfs previous bearish body",
+      "Volume spikes significantly on engulfing candle",
+      "Confirm breakout above the engulfing high"
+    ],
+    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSIyNSIgeT0iNDAiIHdpZHRoPSIxNSIgaGVpZ2h0PSIzMCIgZmlsbD0iI2VmNDQ0NCIgcng9IjIiLz48bGluZSB4MT0iMzIiIHkxPSIzMCIgeDI9IjMyIiB5Mj0iODAiIHN0cm9rZT0iI2VmNDQ0NCIgc3Ryb2tlLXdpZHRoPSIyIi8+PHJlY3QgeD0iNTUiIHk9IjI1IiB3aWR0aD0iMjAiIGhlaWdodD0iNjAiIGZpbGw9IiMyMmM1NWUiIHJ4PSIyIi8+PGxpbmUgeDE9IjY1IiB5MT0iMTUiIHgyPSI2NSIgeTI9IjkwIiBzdHJva2U9IiMyMmM1NWUiIHN0cm9rZS13aWR0aD0iMiIvPjwvc3ZnPg==",
+    timestamp: "1d ago"
+  },
+  {
+    id: "setup_4",
+    name: "Bearish Engulfing Reversal",
+    type: "Reversal",
+    typeColor: "#ef4444",
+    rulesCount: 4,
+    rules: [
+      "Prior uptrend approaching key resistance zone",
+      "Bearish body completely engulfs previous bullish body",
+      "Volume spikes significantly on engulfing candle",
+      "Confirm breakdown below the engulfing low"
+    ],
+    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSIyNSIgeT0iMzUiIHdpZHRoPSIxNSIgaGVpZ2h0PSI0MCIgZmlsbD0iIzIyYzU1ZSIgcng9IjIiLz48bGluZSB4MT0iMzIiIHkxPSIyMCIgeDI9IjMyIiB5Mj0iOTAiIHN0cm9rZT0iIzIyYzU1ZSIgc3Ryb2tlLXdpZHRoPSIyIi8+PHJlY3QgeD0iNTUiIHk9IjI1IiB3aWR0aD0iMjAiIGhlaWdodD0iNjAiIGZpbGw9IiNlZjQ0NDQiIHJ4PSIyIi8+PGxpbmUgeDE9IjY1IiB5MT0iMTUiIHgyPSI2NSIgeTI9IjkwIiBzdHJva2U9IiNlZjQ0NDQiIHN0cm9rZS13aWR0aD0iMiIvPjwvc3ZnPg==",
+    timestamp: "1d ago"
+  },
+  {
+    id: "setup_5",
+    name: "Morning Star Bullish Reversal",
+    type: "Reversal",
+    typeColor: "#22c55e",
+    rulesCount: 5,
+    rules: [
+      "Candle 1: Large bearish candle continuation",
+      "Candle 2: Small body star (gaps down or lower)",
+      "Candle 3: Large bullish candle closes > 50% of Candle 1",
+      "Occurs on strong support level",
+      "Confirm with volume spike on Candle 3"
+    ],
+    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSIxNSIgeT0iMjAiIHdpZHRoPSIxNSIgaGVpZ2h0PSI1MCIgZmlsbD0iI2VmNDQ0NCIgcng9IjIiLz48cmVjdCB4PSI0MiIgeT0iNjUiIHdpZHRoPSIxNSIgaGVpZ2h0PSIxNSIgZmlsbD0iIzNiODJmNiIgcng9IjIiLz48cmVjdCB4PSI3MCIgeT0iMzAiIHdpZHRoPSIxNSIgaGVpZ2h0PSI0NSIgZmlsbD0iIzIyYzU1ZSIgcng9IjIiLz48L3N2Zz4=",
+    timestamp: "1d ago"
+  },
+  {
+    id: "setup_6",
+    name: "Evening Star Bearish Reversal",
+    type: "Reversal",
+    typeColor: "#ef4444",
+    rulesCount: 5,
+    rules: [
+      "Candle 1: Large bullish candle continuation",
+      "Candle 2: Small body star (gaps up or higher)",
+      "Candle 3: Large bearish candle closes > 50% of Candle 1",
+      "Occurs on strong resistance level",
+      "Confirm with volume spike on Candle 3"
+    ],
+    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSIxNSIgeT0iMzAiIHdpZHRoPSIxNSIgaGVpZ2h0PSI0NSIgZmlsbD0iIzIyYzU1ZSIgcng9IjIiLz48cmVjdCB4PSI0MiIgeT0iMjAiIHdpZHRoPSIxNSIgaGVpZ2h0PSIxNSIgZmlsbD0iIzNiODJmNiIgcng9IjIiLz48cmVjdCB4PSI3MCIgeT0iMzUiIHdpZHRoPSIxNSIgaGVpZ2h0PSI0NSIgZmlsbD0iI2VmNDQ0NCIgcng9IjIiLz48L3N2Zz4=",
+    timestamp: "1d ago"
+  },
+  {
+    id: "setup_7",
+    name: "Doji Decision Breakout",
+    type: "Breakout",
+    typeColor: "#3b82f6",
+    rulesCount: 4,
+    rules: [
+      "Price trading in consolidated narrow range",
+      "Doji candle formed (open and close are nearly identical)",
+      "Enter on break of Doji high (long) or low (short)",
+      "Volume expansion confirms the breakout direction"
+    ],
+    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48bGluZSB4MT0iNTAiIHkxPSIxMCIgeDI9IjUwIiB5Mj0iOTAiIHN0cm9rZT0iIzhiOTQ5ZSIgc3Ryb2tlLXdpZHRoPSI0Ii8+PGxpbmUgeDE9IjMwIiB5MT0iNTAiIHgyPSI3MCIgeTI9IjUwIiBzdHJva2U9IiM4Yjk0OWUiIHN0cm9rZT0iZDkiLz48L3N2Zz4=",
+    timestamp: "1d ago"
+  },
+  {
+    id: "setup_8",
+    name: "Bullish Harami Continuation",
+    type: "Continuation",
+    typeColor: "#3b82f6",
+    rulesCount: 4,
+    rules: [
+      "Downtrend slowing near major support zone",
+      "Candle 1: Large bearish candle",
+      "Candle 2: Small bullish candle contained inside Candle 1 body",
+      "Trigger long trade when price breaks above Candle 1 high"
+    ],
+    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSIyMCIgeT0iMjAiIHdpZHRoPSIyMCIgaGVpZ2h0PSI2MCIgZmlsbD0iI2VmNDQ0NCIgcng9IjIiLz48cmVjdCB4PSI1NSIgeT0iNDAiIHdpZHRoPSIxNSIgaGVpZ2h0PSIyMCIgZmlsbD0iIzIyYzU1ZSIgcng9IjIiLz48L3N2Zz4=",
+    timestamp: "1d ago"
+  },
+  {
+    id: "setup_9",
+    name: "Bearish Harami Continuation",
+    type: "Continuation",
+    typeColor: "#3b82f6",
+    rulesCount: 4,
+    rules: [
+      "Uptrend slowing near major resistance zone",
+      "Candle 1: Large bullish candle",
+      "Candle 2: Small bearish candle contained inside Candle 1 body",
+      "Trigger short trade when price breaks below Candle 1 low"
+    ],
+    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSIyMCIgeT0iMjAiIHdpZHRoPSIyMCIgaGVpZ2h0PSI2MCIgZmlsbD0iIzIyYzU1ZSIgcng9IjIiLz48cmVjdCB4PSI1NSIgeT0iNDAiIHdpZHRoPSIxNSIgaGVpZ2h0PSIyMCIgZmlsbD0iI2VmNDQ0NCIgIHJ4PSIyIi8+PC9zdmc+",
+    timestamp: "1d ago"
+  },
+  {
+    id: "setup_10",
+    name: "Three White Soldiers",
+    type: "Continuation",
+    typeColor: "#22c55e",
+    rulesCount: 4,
+    rules: [
+      "Prior downtrend bottoming out",
+      "Three consecutive long-bodied green candles",
+      "Each candle opens within previous body and closes near high",
+      "Volume increases on each successive candle"
+    ],
+    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSIxNSIgeT0iNjAiIHdpZHRoPSIxNSIgaGVpZ2h0PSIyNSIgZmlsbD0iIzIyYzU1ZSIgcng9IjIiLz48cmVjdCB4PSI0MiIgeT0iNDAiIHdpZHRoPSIxNSIgaGVpZ2h0PSIzMCIgZmlsbD0iIzIyYzU1ZSIgcng9IjIiLz48cmVjdCB4PSI3MCIgeT0iMjAiIHdpZHRoPSIxNSIgaGVpZ2h0PSIzNSIgZmlsbD0iIzIyYzU1ZSIgcng9IjIiLz48L3N2Zz4=",
+    timestamp: "1d ago"
   }
 ];
 
