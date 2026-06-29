@@ -168,7 +168,7 @@ export default function FeeCalculator() {
   const isProfit = results.netPnl >= 0;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 14, maxWidth: 920, width: "100%" }}>
       {/* Header section inside the view */}
       <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
         <div style={{ fontSize: 18, fontWeight: 700, color: T.bright, display: "flex", alignItems: "center", gap: 8 }}>
