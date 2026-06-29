@@ -249,6 +249,7 @@ const CHART_PRESETS = [
 export default function TradeSetupsManager({ trades = [], tradeSetups = [], setTradeSetups, showToast }) {
   const [showAddSetup, setShowAddSetup] = useState(false);
   const [showPresetDropdown, setShowPresetDropdown] = useState(false);
+  const [presetDropdownView, setPresetDropdownView] = useState("menu"); // "menu", "candlestick", "chart"
   const dropdownRef = useRef(null);
 
   const [newSetup, setNewSetup] = useState({ name: "", type: "Unassigned", image: "", rules: [{ id: crypto.randomUUID(), text: "" }] });
@@ -448,7 +449,10 @@ export default function TradeSetupsManager({ trades = [], tradeSetups = [], setT
           {/* Preset Dropdown Button */}
           <div style={{ position: "relative" }}>
             <button 
-              onClick={() => setShowPresetDropdown(!showPresetDropdown)} 
+              onClick={() => {
+                setShowPresetDropdown(!showPresetDropdown);
+                setPresetDropdownView("menu");
+              }} 
               style={{ 
                 background: T.panel2, border: `1px solid ${T.border}`, color: "#FFF", 
                 borderRadius: 10, padding: "10px 16px", fontWeight: 700, display: "flex", alignItems: "center", gap: 6,
@@ -465,49 +469,100 @@ export default function TradeSetupsManager({ trades = [], tradeSetups = [], setT
                 width: 260, maxHeight: 320, overflowY: "auto", zIndex: 100,
                 boxShadow: "0 10px 30px rgba(0,0,0,0.5)", padding: "8px 0"
               }}>
-                <div style={{ padding: "8px 16px", fontSize: 11, fontWeight: 700, color: T.purple, letterSpacing: 0.8, textTransform: "uppercase" }}>
-                  🕯️ Candlestick Patterns
-                </div>
-                {CANDLESTICK_PRESETS.map(p => (
-                  <div 
-                    key={p.name}
-                    onClick={() => {
-                      handleAddPreset(p);
-                      setShowPresetDropdown(false);
-                    }}
-                    style={{
-                      padding: "8px 16px", fontSize: 13, color: T.bright, cursor: "pointer",
-                      transition: "background 0.2s"
-                    }}
-                    onMouseEnter={e => e.target.style.background = T.border}
-                    onMouseLeave={e => e.target.style.background = "none"}
-                  >
-                    {p.name}
-                  </div>
-                ))}
-                
-                <div style={{ height: 1, background: T.border, margin: "8px 0" }}></div>
-                
-                <div style={{ padding: "8px 16px", fontSize: 11, fontWeight: 700, color: T.blue, letterSpacing: 0.8, textTransform: "uppercase" }}>
-                  📈 Chart Patterns
-                </div>
-                {CHART_PRESETS.map(p => (
-                  <div 
-                    key={p.name}
-                    onClick={() => {
-                      handleAddPreset(p);
-                      setShowPresetDropdown(false);
-                    }}
-                    style={{
-                      padding: "8px 16px", fontSize: 13, color: T.bright, cursor: "pointer",
-                      transition: "background 0.2s"
-                    }}
-                    onMouseEnter={e => e.target.style.background = T.border}
-                    onMouseLeave={e => e.target.style.background = "none"}
-                  >
-                    {p.name}
-                  </div>
-                ))}
+                {presetDropdownView === "menu" && (
+                  <>
+                    <div 
+                      onClick={() => setPresetDropdownView("candlestick")}
+                      style={{
+                        padding: "12px 16px", fontSize: 13, color: T.bright, cursor: "pointer",
+                        display: "flex", justifyContent: "space-between", alignItems: "center",
+                        transition: "background 0.2s"
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = T.border}
+                      onMouseLeave={e => e.currentTarget.style.background = "none"}
+                    >
+                      <span>🕯️ Candlestick Patterns</span>
+                      <span style={{ fontSize: 11, color: T.dim }}>➔</span>
+                    </div>
+                    <div 
+                      onClick={() => setPresetDropdownView("chart")}
+                      style={{
+                        padding: "12px 16px", fontSize: 13, color: T.bright, cursor: "pointer",
+                        display: "flex", justifyContent: "space-between", alignItems: "center",
+                        transition: "background 0.2s"
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = T.border}
+                      onMouseLeave={e => e.currentTarget.style.background = "none"}
+                    >
+                      <span>📈 Chart Patterns</span>
+                      <span style={{ fontSize: 11, color: T.dim }}>➔</span>
+                    </div>
+                  </>
+                )}
+
+                {presetDropdownView === "candlestick" && (
+                  <>
+                    <div 
+                      onClick={() => setPresetDropdownView("menu")}
+                      style={{
+                        padding: "10px 16px", fontSize: 11, fontWeight: 700, color: T.purple, 
+                        cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
+                        borderBottom: `1px solid ${T.border}`, paddingBottom: 10, marginBottom: 6
+                      }}
+                    >
+                      <span>←</span> BACK TO PRESETS
+                    </div>
+                    {CANDLESTICK_PRESETS.map(p => (
+                      <div 
+                        key={p.name}
+                        onClick={() => {
+                          handleAddPreset(p);
+                          setShowPresetDropdown(false);
+                        }}
+                        style={{
+                          padding: "8px 16px", fontSize: 13, color: T.bright, cursor: "pointer",
+                          transition: "background 0.2s"
+                        }}
+                        onMouseEnter={e => e.target.style.background = T.border}
+                        onMouseLeave={e => e.target.style.background = "none"}
+                      >
+                        {p.name}
+                      </div>
+                    ))}
+                  </>
+                )}
+
+                {presetDropdownView === "chart" && (
+                  <>
+                    <div 
+                      onClick={() => setPresetDropdownView("menu")}
+                      style={{
+                        padding: "10px 16px", fontSize: 11, fontWeight: 700, color: T.blue, 
+                        cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
+                        borderBottom: `1px solid ${T.border}`, paddingBottom: 10, marginBottom: 6
+                      }}
+                    >
+                      <span>←</span> BACK TO PRESETS
+                    </div>
+                    {CHART_PRESETS.map(p => (
+                      <div 
+                        key={p.name}
+                        onClick={() => {
+                          handleAddPreset(p);
+                          setShowPresetDropdown(false);
+                        }}
+                        style={{
+                          padding: "8px 16px", fontSize: 13, color: T.bright, cursor: "pointer",
+                          transition: "background 0.2s"
+                        }}
+                        onMouseEnter={e => e.target.style.background = T.border}
+                        onMouseLeave={e => e.target.style.background = "none"}
+                      >
+                        {p.name}
+                      </div>
+                    ))}
+                  </>
+                )}
               </div>
             )}
           </div>
