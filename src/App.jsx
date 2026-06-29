@@ -1085,6 +1085,7 @@ export default function App() {
                         initialCapital={initialCapital}
                         profileId={activeProfileId}
                         onUpdateCapital={(val) => { setInitialCapital(val); }}
+                        liveTrades={liveTrades}
                       />
                     )}
                     {subTab === "Calendar" && <TradingCalendar />}

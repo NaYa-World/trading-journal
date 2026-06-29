@@ -11,7 +11,8 @@ import {
   downloadDriveBackup,
   rotateDriveBackups,
   encryptBackup,
-  decryptBackup
+  decryptBackup,
+  exportLocalFile
 } from "../utils/backup.js";
 import { _load, _save, clearDemoDataIfNeeded } from "../utils/storage.js";
 
@@ -303,7 +304,7 @@ export const BackupProvider = ({ children }) => {
               } else {
                 let valToSave = backedVal;
                 if (typeof backedVal === "string") {
-                  try { valToSave = JSON.parse(backedVal); } catch (e) {}
+                  try { valToSave = JSON.parse(backedVal); } catch { /* ignore parsing errors and fall back to original value */ }
                 }
                 await _save(k, valToSave);
               }
@@ -383,7 +384,7 @@ export const BackupProvider = ({ children }) => {
               } else {
                 let valToSave = backedVal;
                 if (typeof backedVal === "string") {
-                  try { valToSave = JSON.parse(backedVal); } catch (e) {}
+                  try { valToSave = JSON.parse(backedVal); } catch { /* ignore parsing errors and fall back to original value */ }
                 }
                 await _save(k, valToSave);
               }
