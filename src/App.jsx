@@ -804,6 +804,7 @@ export default function App() {
   } = useDashboard();
 
   const [showHelpOverlay, setShowHelpOverlay] = useState(false);
+  const [journalTab, setJournalTab] = useState("Ongoing Spot"); // "Ongoing Spot", "Ongoing Futures", "Finished"
   const { prices, status } = usePrices();
 
   useEffect(() => {
@@ -1053,15 +1054,69 @@ export default function App() {
                   />
                 )}
                 {view === "Journal" && (
-                  <TradeLog 
-                    trades={trades} 
-                    onEdit={setEditingTrade}
-                    onViewChart={setViewChartTrade}
-                    onDelete={deleteFinishedTrade}
-                    onSave={handleEditTrade}
-                    onQuickAdd={handleQuickAdd}
-                    savedSymbols={savedSymbols}
-                  />
+                  <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
+                    <div style={{ display: "flex", gap: 6, padding: isMobile ? "0 4px" : "0 8px", marginBottom: 16 }}>
+                      {[
+                        { id: "Ongoing Spot", label: "Spot", count: spotOpen.length },
+                        { id: "Ongoing Futures", label: "Futures", count: liveTrades.length },
+                        { id: "Finished", label: "Finished", count: closed.length }
+                      ].map(tab => (
+                        <button
+                          key={tab.id}
+                          onClick={() => setJournalTab(tab.id)}
+                          style={{
+                            flex: 1,
+                            background: journalTab === tab.id ? T.purple : T.panel,
+                            border: `1px solid ${journalTab === tab.id ? T.purple : T.border}`,
+                            color: "#FFF",
+                            padding: "10px 4px",
+                            borderRadius: 10,
+                            fontSize: 12,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 6
+                          }}
+                        >
+                          <span>{tab.label}</span>
+                          <span style={{ fontSize: 10, background: journalTab === tab.id ? "rgba(255,255,255,0.2)" : T.border, padding: "2px 6px", borderRadius: 6, color: "#FFF" }}>
+                            {tab.count}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+
+                    <div style={{ flex: 1 }}>
+                      {journalTab === "Ongoing Spot" && (
+                        <OpenSpotView spotOpen={spotOpen} onSell={closeSpotOpen} onDelete={deleteSpotOpen} onEdit={setEditingTrade} savedSymbols={savedSymbols} />
+                      )}
+                      {journalTab === "Ongoing Futures" && (
+                        <LiveTradesView
+                          liveTrades={liveTrades}
+                          onAdd={addLiveTrade}
+                          onClose={closeLiveTrade}
+                          savedSymbols={savedSymbols}
+                          prices={prices}
+                          status={status}
+                          prefilledSymbol={prefilledLiveSymbol}
+                          clearPrefilledSymbol={() => setPrefilledLiveSymbol(null)}
+                        />
+                      )}
+                      {journalTab === "Finished" && (
+                        <TradeLog 
+                          trades={closed} 
+                          onEdit={setEditingTrade}
+                          onViewChart={setViewChartTrade}
+                          onDelete={deleteFinishedTrade}
+                          onSave={handleEditTrade}
+                          onQuickAdd={handleQuickAdd}
+                          savedSymbols={savedSymbols}
+                        />
+                      )}
+                    </div>
+                  </div>
                 )}
                 {view === "Setup" && (
                   <TradeSetupsManager trades={trades} tradeSetups={tradeSetups} setTradeSetups={setTradeSetups} showToast={showToast} />
