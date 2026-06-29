@@ -85,7 +85,7 @@ export default function CSVImportModal() {
     const isOpen = statusRaw ? (statusRaw === "open" || statusRaw === "spot_open" || statusRaw === "live") : (isNaN(exit) || exit === 0 || exitStr.trim() === "");
     const finalExit = isOpen ? null : exit;
 
-    const qty = parseFloat(row["Executed"] || row["Qty"] || row["Quantity"] || row["Amount"] || row["qty"] || row["Size"] || "0");
+    const qty = parseFloat(row["Contracts"] || row["Executed"] || row["Qty"] || row["Quantity"] || row["Amount"] || row["qty"] || row["Size"] || "0");
     let fees = -Math.abs(parseFloat(row["Fee"] || row["Fees"] || row["Commission"] || row["fee"] || "0"));
 
     if (fees === 0 && entry > 0 && qty > 0) {

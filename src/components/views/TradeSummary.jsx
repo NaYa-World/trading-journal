@@ -2,8 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { T } from "../../utils/theme.js";
 import { fmt$, fmtDateShort, fmtDate } from "../../utils/helpers.js";
 import { Card } from "../shared/index.jsx";
-import { loadOtherDeposits, saveOtherDeposits, loadWithdrawalsMap, saveWithdrawalsMap } from "../../utils/storage.js";
-import { calculateWinRate, calculateProfitFactor, calculateExpectancy } from "../../utils/calculations.js";
+import { calculateWinRate, calculateExpectancy } from "../../utils/calculations.js";
 
 // ─── Position Size Calculator Sub-Component ─────────────────────────────────────
 function PositionSizeCalculator({ accountBalance }) {
@@ -85,7 +84,55 @@ function PositionSizeCalculator({ accountBalance }) {
   );
 }
 
-// ─── Main TradeSummary View ──────────────────────────────────────────────────────
+const SideRow = ({ label, val, isPnl, isPct }) => {
+  let color = T.bright;
+  if (isPnl) color = val >= 0 ? T.green : T.red;
+  const displayVal = isPct ? `${val >= 0 ? "+" : ""}${val.toFixed(2)}%` : (typeof val === "number" ? fmt$(val) : val);
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: `1px solid ${T.border}30` }}>
+      <div style={{ fontSize: 11, color: T.dim }}>{label}</div>
+      <div style={{ fontSize: 12, fontFamily: T.mono, fontWeight: 700, color }}>{displayVal}</div>
+    </div>
+  );
+};
+
+const EditableValue = ({ val, label, isEditing, setIsEditing, inputVal, setInputVal, onSave, hideEdit }) => {
+  if (isEditing) {
+    return (
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: `1px solid ${T.border}30` }}>
+        <div style={{ fontSize: 11, color: T.dim }}>{label}</div>
+        <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+          <input 
+            type="number" 
+            value={inputVal} 
+            onChange={e => setInputVal(e.target.value)} 
+            style={{ background: T.panel2, border: `1px solid ${T.border}`, borderRadius: 4, color: T.bright, padding: "2px 6px", fontSize: 12, width: 70, fontFamily: T.mono, outline: "none" }}
+            autoFocus
+            onKeyDown={e => {
+              if (e.key === "Enter") onSave();
+              if (e.key === "Escape") setIsEditing(false);
+            }}
+          />
+          <button onClick={onSave} style={{ background: T.greenDim, border: `1px solid ${T.green}40`, color: T.green, borderRadius: 4, padding: "2px 6px", cursor: "pointer", fontSize: 10, fontFamily: T.mono }}>✓</button>
+          <button onClick={() => setIsEditing(false)} style={{ background: "none", border: `1px solid ${T.border}`, color: T.dim, borderRadius: 4, padding: "2px 6px", cursor: "pointer", fontSize: 10, fontFamily: T.mono }}>✕</button>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: `1px solid ${T.border}30` }}>
+      <div style={{ fontSize: 11, color: T.dim }}>{label}</div>
+      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+        <div style={{ fontSize: 12, fontFamily: T.mono, fontWeight: 700, color: T.bright }}>{fmt$(val)}</div>
+        {!hideEdit && (
+          <button onClick={() => setIsEditing(true)} style={{ background: "none", border: "none", color: T.dim, cursor: "pointer", fontSize: 11, padding: "0 2px" }} title="Edit">✏️</button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ─── Main Summary View ──────────────────────────────────────────────────────────
 export default function TradeSummary({ trades, allProfileTrades, initialCapital = 30, profileId = "default", onUpdateCapital }) {
   const closed = trades.filter(t => t.status === "closed");
   const sortedTrades = [...closed].sort((a, b) => a.closeTime - b.closeTime);
@@ -121,6 +168,7 @@ export default function TradeSummary({ trades, allProfileTrades, initialCapital 
 
   useEffect(() => {
     if (years.length > 0 && !years.includes(selectedYear)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedYear(years[years.length - 1]);
     }
   }, [years, selectedYear]);
@@ -129,6 +177,7 @@ export default function TradeSummary({ trades, allProfileTrades, initialCapital 
   const [initialInput, setInitialInput] = useState(initialCapital.toString());
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setInitialInput(initialCapital.toString());
   }, [profileId, initialCapital]);
 
@@ -142,10 +191,7 @@ export default function TradeSummary({ trades, allProfileTrades, initialCapital 
 
   // Chronological metrics calculation
   let runningBalance = firstDeposit ? 0 : startingCapital;
-  let totalRiskPctSum = 0;
-  let totalRewardPctSum = 0;
-  let rrrSum = 0;
-  let tradesWithRisk = 0;
+  const riskMetrics = { totalRiskPctSum: 0, totalRewardPctSum: 0, rrrSum: 0, tradesWithRisk: 0 };
 
   const dailySheetData = {};
   const processedTrades = sortedTrades.map(t => {
@@ -159,13 +205,14 @@ export default function TradeSummary({ trades, allProfileTrades, initialCapital 
     const realizedRRR = riskAmount > 0 ? t.pnl / riskAmount : 0;
 
     if (riskAmount > 0) {
-      totalRiskPctSum += riskPct;
-      totalRewardPctSum += rewardPct;
-      rrrSum += realizedRRR;
-      tradesWithRisk++;
+      riskMetrics.totalRiskPctSum += riskPct;
+      riskMetrics.totalRewardPctSum += rewardPct;
+      riskMetrics.rrrSum += realizedRRR;
+      riskMetrics.tradesWithRisk++;
     }
 
     const prevBalance = runningBalance;
+    // eslint-disable-next-line react-hooks/immutability
     runningBalance += netPnl;
 
     const dateKey = new Date(t.closeTime).toLocaleDateString("en-GB", {
@@ -190,16 +237,16 @@ export default function TradeSummary({ trades, allProfileTrades, initialCapital 
   });
 
   // Calculate unfiltered processed trades to establish absolute A1:S5 history
-  let unfilteredRunningBalance = firstDeposit ? 0 : startingCapital;
+  const unfilteredRunningBalanceState = { val: firstDeposit ? 0 : startingCapital };
   const unfilteredProcessedTrades = unfilteredSortedTrades.map(t => {
     const isDeposit = t.entryType === "Deposit" || t.symbol === "Deposit";
     const isWithdrawal = t.entryType === "Withdrawal" || t.symbol === "Withdrawal";
     const netPnl = isDeposit ? t.qty : (isWithdrawal ? -t.qty : t.pnl + (t.fees || 0));
-    unfilteredRunningBalance += netPnl;
+    unfilteredRunningBalanceState.val += netPnl;
     return {
       ...t,
       netPnl: isDeposit || isWithdrawal ? 0 : netPnl,
-      balanceAfter: unfilteredRunningBalance
+      balanceAfter: unfilteredRunningBalanceState.val
     };
   });
 
@@ -236,26 +283,16 @@ export default function TradeSummary({ trades, allProfileTrades, initialCapital 
 
   const totalFees = actualTrades.reduce((s, t) => s + (t.fees || 0), 0);
   const totalNetPnl = actualTrades.reduce((s, t) => s + t.netPnl, 0);
-  const avgPnlPerTrade = totalTradesCount ? totalNetPnl / totalTradesCount : 0;
 
-  // Filters summaryRows to only include trades that match the active display filters (i.e. present in processedTrades)
-  const filteredTradesInSummary = summaryRows.filter(t => 
-    t.entryType !== "Deposit" && 
-    t.entryType !== "Withdrawal" && 
-    t.symbol !== "Deposit" && 
-    t.symbol !== "Withdrawal" &&
-    processedTrades.some(pt => pt.id === t.id)
-  );
-  const summaryNetPnl = filteredTradesInSummary.reduce((s, t) => s + t.netPnl, 0);
 
   const currentAccBalance = totalAccountDeposits - withdrawalsVal + totalNetPnl;
   const accountGrowth = totalAccountDeposits > 0 ? (totalNetPnl / totalAccountDeposits) * 100 : 0;
   
   const tradeExpectancy = calculateExpectancy(actualTrades);
 
-  const aveRiskPerTrade = tradesWithRisk ? (totalRiskPctSum / tradesWithRisk) : 0;
-  const avgRewardPerTrade = tradesWithRisk ? (totalRewardPctSum / tradesWithRisk) : 0;
-  const avgRiskReward = tradesWithRisk ? (rrrSum / tradesWithRisk) : 0;
+  const aveRiskPerTrade = riskMetrics.tradesWithRisk ? (riskMetrics.totalRiskPctSum / riskMetrics.tradesWithRisk) : 0;
+  const avgRewardPerTrade = riskMetrics.tradesWithRisk ? (riskMetrics.totalRewardPctSum / riskMetrics.tradesWithRisk) : 0;
+  const avgRiskReward = riskMetrics.tradesWithRisk ? (riskMetrics.rrrSum / riskMetrics.tradesWithRisk) : 0;
 
   // New Summary Fields from summaryRows (A1:S5)
   const totalNumDeposits = depositsInSummary.length;
@@ -328,7 +365,7 @@ export default function TradeSummary({ trades, allProfileTrades, initialCapital 
     .sort((a, b) => parseDailyDate(b[0]) - parseDailyDate(a[0]));
 
   let runningNetPnl = 0;
-  const chartPoints = [{ xLabel: "Start", yVal: 0 }, ...actualTrades.map((t, idx) => {
+  const chartPoints = [{ xLabel: "Start", yVal: 0 }, ...actualTrades.map((t) => {
     runningNetPnl += t.netPnl;
     return { xLabel: fmtDateShort(t.closeTime), yVal: parseFloat(runningNetPnl.toFixed(2)) };
   })];
@@ -385,7 +422,7 @@ export default function TradeSummary({ trades, allProfileTrades, initialCapital 
   };
 
   const renderBarChart = () => {
-    const width = 160, height = 90;
+    const height = 90;
     const absWins = Math.abs(totalWinsVolume);
     const absLoss = Math.abs(totalLossVolume);
     const maxVal = Math.max(absWins, absLoss, 1);
@@ -409,53 +446,7 @@ export default function TradeSummary({ trades, allProfileTrades, initialCapital 
     );
   };
 
-  const SideRow = ({ label, val, isPnl, isPct }) => {
-    let color = T.bright;
-    if (isPnl) color = val >= 0 ? T.green : T.red;
-    const displayVal = isPct ? `${val >= 0 ? "+" : ""}${val.toFixed(2)}%` : (typeof val === "number" ? fmt$(val) : val);
-    return (
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: `1px solid ${T.border}30` }}>
-        <div style={{ fontSize: 11, color: T.dim }}>{label}</div>
-        <div style={{ fontSize: 12, fontFamily: T.mono, fontWeight: 700, color }}>{displayVal}</div>
-      </div>
-    );
-  };
 
-  const EditableValue = ({ val, label, isEditing, setIsEditing, inputVal, setInputVal, onSave, hideEdit }) => {
-    if (isEditing) {
-      return (
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: `1px solid ${T.border}30` }}>
-          <div style={{ fontSize: 11, color: T.dim }}>{label}</div>
-          <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-            <input 
-              type="number" 
-              value={inputVal} 
-              onChange={e => setInputVal(e.target.value)} 
-              style={{ background: T.panel2, border: `1px solid ${T.border}`, borderRadius: 4, color: T.bright, padding: "2px 6px", fontSize: 12, width: 70, fontFamily: T.mono, outline: "none" }}
-              autoFocus
-              onKeyDown={e => {
-                if (e.key === "Enter") onSave();
-                if (e.key === "Escape") setIsEditing(false);
-              }}
-            />
-            <button onClick={onSave} style={{ background: T.greenDim, border: `1px solid ${T.green}40`, color: T.green, borderRadius: 4, padding: "2px 6px", cursor: "pointer", fontSize: 10, fontFamily: T.mono }}>✓</button>
-            <button onClick={() => setIsEditing(false)} style={{ background: "none", border: `1px solid ${T.border}`, color: T.dim, borderRadius: 4, padding: "2px 6px", cursor: "pointer", fontSize: 10, fontFamily: T.mono }}>✕</button>
-          </div>
-        </div>
-      );
-    }
-    return (
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: `1px solid ${T.border}30` }}>
-        <div style={{ fontSize: 11, color: T.dim }}>{label}</div>
-        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          <div style={{ fontSize: 12, fontFamily: T.mono, fontWeight: 700, color: T.bright }}>{fmt$(val)}</div>
-          {!hideEdit && (
-            <button onClick={() => setIsEditing(true)} style={{ background: "none", border: "none", color: T.dim, cursor: "pointer", fontSize: 11, padding: "0 2px" }} title="Edit">✏️</button>
-          )}
-        </div>
-      </div>
-    );
-  };
 
   const tableHeaderStyle = { padding: "8px 4px", fontSize: 10, color: T.dim, borderBottom: `1px solid ${T.border}`, borderRight: `1px solid ${T.border}40`, textTransform: "uppercase", letterSpacing: 0.5, textAlign: "center", fontWeight: 700 };
   const tableCellStyle = { padding: "7px 4px", fontSize: 12, fontFamily: T.mono, borderBottom: `1px solid ${T.border}30`, borderRight: `1px solid ${T.border}30`, textAlign: "center", color: T.text };

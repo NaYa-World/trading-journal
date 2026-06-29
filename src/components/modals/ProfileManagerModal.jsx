@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { T } from "../../utils/theme.js";
 
 export default function ProfileManagerModal({ profiles, activeId, onSwitch, onAdd, onDelete, onClose }) {

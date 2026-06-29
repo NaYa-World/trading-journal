@@ -14,6 +14,7 @@ export default function LiveTradesView({ liveTrades, onAdd, onClose, savedSymbol
 
   useEffect(() => {
     if (prefilledSymbol) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setShowAdd(true);
     }
   }, [prefilledSymbol]);
@@ -99,10 +100,18 @@ export default function LiveTradesView({ liveTrades, onAdd, onClose, savedSymbol
               unrealizedPnl = pnl;
             }
             
-            const pnlPct = nativeUnrealizedPnl !== null ? (nativeUnrealizedPnl / (trade.entry * trade.qty * lev)) * 100 : null;
+            let pnlPct = null;
+            if (nativeUnrealizedPnl !== null) {
+              if (trade.marginType === "COIN-M") {
+                pnlPct = (nativeUnrealizedPnl * trade.entry * lev / trade.qty) * 100;
+              } else {
+                pnlPct = (nativeUnrealizedPnl * lev / (trade.entry * trade.qty)) * 100;
+              }
+            }
             const distToSL = trade.stopLoss && currentPrice ? ((currentPrice - trade.stopLoss) / currentPrice * 100 * (trade.side === "Long" ? 1 : -1)) : null;
             const distToTP = trade.takeProfit && currentPrice ? ((trade.takeProfit - currentPrice) / currentPrice * 100 * (trade.side === "Long" ? 1 : -1)) : null;
             const typeColor = TYPE_COLORS[trade.tradeType] || T.dim;
+            // eslint-disable-next-line react-hooks/purity
             const holdMs = Date.now() - trade.openTime;
             const holdH = Math.floor(holdMs / 3600000);
             const holdM = Math.floor((holdMs % 3600000) / 60000);
@@ -132,7 +141,7 @@ export default function LiveTradesView({ liveTrades, onAdd, onClose, savedSymbol
                     {currentPrice ? (
                       <>
                         <div style={{ fontFamily: T.mono, fontSize: 22, fontWeight: 700, color: T.cyan }}>{currentPrice.toFixed(4)}</div>
-                        <div style={{ fontSize: 12, color: p.change24h >= 0 ? T.green : T.red, fontFamily: T.mono }}>{p.change24h >= 0 ? "+" : ""}{p.change24h?.toFixed(2)}% 24h</div>
+                        <div style={{ fontSize: 12, color: (p?.change24h || 0) >= 0 ? T.green : T.red, fontFamily: T.mono }}>{(p?.change24h || 0) >= 0 ? "+" : ""}{(p?.change24h || 0).toFixed(2)}% 24h</div>
                       </>
                     ) : (
                       <Skeleton width={120} height={20} />

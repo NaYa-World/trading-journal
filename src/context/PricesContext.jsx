@@ -16,8 +16,11 @@ export function PricesProvider({ children, symbols }) {
     
     let cancelled = false;
     let wsBinance = null;
+    let reconnectTimer = null;
+    let retryCount = 0;
 
     const connectWebSockets = () => {
+      if (cancelled) return;
       setStatus("fetching");
       const currentSymbols = symbolsRef.current;
       
@@ -27,6 +30,12 @@ export function PricesProvider({ children, symbols }) {
       });
 
       if (binanceParams.length > 0) {
+        if (wsBinance) {
+          wsBinance.onclose = null;
+          wsBinance.onerror = null;
+          wsBinance.close();
+        }
+        
         wsBinance = new WebSocket('wss://stream.binance.com:9443/ws');
         wsBinance.onopen = () => {
           wsBinance.send(JSON.stringify({
@@ -35,6 +44,7 @@ export function PricesProvider({ children, symbols }) {
             id: 1
           }));
           setStatus("ok");
+          retryCount = 0; // reset backoff
         };
 
         wsBinance.onmessage = (event) => {
@@ -42,9 +52,6 @@ export function PricesProvider({ children, symbols }) {
           try {
             const data = JSON.parse(event.data);
             if (data.e === "24hrTicker") {
-              // 's' is symbol e.g., BTCUSDT
-              // Let's find the original symbol mapping if needed, or just store by raw symbol
-              // Our UI uses original symbol like BTC/USDT or BTCUSDT
               const rawSym = data.s;
               const price = parseFloat(data.c);
               const change24h = parseFloat(data.P);
@@ -52,7 +59,6 @@ export function PricesProvider({ children, symbols }) {
               const low24h = parseFloat(data.l);
               const vol24h = parseFloat(data.v);
               
-              // Find matching symbol from symbolsRef
               const matched = currentSymbols.find(s => s.symbol.toUpperCase().replace("/", "") === rawSym);
               if (matched) {
                 setPrices(p => ({
@@ -66,9 +72,17 @@ export function PricesProvider({ children, symbols }) {
           }
         };
 
-        wsBinance.onerror = () => {
-          setStatus("Error connecting to Binance WS");
+        const handleDisconnect = () => {
+          if (cancelled) return;
+          setStatus(`Reconnecting... (Attempt ${retryCount + 1})`);
+          if (reconnectTimer) clearTimeout(reconnectTimer);
+          const backoff = Math.min(1000 * Math.pow(2, retryCount), 30000);
+          retryCount++;
+          reconnectTimer = setTimeout(connectWebSockets, backoff);
         };
+
+        wsBinance.onerror = handleDisconnect;
+        wsBinance.onclose = handleDisconnect;
       }
     };
 
@@ -76,7 +90,12 @@ export function PricesProvider({ children, symbols }) {
 
     return () => {
       cancelled = true;
-      if (wsBinance) wsBinance.close();
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (wsBinance) {
+        wsBinance.onclose = null;
+        wsBinance.onerror = null;
+        wsBinance.close();
+      }
     };
   }, [symbolsKey]);
 

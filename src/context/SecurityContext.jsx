@@ -4,7 +4,7 @@ import { Capacitor } from "@capacitor/core";
 import { NativeBiometric } from "@capgo/capacitor-native-biometric";
 import { App } from "@capacitor/app";
 import CryptoJS from "crypto-js";
-import { setStorageKey } from "../utils/storage.js";
+import { setStorageKey, resetStorageCorrupted } from "../utils/storage.js";
 
 const SecurityContext = createContext(null);
 
@@ -35,6 +35,7 @@ export const SecurityProvider = ({ children }) => {
   const updateMasterKey = useCallback((key) => {
     setMasterKey(key);
     setStorageKey(key);
+    resetStorageCorrupted();
   }, []);
 
   // Save preferences helper
@@ -255,7 +256,7 @@ export const SecurityProvider = ({ children }) => {
           try {
             const dec = CryptoJS.AES.decrypt(testCipher, derived).toString(CryptoJS.enc.Utf8);
             if (dec === "VERIFIED") {
-              setMasterKey(derived);
+              updateMasterKey(derived);
               setIsLocked(false);
               return { success: true };
             } else {
@@ -280,10 +281,6 @@ export const SecurityProvider = ({ children }) => {
     }
   }, [keyOption, salt, deriveKeyFromPassword, updateMasterKey, generateMachineKey]);
 
-  const loginSession = useCallback((customKey = "nayatrading_default_key") => {
-    setMasterKey(customKey);
-    setIsLocked(false);
-  }, []);
 
   // Lock App
   const lockApp = useCallback(() => {
@@ -360,7 +357,6 @@ export const SecurityProvider = ({ children }) => {
         setupSecurity,
         disableSecurity,
         authenticate,
-        loginSession,
         lockApp,
         encryptData,
         decryptData,

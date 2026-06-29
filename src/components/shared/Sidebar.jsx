@@ -1,7 +1,5 @@
-import { useState } from "react";
 import { T } from "../../utils/theme.js";
 import { NAV_ITEMS } from "../../utils/constants.js";
-import ProfileManagerModal from "../modals/ProfileManagerModal.jsx";
 
 export default function Sidebar({ view, setView, onClear, tradeCount, spotOpenCount, profiles, activeProfileId, onOpenProfiles }) {
   const activeProfile = profiles.find(p => p.id === activeProfileId) || profiles[0];

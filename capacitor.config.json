@@ -12,6 +12,11 @@
       "backgroundColor": "#080d14",
       "androidSplashResourceName": "splash",
       "androidScaleType": "CENTER_CROP"
+    },
+    "GoogleAuth": {
+      "scopes": ["profile", "email", "https://www.googleapis.com/auth/drive.file"],
+      "serverClientId": "217538466431-j5sqrafrg96th6t5lth9t2bbrb5ofh78.apps.googleusercontent.com",
+      "forceCodeForRefreshToken": true
     }
   }
 }

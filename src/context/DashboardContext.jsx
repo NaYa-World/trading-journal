@@ -402,6 +402,7 @@ useEffect(() => {
     const x = parseFloat(data.exit);
     const q = parseFloat(data.qty);
     const side = data.side;
+    const lev = data.leverage ? parseFloat(data.leverage) : 1;
 
     if (!sym || isNaN(e) || e <= 0 || isNaN(x) || x <= 0 || isNaN(q) || q <= 0) return;
 
@@ -422,7 +423,7 @@ useEffect(() => {
       exit: x,
       qty: q,
       side,
-      leverage: 1,
+      leverage: lev,
       tradeType,
       quoteRateOpen: usdtRate,
       quoteRateClose: closeUsdtRate,
@@ -740,6 +741,10 @@ useEffect(() => {
 
   const deleteProfile = useCallback((id) => {
     setProfiles(prev => { const next = prev.filter(p => p.id !== id); saveProfiles(next); return next; });
+    setAllTrades(prev => { const next = prev.filter(t => (t.profileId || "default") !== id); saveTrades(next); return next; });
+    setAllSpotOpen(prev => { const next = prev.filter(t => (t.profileId || "default") !== id); saveSpotOpen(next); return next; });
+    setAllLiveTrades(prev => { const next = prev.filter(t => (t.profileId || "default") !== id); saveLiveTrades(next); return next; });
+    
     if (activeProfileId === id) switchProfile("default");
   }, [activeProfileId, switchProfile]);
 

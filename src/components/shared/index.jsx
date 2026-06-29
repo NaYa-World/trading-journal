@@ -1,4 +1,5 @@
 import { useState } from "react";
+/* eslint-disable react-refresh/only-export-components */
 import { T } from "../../utils/theme.js";
 
 // ─── Tag chip ─────────────────────────────────────────────────────────────────
@@ -99,7 +100,10 @@ export function EmptyState({ onAdd, filtered = false }) {
   if (filtered) {
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "60vh", gap: 16 }}>
-        <div style={{ fontSize: 42, opacity: 0.7 }}>🔍</div>
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke={T.dim} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7 }}>
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
         <div style={{ fontFamily: T.mono, fontSize: 18, color: T.bright, letterSpacing: 1 }}>No matches found</div>
         <div style={{ fontSize: 15, color: T.dim, textAlign: "center", maxWidth: 320 }}>No trades match the current filters. Adjust your filters to see results.</div>
       </div>
@@ -107,7 +111,12 @@ export function EmptyState({ onAdd, filtered = false }) {
   }
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "60vh", gap: 16 }}>
-      <div style={{ fontSize: 42 }}>📒</div>
+      <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke={T.blue} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.9 }}>
+        <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+        <path d="M8 7h6" />
+        <path d="M8 11h8" />
+        <polyline points="10 16 12 14 16 18" />
+      </svg>
       <div style={{ fontFamily: T.mono, fontSize: 18, color: T.bright, letterSpacing: 1 }}>No trades yet</div>
       <div style={{ fontSize: 15, color: T.dim, textAlign: "center", maxWidth: 320 }}>Your journal is empty. Add your first trade to start tracking your performance.</div>
       <button onClick={onAdd} style={{ background: T.blue, border: "none", color: "#fff", borderRadius: 8, padding: "10px 24px", cursor: "pointer", fontSize: 15, fontWeight: 700, fontFamily: T.mono, marginTop: 8 }}>+ Add First Trade</button>

@@ -1,20 +1,14 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useSecurity } from "../../context/SecurityContext.jsx";
 import { T } from "../../utils/theme.js";
 
 export default function UnlockScreen() {
-  const { authenticate, keyOption, isBiometricAvailable } = useSecurity();
+  const { authenticate, keyOption } = useSecurity();
   const [inputValue, setInputValue] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   // Auto-authenticate on mount if biometric
-  useEffect(() => {
-    if (keyOption === "biometric") {
-      handleBiometricUnlock();
-    }
-  }, [keyOption]);
-
   const handleBiometricUnlock = async () => {
     setError("");
     setLoading(true);
@@ -24,6 +18,14 @@ export default function UnlockScreen() {
       setError(result.error || "Biometric authentication failed.");
     }
   };
+
+  useEffect(() => {
+    if (keyOption === "biometric") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      handleBiometricUnlock();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [keyOption]);
 
   const handleManualUnlock = async (e) => {
     e.preventDefault();

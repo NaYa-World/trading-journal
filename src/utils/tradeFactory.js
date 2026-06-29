@@ -1,7 +1,7 @@
 export function createTrade(fields) {
   return {
     ...fields,
-    id: fields.id || Date.now() + Math.random().toString(),
+    id: fields.id || crypto.randomUUID(),
     symbol: fields.symbol ? fields.symbol.trim().toUpperCase() : "",
     tradeType: fields.tradeType || "Spot",
     exchange: fields.exchange || "Binance",
