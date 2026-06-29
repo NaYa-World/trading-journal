@@ -131,6 +131,16 @@ export const saveSpotOpen = (t) => _save(SPOT_OPEN_KEY, t);
 export const loadLiveTrades = async () => await _load(LIVE_KEY, []);
 export const saveLiveTrades = (t) => _save(LIVE_KEY, t);
 
+export const clearDemoDataIfNeeded = async () => {
+  const loaded = await _load(STORAGE_KEY, null);
+  if (loaded !== null && loaded.length > 0) {
+    const hasOnlyDemo = loaded.every(t => String(t.id).startsWith("demo_"));
+    if (hasOnlyDemo) {
+      await _save(STORAGE_KEY, []);
+    }
+  }
+};
+
 // ─── Settings storage ─────────────────────────────────────────────────────────
 export const loadSavedSymbols = async () => await _load(SYMBOLS_KEY, []);
 export const saveSavedSymbols = (s) => _save(SYMBOLS_KEY, s);

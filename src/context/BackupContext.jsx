@@ -13,7 +13,7 @@ import {
   encryptBackup,
   decryptBackup
 } from "../utils/backup.js";
-import { _load, _save } from "../utils/storage.js";
+import { _load, _save, clearDemoDataIfNeeded } from "../utils/storage.js";
 
 const BackupContext = createContext(null);
 
@@ -160,6 +160,9 @@ export const BackupProvider = ({ children }) => {
         setUserEmail(authResult.email);
         localStorage.setItem("cj_google_user_email", authResult.email);
       }
+      
+      await clearDemoDataIfNeeded();
+      
       setSyncing(false);
       return authResult.accessToken;
     } catch (e) {
@@ -181,6 +184,9 @@ export const BackupProvider = ({ children }) => {
           setUserEmail(authResult.email);
           localStorage.setItem("cj_google_user_email", authResult.email);
         }
+        
+        await clearDemoDataIfNeeded();
+
         setSyncing(false);
         return authResult;
       }

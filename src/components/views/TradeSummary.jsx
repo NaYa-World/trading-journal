@@ -455,8 +455,10 @@ export default function TradeSummary({ trades, allProfileTrades, initialCapital 
     <div style={{ display: "flex", gap: 16, height: "100%", overflowY: "auto", paddingBottom: 20 }}>
       {/* 1. Left Sidebar: Trade Summary & Risk Calculator */}
       <div style={{ width: 280, flexShrink: 0, display: "flex", flexDirection: "column", gap: 12 }}>
-        <Card style={{ padding: 16 }}>
-          <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: T.bright, borderBottom: `1px solid ${T.border}`, paddingBottom: 6, marginBottom: 10 }}>JOURNAL STATISTICS</div>
+        <Card style={{ padding: 16, background: `linear-gradient(145deg, ${T.panel}, ${T.panel2})`, border: `1px solid ${T.border}80` }}>
+          <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: T.purple, borderBottom: `1px solid ${T.border}`, paddingBottom: 6, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+            📊 JOURNAL STATISTICS
+          </div>
           
           <SideRow label="Total Number of Trades" val={totalTradesCount.toString()} />
           <SideRow label="Trading Start Date" val={startDateStr} />
@@ -515,12 +517,43 @@ export default function TradeSummary({ trades, allProfileTrades, initialCapital 
         </Card>
 
         {/* Position Size Calculator Widget */}
-        <PositionSizeCalculator accountBalance={currentAccBalance} />
+        <div style={{ marginTop: 8 }}>
+          <PositionSizeCalculator accountBalance={currentAccBalance} />
+        </div>
       </div>
 
       {/* 2. Right Column: Month on Month Analysis, Visual Charts, and Daily Sheet */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12 }}>
         
+        {/* Live Trades Section */}
+        {liveTrades && liveTrades.length > 0 && (
+          <Card style={{ padding: 18, border: `1px solid ${T.blue}40`, background: `linear-gradient(to right, ${T.panel}, ${T.panel2})` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <div style={{ fontSize: 13, fontFamily: T.mono, fontWeight: 700, color: T.blue, letterSpacing: 0.5, display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ width: 8, height: 8, borderRadius: "50%", background: T.blue, boxShadow: `0 0 10px ${T.blue}` }} />
+                ACTIVE POSITIONS ({liveTrades.length})
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 4 }}>
+              {liveTrades.map(trade => {
+                 const isProfit = trade.pnl >= 0;
+                 return (
+                   <div key={trade.id} style={{ minWidth: 150, background: T.bg, border: `1px solid ${T.border}`, borderRadius: 10, padding: 12, display: "flex", flexDirection: "column" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, alignItems: "center" }}>
+                         <div style={{ fontSize: 13, fontWeight: 700, color: "#FFF" }}>{trade.symbol}</div>
+                         <div style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: trade.side === "Long" ? `${T.green}20` : `${T.red}20`, color: trade.side === "Long" ? T.green : T.red }}>{trade.side}</div>
+                      </div>
+                      <div style={{ fontSize: 11, color: T.dim, marginBottom: 2 }}>Floating PnL</div>
+                      <div style={{ fontSize: 15, fontWeight: 700, fontFamily: T.mono, color: isProfit ? T.green : T.red }}>
+                         {isProfit ? "+" : ""}${trade.pnl?.toFixed(2) || "0.00"}
+                      </div>
+                   </div>
+                 )
+              })}
+            </div>
+          </Card>
+        )}
+
         {/* Month on Month Analysis Card */}
         <Card style={{ padding: 18, overflowX: "auto" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
