@@ -27,6 +27,8 @@ export default function SecuritySettingsModal({ onClose }) {
     lastSynced,
     syncing,
     userEmail,
+    googleClientId,
+    setGoogleClientId,
     clearGoogleSession,
     executeCloudBackup,
     fetchBackupsList,
@@ -445,6 +447,31 @@ export default function SecuritySettingsModal({ onClose }) {
         {/* Tab Content 2: Cloud Sync Settings */}
         {activeTab === "cloud" && (
           <div>
+
+            {/* Custom Google Client ID */}
+            <div style={{ background: T.panel2, border: `1px solid ${T.border}`, borderRadius: 10, padding: 14, marginBottom: 16 }}>
+              <div style={{ fontWeight: 700, color: T.bright, fontSize: 13, marginBottom: 6 }}>Google OAuth Client ID</div>
+              <div style={{ fontSize: 11, color: T.dim, marginBottom: 10 }}>
+                If you encounter "Error 401: invalid_client", you can override the Google Client ID with one registered in your Google Console.
+              </div>
+              <input
+                type="text"
+                placeholder="Enter custom Google Client ID..."
+                value={googleClientId}
+                onChange={(e) => setGoogleClientId(e.target.value)}
+                style={{
+                  width: "100%",
+                  background: T.panel,
+                  border: `1px solid ${T.border}`,
+                  borderRadius: 8,
+                  padding: "8px 12px",
+                  color: "#FFF",
+                  fontFamily: T.mono,
+                  fontSize: 12,
+                  outline: "none"
+                }}
+              />
+            </div>
 
             {/* Sync Settings Options */}
             <div style={{ background: T.panel2, border: `1px solid ${T.border}`, borderRadius: 10, padding: 14, marginBottom: 16 }}>
