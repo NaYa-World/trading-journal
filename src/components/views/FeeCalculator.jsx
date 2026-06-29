@@ -183,20 +183,20 @@ export default function FeeCalculator() {
             background: T.blueDim,
             color: T.blue,
             border: `1px solid ${T.blue}50`,
-          }}>Live</span>
+          }}>LIVE</span>
         </div>
         <div style={{ fontSize: 13, color: T.dim }}>
           Auto-calculates entry + exit fees, break-even price, and net P&L for Binance and Bitget
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, alignItems: "start" }}>
         
-        {/* ─── LEFT COLUMN: INPUTS ─── */}
+        {/* ─── LEFT COLUMN: SETUP, HERO, BREAKDOWN ─── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <Card>
-            <div style={{ fontSize: 14, fontWeight: 700, color: T.bright, marginBottom: 14, letterSpacing: 0.8, textTransform: "uppercase" }}>
-              Trade Setup
+            <div style={{ fontSize: 13, fontWeight: 700, color: T.bright, marginBottom: 14, letterSpacing: 0.8, textTransform: "uppercase", display: "flex", alignItems: "center" }}>
+              <span style={{ color: "#38bdf8", marginRight: 8, fontWeight: 900 }}>I</span> TRADE SETUP
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -217,7 +217,7 @@ export default function FeeCalculator() {
                   </select>
                 </div>
                 <div>
-                  <label style={LS}>Trade Type</label>
+                  <label style={LS}>Trade type</label>
                   <div style={segStyle}>
                     <button
                       onClick={() => setTradeType("spot")}
@@ -258,18 +258,13 @@ export default function FeeCalculator() {
                       style={IS}
                     />
                   </div>
-                ) : (
-                  <div style={{ opacity: 0.3, pointerEvents: "none" }}>
-                    <label style={LS}>Leverage</label>
-                    <input type="text" value="Spot (1x)" readOnly style={IS} />
-                  </div>
-                )}
+                ) : null}
               </div>
 
               {/* Row 3: Entry & Exit Price */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div>
-                  <label style={LS}>Entry Price (USDT)</label>
+                  <label style={LS}>Entry price (USDT)</label>
                   <input
                     type="number"
                     value={entryPrice}
@@ -280,7 +275,7 @@ export default function FeeCalculator() {
                   />
                 </div>
                 <div>
-                  <label style={LS}>Exit Price (USDT)</label>
+                  <label style={LS}>Exit price (USDT)</label>
                   <input
                     type="number"
                     value={exitPrice}
@@ -295,7 +290,7 @@ export default function FeeCalculator() {
               {/* Row 4: Quantity & Stop Loss */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div>
-                  <label style={LS}>Quantity</label>
+                  <label style={LS}>Quantity (base asset)</label>
                   <input
                     type="number"
                     value={quantity}
@@ -306,7 +301,7 @@ export default function FeeCalculator() {
                   />
                 </div>
                 <div>
-                  <label style={LS}>Stop Loss (USDT)</label>
+                  <label style={LS}>Stop loss (USDT)</label>
                   <input
                     type="number"
                     value={stopLoss}
@@ -323,7 +318,7 @@ export default function FeeCalculator() {
               {/* Row 5: Maker/Taker Types */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div>
-                  <label style={LS}>Entry Order Type</label>
+                  <label style={LS}>Entry order type</label>
                   <div style={segStyle}>
                     <button
                       onClick={() => setEntryOrderType("maker")}
@@ -336,7 +331,7 @@ export default function FeeCalculator() {
                   </div>
                 </div>
                 <div>
-                  <label style={LS}>Exit Order Type</label>
+                  <label style={LS}>Exit order type</label>
                   <div style={segStyle}>
                     <button
                       onClick={() => setExitOrderType("maker")}
@@ -351,10 +346,10 @@ export default function FeeCalculator() {
               </div>
 
               {/* Row 6: Discounts & Standard vs. Custom */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignItems: "center" }}>
                 {exchange === "binance" ? (
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <label style={{ fontSize: 13, color: T.bright, cursor: "pointer" }} htmlFor="bnb-toggle">
+                    <label style={{ fontSize: 13, color: T.bright, cursor: "pointer", fontWeight: 500 }} htmlFor="bnb-toggle">
                       Pay fees in BNB (-25%)
                     </label>
                     <input
@@ -376,7 +371,7 @@ export default function FeeCalculator() {
                   </div>
                 )}
                 <div>
-                  <label style={LS}>Fee Override</label>
+                  <label style={LS}>Custom fee rate override</label>
                   <div style={segStyle}>
                     <button
                       onClick={() => setUseCustomRates(false)}
@@ -420,11 +415,7 @@ export default function FeeCalculator() {
 
             </div>
           </Card>
-        </div>
 
-        {/* ─── RIGHT COLUMN: RESULTS & REFERENCES ─── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          
           {/* Big PNL display hero */}
           <div style={{
             background: isProfit ? T.greenDim : T.redDim,
@@ -451,8 +442,8 @@ export default function FeeCalculator() {
 
           {/* Fee breakdown details */}
           <Card>
-            <div style={{ fontSize: 13, fontWeight: 700, color: T.bright, marginBottom: 14, letterSpacing: 0.8, textTransform: "uppercase" }}>
-              Fee Breakdown
+            <div style={{ fontSize: 13, fontWeight: 700, color: T.bright, marginBottom: 14, letterSpacing: 0.8, textTransform: "uppercase", display: "flex", alignItems: "center" }}>
+              <span style={{ color: "#38bdf8", marginRight: 8, fontWeight: 900 }}>I</span> FEE BREAKDOWN
             </div>
 
             {/* Active rate chips */}
@@ -473,23 +464,23 @@ export default function FeeCalculator() {
             {/* Values lists */}
             <div style={{ display: "flex", flexDirection: "column" }}>
               <div style={resultRowStyle}>
-                <span style={{ color: T.dim }}>Entry Notional</span>
+                <span style={{ color: T.dim }}>Entry notional</span>
                 <span style={{ fontFamily: T.mono, color: T.bright, fontWeight: 600 }}>{fmt$Neutral(results.entryNotional)}</span>
               </div>
               <div style={resultRowStyle}>
-                <span style={{ color: T.dim }}>Entry Fee</span>
+                <span style={{ color: T.dim }}>Entry fee</span>
                 <span style={{ fontFamily: T.mono, color: T.red, fontWeight: 600 }}>-{fmt$Neutral(results.entryFee)}</span>
               </div>
               <div style={resultRowStyle}>
-                <span style={{ color: T.dim }}>Exit Notional</span>
+                <span style={{ color: T.dim }}>Exit notional</span>
                 <span style={{ fontFamily: T.mono, color: T.bright, fontWeight: 600 }}>{fmt$Neutral(results.exitNotional)}</span>
               </div>
               <div style={resultRowStyle}>
-                <span style={{ color: T.dim }}>Exit Fee</span>
+                <span style={{ color: T.dim }}>Exit fee</span>
                 <span style={{ fontFamily: T.mono, color: T.red, fontWeight: 600 }}>-{fmt$Neutral(results.exitFee)}</span>
               </div>
               <div style={resultRowStyle}>
-                <span style={{ color: T.dim }}>Total Fee</span>
+                <span style={{ color: T.dim }}>Total fee</span>
                 <span style={{ fontFamily: T.mono, color: T.red, fontWeight: 600 }}>-{fmt$Neutral(results.totalFee)}</span>
               </div>
               
@@ -504,13 +495,13 @@ export default function FeeCalculator() {
                 <span style={{ fontFamily: T.mono, color: isProfit ? T.green : T.red, fontWeight: 600 }}>{fmt$(results.netPnl)}</span>
               </div>
               <div style={resultRowStyle}>
-                <span style={{ color: T.dim }}>ROI (on Margin)</span>
+                <span style={{ color: T.dim }}>ROI (on margin)</span>
                 <span style={{ fontFamily: T.mono, color: results.roi >= 0 ? T.green : T.red, fontWeight: 600 }}>
                   {results.roi >= 0 ? "+" : ""}{results.roi.toFixed(2)}%
                 </span>
               </div>
               <div style={resultRowStyle}>
-                <span style={{ color: T.dim }}>Margin Used</span>
+                <span style={{ color: T.dim }}>Margin used</span>
                 <span style={{ fontFamily: T.mono, color: T.bright, fontWeight: 600 }}>{fmt$Neutral(results.margin)}</span>
               </div>
 
@@ -518,8 +509,8 @@ export default function FeeCalculator() {
 
               {/* Break-even pill */}
               <div style={{
-                background: T.orangeDim,
-                border: `1px solid ${T.orange}40`,
+                background: "transparent",
+                border: `1px solid ${T.orange}`,
                 color: T.orange,
                 borderRadius: 6,
                 padding: "8px 14px",
@@ -528,15 +519,18 @@ export default function FeeCalculator() {
                 fontWeight: 600,
                 textAlign: "center",
               }}>
-                Break-even Exit: ${results.breakEvenPrice.toFixed(4)}
+                Break-even exit: ${results.breakEvenPrice.toFixed(4)}
               </div>
             </div>
           </Card>
+        </div>
 
+        {/* ─── RIGHT COLUMN: TP LEVELS & REFERENCES ─── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {/* TP levels card */}
           <Card>
-            <div style={{ fontSize: 13, fontWeight: 700, color: T.bright, marginBottom: 14, letterSpacing: 0.8, textTransform: "uppercase" }}>
-              Take-Profit Targets (Net of Fees)
+            <div style={{ fontSize: 13, fontWeight: 700, color: T.bright, marginBottom: 14, letterSpacing: 0.8, textTransform: "uppercase", display: "flex", alignItems: "center" }}>
+              <span style={{ color: "#38bdf8", marginRight: 8, fontWeight: 900 }}>I</span> TP LEVELS (NET OF FEES)
             </div>
             
             {tpLevels.length === 0 ? (
@@ -548,15 +542,13 @@ export default function FeeCalculator() {
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                   <thead>
                     <tr>
-                      <th style={tableHeaderStyle}>Level</th>
-                      <th style={tableHeaderStyle}>Target Price</th>
-                      <th style={tableHeaderStyle}>Net P&L</th>
-                      <th style={tableHeaderStyle}>ROI</th>
+                      <th style={{ ...tableHeaderStyle, width: "30%", paddingLeft: 0 }}>TARGET</th>
+                      <th style={tableHeaderStyle}>NET P&L</th>
+                      <th style={{ ...tableHeaderStyle, textAlign: "right", paddingRight: 0 }}>ROI</th>
                     </tr>
                   </thead>
                   <tbody>
                     {tpLevels.map((tp, idx) => {
-                      // TP tags styling
                       const tagStyles = [
                         { background: `${T.blue}20`, color: T.blue },
                         { background: `${T.green}20`, color: T.green },
@@ -567,29 +559,31 @@ export default function FeeCalculator() {
 
                       return (
                         <tr key={idx}>
-                          <td style={tableCellStyle}>
-                            <span style={{
-                              fontSize: 10,
-                              fontWeight: 700,
-                              padding: "2px 6px",
-                              borderRadius: 4,
-                              background: tagStyle.background,
-                              color: tagStyle.color,
-                              display: "inline-block",
-                              fontFamily: T.sans,
-                              letterSpacing: 0.5,
-                            }}>
-                              {tp.label} · {tp.rMultiple}R
-                            </span>
+                          <td style={{ ...tableCellStyle, paddingLeft: 0 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <span style={{
+                                fontSize: 9,
+                                fontWeight: 700,
+                                padding: "2px 6px",
+                                borderRadius: 4,
+                                background: tagStyle.background,
+                                color: tagStyle.color,
+                                display: "inline-block",
+                                fontFamily: T.sans,
+                                letterSpacing: 0.5,
+                              }}>
+                                {tp.label} · {tp.rMultiple}R
+                              </span>
+                            </div>
                           </td>
-                          <td style={{ ...tableCellStyle, color: T.bright }}>
+                          <td style={{ ...tableCellStyle, color: T.bright, fontWeight: 600 }}>
                             ${tp.targetPrice.toFixed(4)}
                           </td>
-                          <td style={{ ...tableCellStyle, color: tp.netPnl >= 0 ? T.green : T.red, fontWeight: 600 }}>
+                          <td style={{ ...tableCellStyle, color: T.green, fontWeight: 600 }}>
                             {fmt$(tp.netPnl)}
                           </td>
-                          <td style={{ ...tableCellStyle, color: tp.roi >= 0 ? T.green : T.red, fontWeight: 600 }}>
-                            {tp.roi >= 0 ? "+" : ""}{tp.roi.toFixed(1)}%
+                          <td style={{ ...tableCellStyle, color: T.green, fontWeight: 600, textAlign: "right", paddingRight: 0 }}>
+                            +{tp.roi.toFixed(1)}%
                           </td>
                         </tr>
                       );
@@ -602,53 +596,52 @@ export default function FeeCalculator() {
 
           {/* Reference standard rates cheat-sheet */}
           <Card>
-            <div style={{ fontSize: 13, fontWeight: 700, color: T.bright, marginBottom: 14, letterSpacing: 0.8, textTransform: "uppercase" }}>
-              Standard Reference Rates
+            <div style={{ fontSize: 13, fontWeight: 700, color: T.bright, marginBottom: 14, letterSpacing: 0.8, textTransform: "uppercase", display: "flex", alignItems: "center" }}>
+              <span style={{ color: "#38bdf8", marginRight: 8, fontWeight: 900 }}>I</span> REFERENCE FEE RATES
             </div>
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
                   <tr>
-                    <th style={tableHeaderStyle}>Exchange</th>
-                    <th style={tableHeaderStyle}>Type</th>
-                    <th style={tableHeaderStyle}>Maker</th>
-                    <th style={tableHeaderStyle}>Taker</th>
+                    <th style={{ ...tableHeaderStyle, paddingLeft: 0 }}>EXCHANGE</th>
+                    <th style={tableHeaderStyle}>TYPE</th>
+                    <th style={tableHeaderStyle}>MAKER</th>
+                    <th style={{ ...tableHeaderStyle, textAlign: "right", paddingRight: 0 }}>TAKER</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
-                    <td style={{ ...tableCellStyle, color: T.blue, fontWeight: 600 }}>Binance</td>
+                    <td style={{ ...tableCellStyle, color: T.blue, fontWeight: 600, paddingLeft: 0 }}>Binance</td>
                     <td style={{ ...tableCellStyle, color: T.dim }}>Spot</td>
                     <td style={{ ...tableCellStyle, color: T.green }}>{(FEE_RATES.binance.spot.maker * 100).toFixed(2)}%</td>
-                    <td style={{ ...tableCellStyle, color: T.orange }}>{(FEE_RATES.binance.spot.taker * 100).toFixed(2)}%</td>
+                    <td style={{ ...tableCellStyle, color: T.orange, textAlign: "right", paddingRight: 0 }}>{(FEE_RATES.binance.spot.taker * 100).toFixed(2)}%</td>
                   </tr>
                   <tr>
-                    <td style={{ ...tableCellStyle, color: T.blue, fontWeight: 600 }}>Binance</td>
+                    <td style={{ ...tableCellStyle, color: T.blue, fontWeight: 600, paddingLeft: 0 }}>Binance</td>
                     <td style={{ ...tableCellStyle, color: T.dim }}>Futures</td>
                     <td style={{ ...tableCellStyle, color: T.green }}>{(FEE_RATES.binance.futures.maker * 100).toFixed(2)}%</td>
-                    <td style={{ ...tableCellStyle, color: T.orange }}>{(FEE_RATES.binance.futures.taker * 100).toFixed(2)}%</td>
+                    <td style={{ ...tableCellStyle, color: T.orange, textAlign: "right", paddingRight: 0 }}>{(FEE_RATES.binance.futures.taker * 100).toFixed(2)}%</td>
                   </tr>
                   <tr>
-                    <td style={{ ...tableCellStyle, color: T.green, fontWeight: 600 }}>Bitget</td>
+                    <td style={{ ...tableCellStyle, color: T.green, fontWeight: 600, paddingLeft: 0 }}>Bitget</td>
                     <td style={{ ...tableCellStyle, color: T.dim }}>Spot</td>
                     <td style={{ ...tableCellStyle, color: T.green }}>{(FEE_RATES.bitget.spot.maker * 100).toFixed(2)}%</td>
-                    <td style={{ ...tableCellStyle, color: T.orange }}>{(FEE_RATES.bitget.spot.taker * 100).toFixed(2)}%</td>
+                    <td style={{ ...tableCellStyle, color: T.orange, textAlign: "right", paddingRight: 0 }}>{(FEE_RATES.bitget.spot.taker * 100).toFixed(2)}%</td>
                   </tr>
                   <tr>
-                    <td style={{ ...tableCellStyle, color: T.green, fontWeight: 600 }}>Bitget</td>
+                    <td style={{ ...tableCellStyle, color: T.green, fontWeight: 600, paddingLeft: 0 }}>Bitget</td>
                     <td style={{ ...tableCellStyle, color: T.dim }}>Futures</td>
                     <td style={{ ...tableCellStyle, color: T.green }}>{(FEE_RATES.bitget.futures.maker * 100).toFixed(2)}%</td>
-                    <td style={{ ...tableCellStyle, color: T.orange }}>{(FEE_RATES.bitget.futures.taker * 100).toFixed(2)}%</td>
+                    <td style={{ ...tableCellStyle, color: T.orange, textAlign: "right", paddingRight: 0 }}>{(FEE_RATES.bitget.futures.taker * 100).toFixed(2)}%</td>
                   </tr>
                   <tr>
-                    <td colSpan={2} style={{ ...tableCellStyle, color: T.dim }}>BNB Discount</td>
-                    <td colSpan={2} style={{ ...tableCellStyle, color: T.orange, fontWeight: 600 }}>-25% on Binance</td>
+                    <td colSpan={2} style={{ ...tableCellStyle, color: T.dim, paddingLeft: 0, borderBottom: "none" }}>BNB discount</td>
+                    <td colSpan={2} style={{ ...tableCellStyle, color: T.orange, fontWeight: 600, textAlign: "right", paddingRight: 0, borderBottom: "none" }}>-25% on Binance</td>
                   </tr>
                 </tbody>
               </table>
             </div>
           </Card>
-
         </div>
 
       </div>
