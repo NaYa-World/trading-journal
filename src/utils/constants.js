@@ -15,6 +15,7 @@ export const DEFAULT_PROFILES = [
 
 export const NAV_ITEMS = [
   { id: "Dashboard", icon: "⊞" },
+  { id: "Dashboard-2", icon: "✨" },
   { id: "Open Spot Trades", icon: "🪙" },
   { id: "Live Trades(ongoing)", icon: "◎" },
   { id: "Finished Trades", icon: "◷" },

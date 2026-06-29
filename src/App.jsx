@@ -27,6 +27,7 @@ import LiveTradesView from "./components/views/LiveTradesView.jsx";
 import OpenSpotView from "./components/views/OpenSpotView.jsx";
 import WatchlistView from "./components/views/WatchlistView.jsx";
 import AlertsView from "./components/views/AlertsView.jsx";
+import DashboardV2 from "./components/views/DashboardV2.jsx";
 
 const ChartModal = lazy(() => import("./components/modals/ChartModal.jsx"));
 const Analytics = lazy(() => import("./components/views/Analytics.jsx"));
@@ -276,9 +277,15 @@ function Overview({ trades, allProfileTrades, initialCapital = 0, profiles = [],
         
         {/* Left Column: KPIs */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <Card style={{ background: T.panel, border: `1px solid ${T.border}` }}>
-            <div style={ML}>Net PNL <InfoDot title="Realized profit/loss after transaction fees" /></div>
-            <div style={{ ...MV, color: realizedPnl >= 0 ? T.green : T.red, fontSize: 32 }}>{fmt$(realizedPnl)}</div>
+          <Card style={{ background: T.panel, border: `1px solid ${T.border}`, position: "relative", overflow: "hidden" }}>
+            <div style={{ position: "absolute", top: -30, right: -30, width: 120, height: 120, borderRadius: "50%", filter: "blur(40px)", opacity: 0.15, pointerEvents: "none", background: realizedPnl >= 0 ? T.green : T.red }} />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={ML}>Net PNL <InfoDot title="Realized profit/loss after transaction fees" /></div>
+                <div style={{ ...MV, color: realizedPnl >= 0 ? T.green : T.red, fontSize: 32 }}>{fmt$(realizedPnl)}</div>
+              </div>
+              <Sparkline data={equitySeries.map(d => d.val)} color={realizedPnl >= 0 ? T.green : T.red} width={90} height={40} />
+            </div>
           </Card>
           <Card>
             <div style={ML}>Account Balance <InfoDot title="Current wallet balance (Initial + Deposits - Withdrawals + PnL + Fees)" /></div>
@@ -295,9 +302,14 @@ function Overview({ trades, allProfileTrades, initialCapital = 0, profiles = [],
             </div>
           </Card>
           <Card>
-            <div style={ML}>Win Rate <InfoDot title="Percentage of trades that were profitable" /></div>
-            <div style={{ ...MV, fontSize: 32 }}>{winRate.toFixed(2)}%</div>
-            <div style={{ fontSize: 13, color: T.dim, marginTop: 5, fontFamily: T.mono }}>{wins.length} wins · {losses.length} losses</div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={ML}>Win Rate <InfoDot title="Percentage of trades that were profitable" /></div>
+                <div style={{ ...MV, fontSize: 32 }}>{winRate.toFixed(2)}%</div>
+                <div style={{ fontSize: 13, color: T.dim, marginTop: 5, fontFamily: T.mono }}>{wins.length} wins · {losses.length} losses</div>
+              </div>
+              <SemiGauge pct={winRate / 100} wins={wins.length} total={closed.length} size={84} />
+            </div>
           </Card>
           <Card>
             <div style={ML}>Profit Factor <InfoDot title="Gross profit divided by gross loss" /></div>
@@ -1051,6 +1063,16 @@ export default function App() {
               isFilteredEmpty ? <EmptyState filtered={true} /> :
               (subTab === "Overview" && <Overview trades={trades} allProfileTrades={profileTrades} initialCapital={initialCapital} profiles={profiles} liveTrades={liveTrades} isMobile={isMobile} />)
             ) : null}
+            {view === "Dashboard-2" && (
+              <DashboardV2
+                trades={trades}
+                allProfileTrades={profileTrades}
+                liveTrades={liveTrades}
+                prices={prices}
+                initialCapital={initialCapital}
+                isMobile={isMobile}
+              />
+            )}
             <>
               {view === "Open Spot Trades" && <OpenSpotView spotOpen={spotOpen} onSell={closeSpotOpen} onDelete={deleteSpotOpen} onEdit={setEditingTrade} savedSymbols={savedSymbols} />}
                 {view === "Live Trades(ongoing)" && (
