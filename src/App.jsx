@@ -17,7 +17,7 @@ import { usePrices } from "./context/PricesContext.jsx";
 import AlertsEngine from "./components/AlertsEngine.jsx";
 import {
   Sidebar, TopNav, BottomNav,
-  TradeLog, TradeSummary, RiskCalculator, TradingCalendar,
+  TradeLog, TradeSummary, RiskCalculator, FeeCalculator, TradingCalendar,
   InfoDot, Card, ML, MV,
   EmptyState, Skeleton, SemiGauge,
   Sparkline, WinLossRatioBar, AccountsManager, TradeSetupsManager,
@@ -1056,7 +1056,7 @@ export default function App() {
                   <div style={{ padding: isMobile ? "0" : "0", display: "flex", flexDirection: "column", flex: 1 }}>
                     {isMobile && (
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, padding: "0 16px", marginBottom: 20 }}>
-                        {["Time Metrics", "Analytics", "Calendar", "Risk Calc", "Trade Summary"].map(t => (
+                        {["Time Metrics", "Analytics", "Calendar", "Risk Calc", "Fee Calc", "Trade Summary"].map(t => (
                           <button
                             key={t}
                             onClick={() => setSubTab(t)}
@@ -1096,6 +1096,7 @@ export default function App() {
                     )}
                     {subTab === "Time Metrics" && <TimeMetrics trades={trades} />}
                     {subTab === "Risk Calc" && <RiskCalculator />}
+                    {subTab === "Fee Calc" && <FeeCalculator />}
                     </div>
                   </div>
                 )}

@@ -13,6 +13,7 @@ export { default as TradeSetupsManager } from "./TradeSetupsManager.jsx";
 export { default as TradeLog } from "./views/TradeLog.jsx";
 export { default as TradeSummary } from "./views/TradeSummary.jsx";
 export { default as RiskCalculator } from "./views/RiskCalculator.jsx";
+export { default as FeeCalculator } from "./views/FeeCalculator.jsx";
 export { default as TradingCalendar } from "./views/TradingCalendar.jsx";
 
 export {
