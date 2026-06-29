@@ -173,7 +173,7 @@ export const BackupProvider = ({ children }) => {
   }
 
   // Check for Google OAuth Redirect Result (Web callback)
-  const checkRedirectResult = async (clientIdVal = googleClientId) => {
+  const checkRedirectResult = useCallback(async (clientIdVal = googleClientId) => {
     if (Capacitor.getPlatform() !== "web") return null;
     try {
       setSyncing(true);
@@ -198,7 +198,21 @@ export const BackupProvider = ({ children }) => {
       console.error("Redirect check failed:", e);
       return null;
     }
-  };
+  }, [googleClientId]);
+
+  // Handle web redirect result automatically on mount
+  useEffect(() => {
+    if (Capacitor.getPlatform() === "web") {
+      const hasRedirectParams = window.location.hash.includes("access_token") ||
+                                window.location.search.includes("code") ||
+                                window.location.search.includes("state");
+      if (hasRedirectParams) {
+        Promise.resolve().then(() => {
+          checkRedirectResult();
+        });
+      }
+    }
+  }, [checkRedirectResult]);
 
   // Clear Google session on logout
   const clearGoogleSession = () => {
