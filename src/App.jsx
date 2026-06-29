@@ -227,7 +227,7 @@ function Overview({ trades, allProfileTrades, initialCapital = 0, profiles = [],
 
   const INITIAL_CAPITAL = initialCapital;
 
-  const { balance } = useMemo(() => {
+  const { balance, totalDeposits, totalWithdrawals } = useMemo(() => {
     const allProfileClosed = (allProfileTrades || trades).filter(t => t.status === "closed");
     const firstDeposit = allProfileClosed.find(t => t.entryType === "Deposit" || t.symbol === "Deposit");
     const startingCapital = firstDeposit ? firstDeposit.qty : (initialCapital || 0);
@@ -241,7 +241,11 @@ function Overview({ trades, allProfileTrades, initialCapital = 0, profiles = [],
     const profileClosedTrades = allProfileClosed.filter(t => t.entryType !== "Deposit" && t.entryType !== "Withdrawal" && t.symbol !== "Deposit" && t.symbol !== "Withdrawal");
     const profileRealizedPnl = profileClosedTrades.reduce((s, t) => s + t.pnl, 0);
     const profileTotalFees = profileClosedTrades.reduce((s, t) => s + (t.fees || 0) - (t.fundingFees || 0), 0);
-    return { balance: startingCapital + otherDepositsVal - withdrawalsVal + profileRealizedPnl + profileTotalFees };
+    return { 
+      balance: startingCapital + otherDepositsVal - withdrawalsVal + profileRealizedPnl + profileTotalFees,
+      totalDeposits: startingCapital + otherDepositsVal,
+      totalWithdrawals: withdrawalsVal
+    };
   }, [allProfileTrades, trades, initialCapital]);
 
   const { prices } = usePrices();
@@ -275,6 +279,20 @@ function Overview({ trades, allProfileTrades, initialCapital = 0, profiles = [],
           <Card style={{ background: T.panel, border: `1px solid ${T.border}` }}>
             <div style={ML}>Net PNL <InfoDot title="Realized profit/loss after transaction fees" /></div>
             <div style={{ ...MV, color: realizedPnl >= 0 ? T.green : T.red, fontSize: 32 }}>{fmt$(realizedPnl)}</div>
+          </Card>
+          <Card>
+            <div style={ML}>Account Balance <InfoDot title="Current wallet balance (Initial + Deposits - Withdrawals + PnL + Fees)" /></div>
+            <div style={{ ...MV, fontSize: 26, color: T.bright }}>{balance.toLocaleString("en-US", { minimumFractionDigits: 2 })} <span style={{ fontSize: 13, color: T.dim, fontWeight: 400 }}>USDT</span></div>
+            <div style={{ display: "flex", justifyContent: "space-between", borderTop: `1px solid ${T.border}`, paddingTop: 10, marginTop: 8, gap: 10 }}>
+              <div>
+                <div style={{ fontSize: 10, color: T.dim }}>Total Deposits</div>
+                <div style={{ color: T.green, fontWeight: 700, fontSize: 12 }}>+{totalDeposits.toLocaleString("en-US", { minimumFractionDigits: 2 })}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: T.dim, textAlign: "right" }}>Total Withdrawals</div>
+                <div style={{ color: T.red, fontWeight: 700, fontSize: 12, textAlign: "right" }}>-{totalWithdrawals.toLocaleString("en-US", { minimumFractionDigits: 2 })}</div>
+              </div>
+            </div>
           </Card>
           <Card>
             <div style={ML}>Win Rate <InfoDot title="Percentage of trades that were profitable" /></div>
@@ -433,13 +451,25 @@ function Overview({ trades, allProfileTrades, initialCapital = 0, profiles = [],
             {closed.length} closed trade{closed.length !== 1 ? "s" : ""}
           </div>
         </Card>
-        <Card style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div>
-            <div style={ML}>Balance <InfoDot title="Initial Capital + Realized PNL + Total Fees" /></div>
-            <div style={{ ...MV, fontSize: 22 }}>{balance.toLocaleString("en-US", { minimumFractionDigits: 2 })}</div>
+        <Card>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={ML}>Balance <InfoDot title="Initial Capital + Realized PNL + Total Fees" /></div>
+              <div style={{ ...MV, fontSize: 22 }}>{balance.toLocaleString("en-US", { minimumFractionDigits: 2 })}</div>
+            </div>
+            <div style={{ background: T.blueDim, color: T.blue, border: `1px solid ${T.blue}40`, borderRadius: 6, padding: "4px 10px", fontSize: 12, fontFamily: T.mono, whiteSpace: "nowrap" }}>
+              {profiles.length || 1} Portfolio{(profiles.length || 1) !== 1 ? "s" : ""}
+            </div>
           </div>
-          <div style={{ background: T.blueDim, color: T.blue, border: `1px solid ${T.blue}40`, borderRadius: 6, padding: "4px 10px", fontSize: 12, fontFamily: T.mono, whiteSpace: "nowrap" }}>
-            {profiles.length || 1} Portfolio{(profiles.length || 1) !== 1 ? "s" : ""}
+          <div style={{ display: "flex", justifyContent: "space-between", borderTop: `1px solid ${T.border}`, paddingTop: 8, marginTop: 8, gap: 10 }}>
+            <div>
+              <div style={{ fontSize: 9, color: T.dim }}>Total Deposits</div>
+              <div style={{ color: T.green, fontWeight: 700, fontSize: 11 }}>+{totalDeposits.toLocaleString("en-US", { minimumFractionDigits: 2 })}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 9, color: T.dim, textAlign: "right" }}>Total Withdrawals</div>
+              <div style={{ color: T.red, fontWeight: 700, fontSize: 11, textAlign: "right" }}>-{totalWithdrawals.toLocaleString("en-US", { minimumFractionDigits: 2 })}</div>
+            </div>
           </div>
         </Card>
         <Card style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
