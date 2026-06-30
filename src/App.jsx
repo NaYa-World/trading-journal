@@ -182,9 +182,32 @@ function ConsistencyHeatmap({ trades }) {
   );
 }
 
+function BreakdownCard({ title, rows }) {
+  return (
+    <Card style={{ flex: "1 1 240px" }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: T.dim, marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+        <span style={{ width: 3, height: 14, background: T.blue, borderRadius: 2 }} /> {title}
+      </div>
+      {rows.length === 0 ? (
+        <div style={{ fontSize: 12, color: T.dim, padding: "10px 0", textAlign: "center" }}>No data yet.</div>
+      ) : (
+        rows.map(r => (
+          <div key={r.label} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderTop: `1px solid ${T.border}`, fontSize: 13, alignItems: "center" }}>
+            <span style={{ textTransform: "capitalize", fontWeight: 700, color: T.bright }}>{r.label}</span>
+            <span style={{ color: T.dim, fontSize: 12 }}>{r.count} trades · {r.winRate.toFixed(0)}% WR</span>
+            <span style={{ color: r.pnl >= 0 ? T.green : T.red, fontFamily: T.mono, fontWeight: 700 }}>
+              {fmt$(r.pnl)}
+            </span>
+          </div>
+        ))
+      )}
+    </Card>
+  );
+}
+
 // ─── Overview ─────────────────────────────────────────────────────────────────
 function Overview({ trades, allProfileTrades, initialCapital = 0, profiles = [], liveTrades = [], isMobile }) {
-  const { closed, wins, losses, realizedPnl, winRate, totalFees, totalInvested, avgWin, avgLoss, avgRR, profitFactor, expectedValue, spotClosed, futClosed, spotH, spotM, futH, futM, equitySeries, dailyPnl } = useMemo(() => {
+  const { closed, wins, losses, realizedPnl, winRate, totalFees, totalInvested, avgWin, avgLoss, avgRR, profitFactor, expectedValue, spotClosed, futClosed, spotH, spotM, futH, futM, equitySeries, dailyPnl, directionBreakdown, exchangeBreakdown } = useMemo(() => {
     const allClosed = trades.filter(t => t.status === "closed");
     const closed = allClosed.filter(t => t.entryType !== "Deposit" && t.entryType !== "Withdrawal" && t.symbol !== "Deposit" && t.symbol !== "Withdrawal");
     const wins = closed.filter(t => (t.pnl - (t.fundingFees || 0)) > 0);
@@ -218,12 +241,33 @@ function Overview({ trades, allProfileTrades, initialCapital = 0, profiles = [],
       return acc;
     }, {})).map(([date, val]) => ({ date, val: parseFloat(val.toFixed(2)) }));
 
+    const computeBreakdownVal = (key) => {
+      const map = new Map();
+      for (const t of closed) {
+        const k = key(t);
+        const entry = map.get(k) ?? { pnl: 0, count: 0, wins: 0 };
+        entry.pnl += t.pnl ?? 0;
+        entry.count++;
+        if ((t.pnl ?? 0) > 0) entry.wins++;
+        map.set(k, entry);
+      }
+      return Array.from(map.entries()).map(([k, v]) => ({
+        label: k,
+        pnl: v.pnl,
+        count: v.count,
+        winRate: v.count ? (v.wins / v.count) * 100 : 0,
+      }));
+    };
+
+    const directionBreakdown = computeBreakdownVal(t => t.side?.toLowerCase() || "long");
+    const exchangeBreakdown = computeBreakdownVal(t => t.exchange?.toLowerCase() || "binance");
+
     return { 
       closed, wins, losses, realizedPnl, winRate, totalFees, totalInvested, 
       avgWin, avgLoss, avgRR, profitFactor, expectedValue, spotClosed, futClosed, 
       spotH: Math.floor((spotAvgHold || 0) / 3600000), spotM: Math.floor(((spotAvgHold || 0) % 3600000) / 60000),
       futH: Math.floor((futAvgHold || 0) / 3600000), futM: Math.floor(((futAvgHold || 0) % 3600000) / 60000),
-      equitySeries, dailyPnl
+      equitySeries, dailyPnl, directionBreakdown, exchangeBreakdown
     };
   }, [trades]);
 
@@ -348,6 +392,10 @@ function Overview({ trades, allProfileTrades, initialCapital = 0, profiles = [],
                <div style={{ ...MV, fontSize: 30 }}>{avgRR.toFixed(2)}</div>
                <div style={{ fontSize: 12, color: T.dim, marginTop: 5, fontFamily: T.mono }}><span style={{ color: T.green }}>+{avgWin.toFixed(2)}</span> / <span style={{ color: T.red }}>-{avgLoss.toFixed(2)}</span></div>
              </Card>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <BreakdownCard title="By Direction" rows={directionBreakdown} />
+            <BreakdownCard title="By Exchange" rows={exchangeBreakdown} />
           </div>
         </div>
 
@@ -500,6 +548,12 @@ function Overview({ trades, allProfileTrades, initialCapital = 0, profiles = [],
           <div style={ML}>Total Fees <InfoDot title="Total fees paid across all closed trades" /></div>
           <div style={{ ...MV, fontSize: 22, color: T.red }}>{fmt$(totalFees)}</div>
         </Card>
+      </div>
+
+      {/* Row 4: Direction & Exchange Breakdowns */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))", gap: 10, marginBottom: 10 }}>
+        <BreakdownCard title="By Direction" rows={directionBreakdown} />
+        <BreakdownCard title="By Exchange" rows={exchangeBreakdown} />
       </div>
     </div>
   );

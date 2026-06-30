@@ -18,6 +18,47 @@ function InfoDot({ title }) {
   );
 }
 
+function computeBreakdown(trades, key) {
+  const map = new Map();
+  for (const t of trades) {
+    const k = key(t);
+    const entry = map.get(k) ?? { pnl: 0, count: 0, wins: 0 };
+    entry.pnl += t.pnl ?? 0;
+    entry.count++;
+    if ((t.pnl ?? 0) > 0) entry.wins++;
+    map.set(k, entry);
+  }
+  return Array.from(map.entries()).map(([k, v]) => ({
+    label: k,
+    pnl: v.pnl,
+    count: v.count,
+    winRate: v.count ? (v.wins / v.count) * 100 : 0,
+  }));
+}
+
+function BreakdownCard({ title, rows }) {
+  return (
+    <div style={{ background: "#1a2540", border: "1px solid #1e2d45", borderRadius: 12, padding: 16, flex: "1 1 240px" }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7fa3", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+        <span style={{ width: 3, height: 14, background: "#4d9fff", borderRadius: 2 }} /> {title}
+      </div>
+      {rows.length === 0 ? (
+        <div style={{ fontSize: 12, color: "#6b7fa3", padding: "10px 0", textAlign: "center" }}>No data yet.</div>
+      ) : (
+        rows.map(r => (
+          <div key={r.label} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderTop: "1px solid #1e2d45", fontSize: 13, alignItems: "center" }}>
+            <span style={{ textTransform: "capitalize", fontWeight: 700, color: "#fff" }}>{r.label}</span>
+            <span style={{ color: "#6b7fa3", fontSize: 12 }}>{r.count} trades · {r.winRate.toFixed(0)}% WR</span>
+            <span style={{ color: r.pnl >= 0 ? "#10d98a" : "#f0445a", fontFamily: "monospace", fontWeight: 700 }}>
+              {r.pnl >= 0 ? "+" : ""}${r.pnl.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
 export default function DashboardV2({ 
   trades = [], 
   allProfileTrades = [],
@@ -115,9 +156,13 @@ export default function DashboardV2({
     todayCut.setHours(0, 0, 0, 0);
     const todayPnl = closed.filter(t => t.closeTime >= todayCut.getTime()).reduce((s, t) => s + t.pnl, 0);
 
+    const directionBreakdown = computeBreakdown(closed, t => t.side?.toLowerCase() || "long");
+    const exchangeBreakdown = computeBreakdown(closed, t => t.exchange?.toLowerCase() || "binance");
+
     return {
       wins, losses, realizedPnl, winRate, totalFees, pf, avgWin, avgLoss, ev, rr,
-      spotTrades, futTrades, spotHold, futHold, best, worst, eq, dd, todayPnl, sorted
+      spotTrades, futTrades, spotHold, futHold, best, worst, eq, dd, todayPnl, sorted,
+      directionBreakdown, exchangeBreakdown
     };
   }, [rangeFilteredTrades]);
 
@@ -678,6 +723,12 @@ export default function DashboardV2({
           </div>
         </div>
 
+      </div>
+
+      {/* Breakdowns: direction + exchange */}
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12, marginTop: 14 }}>
+        <BreakdownCard title="By Direction" rows={stats.directionBreakdown} />
+        <BreakdownCard title="By Exchange" rows={stats.exchangeBreakdown} />
       </div>
       
     </div>
