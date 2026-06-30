@@ -744,7 +744,7 @@ function ReviewModal({ reviewKey, existing, onSave, onClose }) {
 
 // OpenSpotView moved to components/views
 
-function TradeFilterBar({ filterSetup, setFilterSetup, filterCoin, setFilterCoin, filterResult, setFilterResult, filterTrade, setFilterTrade, onDownload, coins, setups }) {
+function TradeFilterBar({ filterSetup, setFilterSetup, filterCoin, setFilterCoin, filterTrade, setFilterTrade, onDownload, coins, setups }) {
   const S = { background: T.panel2, border: `1px solid ${T.border}`, borderRadius: 6, color: T.text, padding: "6px 12px", fontSize: 13, fontFamily: T.mono, outline: "none", flex: "1 1 auto", minWidth: 100 };
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10, background: T.panel, border: `1px solid ${T.border}`, borderRadius: 8, padding: "10px 16px", marginBottom: 16 }}>
@@ -757,11 +757,6 @@ function TradeFilterBar({ filterSetup, setFilterSetup, filterCoin, setFilterCoin
         <select style={S} value={filterSetup} onChange={e => setFilterSetup(e.target.value)}>
           <option value="All">All Setups</option>
           {setups.map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
-        <select style={S} value={filterResult} onChange={e => setFilterResult(e.target.value)}>
-          <option value="All">All Results</option>
-          <option value="Win">Wins Only</option>
-          <option value="Loss">Losses Only</option>
         </select>
         <select style={S} value={filterTrade} onChange={e => setFilterTrade(e.target.value)}>
           <option value="All">All Types</option>
@@ -1106,7 +1101,6 @@ export default function App() {
               <TradeFilterBar
                 filterSetup={filterSetup} setFilterSetup={setFilterSetup}
                 filterCoin={filterCoin} setFilterCoin={setFilterCoin}
-                filterResult={filterResult} setFilterResult={setFilterResult}
                 filterTrade={filterTrade} setFilterTrade={setFilterTrade}
                 onDownload={downloadCSV}
                 coins={Array.from(new Set(closed.map(t => t.symbol)))}
