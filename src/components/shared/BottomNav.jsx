@@ -4,10 +4,12 @@ import { useDashboard } from "../../context/DashboardContext.jsx";
 // We'll define the mobile nav items directly here instead of using the generic NAV_ITEMS
 const MOBILE_TABS = [
   { id: "Dashboard", label: "Home", icon: "⌘" },
+  { id: "Dashboard-2", label: "v2", icon: "✨" },
+  { id: "Dashboard-3", label: "v3", icon: "📈" },
   { id: "Journal", label: "Journal", icon: "📖" },
   { id: "Trade", label: "Trade", isCenter: true },
   { id: "Setup", label: "Setup", icon: "✔" },
-  { id: "Analytics", label: "Analytics", icon: "📈" },
+  { id: "Analytics", label: "Analytics", icon: "📊" },
   { id: "Profile", label: "Profile", icon: "👤" }
 ];
 
