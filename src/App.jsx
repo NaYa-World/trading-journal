@@ -1252,6 +1252,7 @@ export default function App() {
                 {view === "Setup" && (
                   <TradeSetupsManager trades={trades} tradeSetups={tradeSetups} setTradeSetups={setTradeSetups} showToast={showToast} />
                 )}
+
                 {view === "Analytics" && (
                   <div style={{ padding: isMobile ? "0" : "0", display: "flex", flexDirection: "column", flex: 1 }}>
                     {isMobile && (

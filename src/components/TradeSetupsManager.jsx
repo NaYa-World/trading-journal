@@ -13,6 +13,9 @@ const SETUP_TYPES = [
   { id: "Fakeout", label: "🏷 Fakeout", color: T.orange }
 ];
 
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024; // 2MB cap — protects the 5MB Drive storage key limit
+const MAX_NAME_LEN = 60;
+
 const CANDLESTICK_PRESETS = [
   {
     name: "Bullish Hammer Reversal",
@@ -70,7 +73,7 @@ const CANDLESTICK_PRESETS = [
       "Occurs on strong support level",
       "Confirm with volume spike on Candle 3"
     ],
-    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSIxNSIgeT0iMjAiIHdpZHRoPSIxNSIgaGVpZ2h0PSI1MCIgZmlsbD0iI2VmNDQ0NCIgcng9IjIiLz48cmVjdCB4PSI0MiIgeT0iNjUiIHdpZHRoPSIxNSIgaGVpZ2h0PSIxNSIgZmlsbD0iIzNiODJmNiIgcng9IjIiLz48cmVjdCB4PSI3MCIgeT0iMzAiIHdpZHRoPSIxNSIgaGVpZ2h0PSI0NSIgZmlsbD0iIzIyYzU1ZSIgcng9IjIiLz48L3N2Zz4="
+    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSIxNSIgeT0iMjAiIHdpZHRoPSIxNSIgaGVpZ2h0PSI1MCIgZmlsbD0iI2VmNDQ0NCIgcng9IjIiLz48cmVjdCB4PSI0MiIgeT0iNjUiIHdpZHRoPSIxNSIgaGVpZ2h0PSIxNSIgZmlsbD0iIzNiODJmNiIgcng9IjIiLz48cmVjdCB4PSI3MCIgeT0iMzMwIiB3aWR0aD0iMTUiIGhlaWdodD0iNDUiIGZpbGw9IiMyMmM1NWUiIHJ4PSIyIi8+PC9zdmc+"
   },
   {
     name: "Evening Star Bearish Reversal",
@@ -82,7 +85,7 @@ const CANDLESTICK_PRESETS = [
       "Occurs on strong resistance level",
       "Confirm with volume spike on Candle 3"
     ],
-    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSIxNSIgeT0iMzAiIHdpZHRoPSIxNSIgaGVpZ2h0PSI0NSIgZmlsbD0iIzIyYzU1ZSIgcng9IjIiLz48cmVjdCB4PSI0MiIgeT0iMjAiIHdpZHRoPSIxNSIgaGVpZ2h0PSIxNSIgZmlsbD0iIzNiODJmNiIgcng9IjIiLz48cmVjdCB4PSI3MCIgeT0iMzUiIHdpZHRoPSIxNSIgaGVpZ2h0PSI0NSIgZmlsbD0iI2VmNDQ0NCIgcng9IjIiLz48L3N2Zz4="
+    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSIxNSIgeT0iMzAiIHdpZHRoPSIxNSIgaGVpZ2h0PSI0NSIgZmlsbD0iIzIyYzU1ZSIgcng9IjIiLz48cmVjdCB4PSI0MiIgeT0iMjAiIHdpZHRoPSIxNSIgaGVpZ2h0PSIxNSIgZmlsbD0iIzNiODJmNiIgcng9IjIiLz48cmVjdCB4PSI3MCIgeT0iMzUiIHdpZHRoPSIxNSIgaGVpZ2h0PSI0NSIgZmlsbD0iI2VmNDQ0IiByeD0iMiIvPjwvc3ZnPg=="
   },
   {
     name: "Doji Decision Breakout",
@@ -153,7 +156,7 @@ const CHART_PRESETS = [
       "Enter short on candle close breakdown below neckline",
       "Stop Loss positioned just above double top peak heights"
     ],
-    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTAgODAgTDMwIDMwIEw1MCA2MCBMNzAgMzAgTDkwIDgwIiBmaWxsPSJub25lIiBzdHJva2U9IiNlZjQ0NDQiIHN0cm9rZS13aWR0aD0iNCIvPjxsaW5lIHgxPSIyMCIgeTE9IjYwIiB4Mj0iODAiIHkyPSI2MCIgc3Ryb2tlPSIjOGI5NDllIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1kYXNoYXJyYXk9IjQsNCIvPjwvc3ZnPg=="
+    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTAgODAgTDMwIDMwIEw1MCA2MCBMNzAgMzAgTDkwIDgwIiBmaWxsPSJub25lIiBzdHJva2U9IiNlZjQ0NDQiIHN0cm9rZT0iNCIvPjxsaW5lIHgxPSIyMCIgeTE9IjYwIiB4Mj0iODAiIHkyPSI2MCIgc3Ryb2tlPSIjOGI5NDllIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1kYXNoYXJyYXk9IjQsNCIvPjwvc3ZnPg=="
   },
   {
     name: "Double Bottom Reversal",
@@ -198,7 +201,7 @@ const CHART_PRESETS = [
       "Price compresses as converging lines meet at apex",
       "Enter long trade on high-volume breakout above resistance"
     ],
-    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48bGluZSB4MT0iMTAiIHkxPSIzMCIgeDI9IjkwIiB5Mj0iMzAiIHN0cm9rZT0iIzhiOTQ5ZSIgc3Ryb2tlLXdpZHRoPSIyIi8+PHBhdGggZD0iTTEwIDcwIEw0MCA1MCBMNjAgNDAgTDkwIDMwIiBmaWxsPSJub25lIiBzdHJva2U9IiMyMmM1NWUiIHN0cm9rZT0iNCIvPjwvc3ZnPg=="
+    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4gPGxpbmUgeDE9IjEwIiB5MT0iMzAiIHgyPSI5MCIgeTI9IjMwIiBzdHJva2U9IiM4Yjk0OWUiIHN0cm9rZS13aWR0aD0iMiIvPjxwYXRoIGQ9Ik0xMCA3MCBMNDAgNTAgTDYwIDQwIEw5MCAzMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMjJjNTVlIiBzdHJva2Utd2lkdGg9IjQiLz48L3N2Zz4="
   },
   {
     name: "Descending Triangle Breakout",
@@ -231,7 +234,7 @@ const CHART_PRESETS = [
       "Enter long trade when price breaks out above Handle resistance",
       "Set Stop Loss near the bottom pivot point of the Handle"
     ],
-    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTAgMzAgQzI1IDgwIDc1IDgwIDgwIDMwIEw4NSA0NSBMNzUgNTUgTDgwIDMwIiBmaWxsPSJub25lIiBzdHJva2U9IiMyMmM1NWUiIHN0cm9rZT0iNCIvPjwvc3ZnPg=="
+    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4gPHBhdGggZD0iTTEwIDMwIEMyNSA4MCA3NSA4MCA4MCAzMCBMODUgNDUgTDc1IDU1IEw4MCAzMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMjJjNTVlIiBzdHJva2Utd2lkdGg9IjQiLz48L3N2Zz4="
   },
   {
     name: "Falling Wedge Reversal",
@@ -242,9 +245,14 @@ const CHART_PRESETS = [
       "Wedge slopes against the primary trend slope direction",
       "Enter long trade on high-volume breakout of upper wedge line"
     ],
-    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48bGluZSB4MT0iMTAiIHkxPSIyMCIgeDI9IjgwIiB5Mj0iNjAiIHN0cm9rZT0iIzhiOTQ5ZSIgc3Ryb2tlLXdpZHRoPSIyIi8+PGxpbmUgeDE9IjEwIiB5MT0iNTAiIHgyPSI4MCIgeTI9IjcwIiBzdHJva2U9IiM4Yjk0OWUiIHN0cm9rZT0iMiIvPjwvc3ZnPg=="
+    image: "data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48bGluZSB4MT0iMTAiIHkxPSIyMCIgeDI9IjgwIiB5Mj0iNTAiIHN0cm9rZT0iIzhiOTQ5ZSIgc3Ryb2tlLXdpZHRoPSIyIi8+PGxpbmUgeDE9IjEwIiB5MT0iODAiIHgyPSI4MCIgeTI9IjUwIiBzdHJva2U9IiM4Yjk0OWUiIHN0cm9rZT0iMiIvPjwvc3ZnPg=="
   }
 ];
+
+function newId() {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
+  return `id_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
 
 export default function TradeSetupsManager({ trades = [], tradeSetups = [], setTradeSetups, showToast }) {
   const [showAddSetup, setShowAddSetup] = useState(false);
@@ -253,63 +261,67 @@ export default function TradeSetupsManager({ trades = [], tradeSetups = [], setT
   const candleDropdownRef = useRef(null);
   const chartDropdownRef = useRef(null);
 
-  const [newSetup, setNewSetup] = useState({ name: "", type: "Unassigned", image: "", rules: [{ id: crypto.randomUUID(), text: "" }] });
-  const [setupFilter, setSetupFilter] = useState("all"); // "all", "candlestick", "chart"
+  const [newSetup, setNewSetup] = useState({ name: "", type: "Unassigned", image: "", rules: [{ id: newId(), text: "" }] });
+  const [setupFilter, setSetupFilter] = useState("all");
   const { userEmail, authenticateGoogle } = useBackup();
   const fileInputRef = useRef(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const [customTypes, setCustomTypes] = useState([]);
   const [showAddType, setShowAddType] = useState(false);
   const [newTypeInput, setNewTypeInput] = useState("");
 
-  // Handle clicking outside the preset dropdowns to close them
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState(null);
+  const [nameError, setNameError] = useState("");
+
   useEffect(() => {
     const handleOutsideClick = (e) => {
-      if (candleDropdownRef.current && !candleDropdownRef.current.contains(e.target)) {
-        setShowCandleDropdown(false);
-      }
-      if (chartDropdownRef.current && !chartDropdownRef.current.contains(e.target)) {
-        setShowChartDropdown(false);
-      }
+      if (candleDropdownRef.current && !candleDropdownRef.current.contains(e.target)) setShowCandleDropdown(false);
+      if (chartDropdownRef.current && !chartDropdownRef.current.contains(e.target)) setShowChartDropdown(false);
     };
     document.addEventListener("mousedown", handleOutsideClick);
     return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, []);
 
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      if (confirmingDeleteId) { setConfirmingDeleteId(null); return; }
+      if (showAddSetup) { setShowAddSetup(false); return; }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [confirmingDeleteId, showAddSetup]);
+
+  useEffect(() => {
+    loadCustomSetupTypes().then(types => setCustomTypes(types || [])).catch(() => setCustomTypes([]));
+  }, []);
+
+  const allSetupTypes = [...SETUP_TYPES, ...customTypes];
+
+  const isDuplicateName = (name, excludeId = null) =>
+    tradeSetups.some(s => s.id !== excludeId && s.name.trim().toLowerCase() === name.trim().toLowerCase());
+
   const handleAddPreset = (preset, patternType) => {
-    if (tradeSetups.some(s => s.name === preset.name)) {
+    if (isDuplicateName(preset.name)) {
       if (showToast) showToast(`Setup "${preset.name}" is already added!`, "error");
       return;
     }
-
     const selectedType = allSetupTypes.find(t => t.id === preset.type) || allSetupTypes[0];
-
     setTradeSetups([...tradeSetups, {
-      id: crypto.randomUUID(),
+      id: newId(),
       name: preset.name,
       type: preset.type,
       typeColor: selectedType.color,
       rulesCount: preset.rules.length,
       rules: preset.rules,
       image: preset.image,
-      patternType, // "candlestick" or "chart"
+      patternType,
       timestamp: new Date().toLocaleDateString()
     }]);
-
     if (showToast) showToast(`Added preset: ${preset.name}`, "success");
   };
 
-  useEffect(() => {
-    loadCustomSetupTypes().then(types => {
-      setCustomTypes(types || []);
-    }).catch(() => {
-      setCustomTypes([]);
-    });
-  }, []);
-
-  const allSetupTypes = [...SETUP_TYPES, ...customTypes];
-
-  // Compute live analytics for each setup
   const computedSetups = tradeSetups.map(setup => {
     const setupTrades = trades.filter(t => t.status === "closed" && (t.setupId === setup.id || (!t.setupId && t.setup === setup.name)));
     const wins = setupTrades.filter(t => t.pnl > 0);
@@ -332,111 +344,140 @@ export default function TradeSetupsManager({ trades = [], tradeSetups = [], setT
     return uri;
   };
 
+  const deleteNativeImageIfOwned = async (uri) => {
+    if (!uri || uri.startsWith('data:') || uri.startsWith('http')) return;
+    if (!Capacitor.isNativePlatform()) return;
+    try { await Filesystem.deleteFile({ path: uri, directory: Directory.Data }); }
+    catch { /* file may already be gone — not fatal */ }
+  };
+
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      if (showToast) showToast("Please select an image file.", "error");
+      return;
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      if (showToast) showToast(`Image too large (max ${MAX_IMAGE_BYTES / 1024 / 1024}MB) — backups stay fast and small.`, "error");
+      return;
+    }
+
+    setUploadingImage(true);
     const reader = new FileReader();
+    reader.onerror = () => {
+      setUploadingImage(false);
+      if (showToast) showToast("Couldn't read that image — try a different file.", "error");
+    };
     reader.onload = async (ev) => {
       const base64Data = ev.target.result;
       if (Capacitor.isNativePlatform()) {
         try {
-          if (newSetup.image) {
-            await Filesystem.deleteFile({ url: newSetup.image }).catch(() => {});
-          }
+          await deleteNativeImageIfOwned(newSetup.image);
           const fileName = `${Date.now()}_setup.jpg`;
           const savedFile = await Filesystem.writeFile({ path: fileName, data: base64Data, directory: Directory.Data });
           setNewSetup(prev => ({ ...prev, image: savedFile.uri }));
         } catch {
           if (showToast) showToast("Failed to save image natively.", "error");
+        } finally {
+          setUploadingImage(false);
         }
       } else {
         setNewSetup(prev => ({ ...prev, image: base64Data }));
+        setUploadingImage(false);
       }
     };
     reader.readAsDataURL(file);
   };
 
   const handleSaveSetup = () => {
-    if (!newSetup.name.trim()) {
+    const trimmedName = newSetup.name.trim();
+    if (!trimmedName) {
+      setNameError("Name is required.");
       if (showToast) showToast("Name is required", "error");
       return;
     }
-    const cleanRules = newSetup.rules.map(r => r.text).filter(r => r.trim() !== "");
+    if (trimmedName.length > MAX_NAME_LEN) {
+      setNameError(`Keep it under ${MAX_NAME_LEN} characters.`);
+      return;
+    }
+    if (isDuplicateName(trimmedName, newSetup.id)) {
+      setNameError("A setup with this name already exists — analytics would merge between them.");
+      return;
+    }
+
+    const cleanRules = newSetup.rules.map(r => r.text.trim()).filter(r => r !== "");
     const selectedType = allSetupTypes.find(t => t.id === newSetup.type) || allSetupTypes[0];
-    
+
     if (newSetup.id) {
       setTradeSetups(tradeSetups.map(s => s.id === newSetup.id ? {
-        ...s,
-        name: newSetup.name,
-        type: newSetup.type,
-        typeColor: selectedType.color,
-        rulesCount: cleanRules.length,
-        rules: cleanRules,
-        image: newSetup.image
+        ...s, name: trimmedName, type: newSetup.type, typeColor: selectedType.color,
+        rulesCount: cleanRules.length, rules: cleanRules, image: newSetup.image,
       } : s));
     } else {
       setTradeSetups([...tradeSetups, {
-        id: crypto.randomUUID(),
-        name: newSetup.name,
-        type: newSetup.type,
-        typeColor: selectedType.color,
-        rulesCount: cleanRules.length,
-        rules: cleanRules,
-        image: newSetup.image,
+        id: newId(), name: trimmedName, type: newSetup.type, typeColor: selectedType.color,
+        rulesCount: cleanRules.length, rules: cleanRules, image: newSetup.image,
         timestamp: new Date().toLocaleDateString()
       }]);
     }
     setShowAddSetup(false);
-    setNewSetup({ name: "", type: "Unassigned", image: "", rules: [{ id: crypto.randomUUID(), text: "" }] });
+    setNameError("");
+    setNewSetup({ name: "", type: "Unassigned", image: "", rules: [{ id: newId(), text: "" }] });
   };
 
   const handleEditClick = (setup) => {
     setNewSetup({
-      id: setup.id,
-      name: setup.name,
-      type: setup.type,
-      image: setup.image || "",
-      rules: setup.rules && setup.rules.length > 0 
-        ? setup.rules.map((r, i) => ({ id: i.toString(), text: r }))
-        : [{ id: crypto.randomUUID(), text: "" }]
+      id: setup.id, name: setup.name, type: setup.type, image: setup.image || "",
+      rules: setup.rules && setup.rules.length > 0
+        ? setup.rules.map(r => ({ id: newId(), text: r }))
+        : [{ id: newId(), text: "" }]
     });
+    setNameError("");
     setShowAddSetup(true);
   };
 
   const handleAddCustomType = () => {
-    if (!newTypeInput.trim()) return;
-    const newType = {
-      id: newTypeInput.trim(),
-      label: `🏷 ${newTypeInput.trim()}`,
-      color: T.purple // Can randomize or default to a brand color
-    };
+    const trimmed = newTypeInput.trim();
+    if (!trimmed) return;
+    const dup = allSetupTypes.some(t => t.id.toLowerCase() === trimmed.toLowerCase());
+    if (dup) {
+      if (showToast) showToast(`Type "${trimmed}" already exists.`, "error");
+      return;
+    }
+    const newType = { id: trimmed, label: `🏷 ${trimmed}`, color: T.purple };
     const updated = [...customTypes, newType];
     setCustomTypes(updated);
-    saveCustomSetupTypes(updated);
     setNewSetup({ ...newSetup, type: newType.id });
     setNewTypeInput("");
     setShowAddType(false);
+
+    Promise.resolve(saveCustomSetupTypes(updated)).catch(() => {
+      setCustomTypes(customTypes);
+      if (showToast) showToast("Couldn't save the new type — please try again.", "error");
+    });
   };
 
-  const handleDelete = (id) => {
-    if(confirm("Delete this setup?")) {
-      setTradeSetups(tradeSetups.filter(s => s.id !== id));
-    }
+  const tradeCountFor = (setupId, setupName) =>
+    trades.filter(t => t.status === "closed" && (t.setupId === setupId || (!t.setupId && t.setup === setupName))).length;
+
+  const handleDeleteConfirmed = async (id) => {
+    const setup = tradeSetups.find(s => s.id !== id);
+    if (setup?.image) await deleteNativeImageIfOwned(setup.image);
+    setTradeSetups(tradeSetups.filter(s => s.id !== id));
+    setConfirmingDeleteId(null);
   };
 
-  // Aggregated Analytics
   const totalSetups = computedSetups.length;
   const totalTradesAll = computedSetups.reduce((sum, s) => sum + s.totalTrades, 0);
   const totalWinsAll = computedSetups.reduce((sum, s) => sum + (s.wins || 0), 0);
   const avgWinRate = totalTradesAll > 0 ? Math.round((totalWinsAll / totalTradesAll) * 100) : 0;
-  const bestSetup = [...computedSetups].sort((a,b) => b.winRate - a.winRate)[0]?.name || "N/A";
-
+  const bestSetup = [...computedSetups].sort((a, b) => b.winRate - a.winRate)[0]?.name || "N/A";
   const getSetupColor = (typeId) => allSetupTypes.find(t => t.id === typeId)?.color || T.dim;
-  
+
   return (
     <div style={{ padding: "env(safe-area-inset-top, 20px) 16px 120px 16px", minHeight: "100%", background: T.bg, fontFamily: T.sans }}>
-      
-      {/* Banner */}
+
       {!userEmail && (
         <div style={{ background: `${T.purple}15`, border: `1px solid ${T.purple}40`, borderRadius: 12, padding: "16px", marginBottom: 24, display: "flex", gap: 12, alignItems: "flex-start" }}>
           <div style={{ fontSize: 20 }}>🔒</div>
@@ -452,51 +493,24 @@ export default function TradeSetupsManager({ trades = [], tradeSetups = [], setT
         </div>
       )}
 
-      {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
         <div>
           <div style={{ fontSize: 28, fontWeight: 800, color: "#FFF", marginBottom: 4, letterSpacing: "-0.5px" }}>Trade Setups</div>
           <div style={{ fontSize: 14, color: T.dim }}>Plan. Track. Improve.</div>
         </div>
         <div style={{ display: "flex", gap: 10, position: "relative" }}>
-          {/* Candlestick Dropdown Button */}
           <div style={{ position: "relative" }} ref={candleDropdownRef}>
-            <button 
-              onClick={() => {
-                setShowCandleDropdown(!showCandleDropdown);
-                setShowChartDropdown(false);
-              }} 
-              style={{ 
-                background: T.panel2, border: `1px solid ${T.border}`, color: "#FFF", 
-                borderRadius: 10, padding: "10px 16px", fontWeight: 700, display: "flex", alignItems: "center", gap: 6,
-                fontSize: 14, cursor: "pointer", outline: "none"
-              }}
-            >
+            <button onClick={() => { setShowCandleDropdown(!showCandleDropdown); setShowChartDropdown(false); }}
+              style={{ background: T.panel2, border: `1px solid ${T.border}`, color: "#FFF", borderRadius: 10, padding: "10px 16px", fontWeight: 700, display: "flex", alignItems: "center", gap: 6, fontSize: 14, cursor: "pointer", outline: "none" }}>
               🕯️ Candlesticks ▾
             </button>
-            
             {showCandleDropdown && (
-              <div style={{
-                position: "absolute", top: "110%", right: 0,
-                background: T.panel, border: `1px solid ${T.border}`, borderRadius: 12,
-                width: 280, maxHeight: 350, overflowY: "auto", zIndex: 100,
-                boxShadow: "0 10px 30px rgba(0,0,0,0.5)", padding: "6px 0"
-              }}>
+              <div style={{ position: "absolute", top: "110%", right: 0, background: T.panel, border: `1px solid ${T.border}`, borderRadius: 12, width: 280, maxHeight: 350, overflowY: "auto", zIndex: 100, boxShadow: "0 10px 30px rgba(0,0,0,0.5)", padding: "6px 0" }}>
                 {CANDLESTICK_PRESETS.map(p => (
-                  <div 
-                    key={p.name}
-                    onClick={() => {
-                      handleAddPreset(p, "candlestick");
-                      setShowCandleDropdown(false);
-                    }}
-                    style={{
-                      padding: "8px 12px", fontSize: 13, color: T.bright, cursor: "pointer",
-                      display: "flex", alignItems: "center", gap: 10,
-                      transition: "background 0.2s"
-                    }}
+                  <div key={p.name} onClick={() => { handleAddPreset(p, "candlestick"); setShowCandleDropdown(false); }}
+                    style={{ padding: "8px 12px", fontSize: 13, color: T.bright, cursor: "pointer", display: "flex", alignItems: "center", gap: 10, transition: "background 0.2s" }}
                     onMouseEnter={e => e.currentTarget.style.background = T.border}
-                    onMouseLeave={e => e.currentTarget.style.background = "none"}
-                  >
+                    onMouseLeave={e => e.currentTarget.style.background = "none"}>
                     <div style={{ width: 32, height: 32, borderRadius: 4, background: T.panel2, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", border: `1px solid ${T.border2}` }}>
                       <img src={p.image} alt={p.name} style={{ width: "90%", height: "90%", objectFit: "contain" }} />
                     </div>
@@ -507,44 +521,18 @@ export default function TradeSetupsManager({ trades = [], tradeSetups = [], setT
             )}
           </div>
 
-          {/* Chart Dropdown Button */}
           <div style={{ position: "relative" }} ref={chartDropdownRef}>
-            <button 
-              onClick={() => {
-                setShowChartDropdown(!showChartDropdown);
-                setShowCandleDropdown(false);
-              }} 
-              style={{ 
-                background: T.panel2, border: `1px solid ${T.border}`, color: "#FFF", 
-                borderRadius: 10, padding: "10px 16px", fontWeight: 700, display: "flex", alignItems: "center", gap: 6,
-                fontSize: 14, cursor: "pointer", outline: "none"
-              }}
-            >
+            <button onClick={() => { setShowChartDropdown(!showChartDropdown); setShowCandleDropdown(false); }}
+              style={{ background: T.panel2, border: `1px solid ${T.border}`, color: "#FFF", borderRadius: 10, padding: "10px 16px", fontWeight: 700, display: "flex", alignItems: "center", gap: 6, fontSize: 14, cursor: "pointer", outline: "none" }}>
               📈 Chart Patterns ▾
             </button>
-            
             {showChartDropdown && (
-              <div style={{
-                position: "absolute", top: "110%", right: 0,
-                background: T.panel, border: `1px solid ${T.border}`, borderRadius: 12,
-                width: 280, maxHeight: 350, overflowY: "auto", zIndex: 100,
-                boxShadow: "0 10px 30px rgba(0,0,0,0.5)", padding: "6px 0"
-              }}>
+              <div style={{ position: "absolute", top: "110%", right: 0, background: T.panel, border: `1px solid ${T.border}`, borderRadius: 12, width: 280, maxHeight: 350, overflowY: "auto", zIndex: 100, boxShadow: "0 10px 30px rgba(0,0,0,0.5)", padding: "6px 0" }}>
                 {CHART_PRESETS.map(p => (
-                  <div 
-                    key={p.name}
-                    onClick={() => {
-                      handleAddPreset(p, "chart");
-                      setShowChartDropdown(false);
-                    }}
-                    style={{
-                      padding: "8px 12px", fontSize: 13, color: T.bright, cursor: "pointer",
-                      display: "flex", alignItems: "center", gap: 10,
-                      transition: "background 0.2s"
-                    }}
+                  <div key={p.name} onClick={() => { handleAddPreset(p, "chart"); setShowChartDropdown(false); }}
+                    style={{ padding: "8px 12px", fontSize: 13, color: T.bright, cursor: "pointer", display: "flex", alignItems: "center", gap: 10, transition: "background 0.2s" }}
                     onMouseEnter={e => e.currentTarget.style.background = T.border}
-                    onMouseLeave={e => e.currentTarget.style.background = "none"}
-                  >
+                    onMouseLeave={e => e.currentTarget.style.background = "none"}>
                     <div style={{ width: 32, height: 32, borderRadius: 4, background: T.panel2, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", border: `1px solid ${T.border2}` }}>
                       <img src={p.image} alt={p.name} style={{ width: "90%", height: "90%", objectFit: "contain" }} />
                     </div>
@@ -555,131 +543,110 @@ export default function TradeSetupsManager({ trades = [], tradeSetups = [], setT
             )}
           </div>
 
-          <button onClick={() => setShowAddSetup(true)} style={{ 
-            background: T.purple, border: "none", color: "#FFF", 
-            borderRadius: 10, padding: "10px 16px", fontWeight: 700, display: "flex", alignItems: "center", gap: 6,
-            fontSize: 14, cursor: "pointer"
-          }}>
+          <button onClick={() => setShowAddSetup(true)} style={{ background: T.purple, border: "none", color: "#FFF", borderRadius: 10, padding: "10px 16px", fontWeight: 700, display: "flex", alignItems: "center", gap: 6, fontSize: 14, cursor: "pointer" }}>
             <span style={{ fontSize: 18, fontWeight: 400 }}>+</span> New Setup
           </button>
         </div>
       </div>
 
-      {/* Filter Tabs */}
       <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
-        {[
-          { id: "all", label: "All Setups" },
-          { id: "candlestick", label: "🕯️ Candlesticks" },
-          { id: "chart", label: "📈 Chart Patterns" }
-        ].map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setSetupFilter(tab.id)}
-            style={{
-              background: setupFilter === tab.id ? T.purple : T.panel,
-              border: `1px solid ${setupFilter === tab.id ? T.purple : T.border}`,
-              color: "#FFF",
-              borderRadius: 8,
-              padding: "8px 16px",
-              fontSize: 12,
-              fontWeight: 700,
-              cursor: "pointer",
-              transition: "all 0.2s"
-            }}
-          >
+        {[{ id: "all", label: "All Setups" }, { id: "candlestick", label: "🕯️ Candlesticks" }, { id: "chart", label: "📈 Chart Patterns" }].map(tab => (
+          <button key={tab.id} onClick={() => setSetupFilter(tab.id)}
+            style={{ background: setupFilter === tab.id ? T.purple : T.panel, border: `1px solid ${setupFilter === tab.id ? T.purple : T.border}`, color: "#FFF", borderRadius: 8, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }}>
             {tab.label}
           </button>
         ))}
       </div>
 
-      {/* Setups Grid */}
       {filteredSetups.length > 0 ? (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, paddingBottom: 16, marginBottom: 24 }}>
-          {filteredSetups.map(setup => (
-            <div key={setup.id} style={{ 
-              background: T.panel, border: `1px solid ${T.border}`, 
-              borderRadius: 14, padding: 12,
-              display: "flex", flexDirection: "column"
-            }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#FFF", marginBottom: 10, lineHeight: 1.3 }}>{setup.name}</div>
-              
-              <div 
-                onClick={() => !setup.image && handleEditClick(setup)}
-                style={{ 
-                  width: "100%", height: 90, borderRadius: 8, overflow: "hidden", marginBottom: 12, 
-                  border: setup.image ? `1px solid ${T.border}` : `1px dashed ${T.border}`,
-                  cursor: setup.image ? "default" : "pointer"
-                }}
-              >
-                {setup.image ? (
-                  <img src={getImageUrl(setup.image)} alt="Setup Chart" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                ) : (
-                  <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: T.panel2, color: T.dim, fontSize: 11 }}>
-                    <div style={{ fontSize: 20, marginBottom: 4, color: T.purple }}>🖼️</div>
-                    <div style={{ fontWeight: 700, color: "#FFF", marginBottom: 2 }}>Add chart</div>
-                    <div style={{ fontSize: 9 }}>Upload your chart image</div>
+          {filteredSetups.map(setup => {
+            const isConfirming = confirmingDeleteId === setup.id;
+            const tradeCount = tradeCountFor(setup.id, setup.name);
+            return (
+              <div key={setup.id} style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 14, padding: 12, display: "flex", flexDirection: "column" }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#FFF", marginBottom: 10, lineHeight: 1.3 }}>{setup.name}</div>
+
+                <div onClick={() => !setup.image && handleEditClick(setup)}
+                  style={{ width: "100%", height: 90, borderRadius: 8, overflow: "hidden", marginBottom: 12, border: setup.image ? `1px solid ${T.border}` : `1px dashed ${T.border}`, cursor: setup.image ? "default" : "pointer" }}>
+                  {setup.image ? (
+                    <img src={getImageUrl(setup.image)} alt="Setup Chart" style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      onError={(e) => { e.currentTarget.style.display = "none"; e.currentTarget.parentElement.dataset.broken = "1"; }} />
+                  ) : (
+                    <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: T.panel2, color: T.dim, fontSize: 11 }}>
+                      <div style={{ fontSize: 20, marginBottom: 4, color: T.purple }}>🖼️</div>
+                      <div style={{ fontWeight: 700, color: "#FFF", marginBottom: 2 }}>Add chart</div>
+                      <div style={{ fontSize: 9 }}>Upload your chart image</div>
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+                  <div style={{ background: getSetupColor(setup.type), color: "#FFF", padding: "4px 8px", borderRadius: 6, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
+                    🏷 {setup.type}
+                  </div>
+                  <div style={{ background: T.panel2, border: `1px solid ${T.border}`, color: T.dim, padding: "4px 8px", borderRadius: 6, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
+                    <span style={{ fontSize: 10 }}>☰</span> {setup.rulesCount || 0} rules
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12 }}>
+                    <div style={{ color: T.dim }}>Win rate</div>
+                    <div style={{ fontWeight: 700, color: setup.winRate >= 50 ? T.green : T.red }}>{setup.totalTrades > 0 ? `${setup.winRate}%` : "—"}</div>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12 }}>
+                    <div style={{ color: T.dim }}>Trades</div>
+                    <div style={{ fontWeight: 700, color: "#FFF" }}>{setup.totalTrades || "0"}</div>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12 }}>
+                    <div style={{ color: T.dim }}>PnL</div>
+                    <div style={{ fontWeight: 700, color: setup.pnl > 0 ? T.green : (setup.pnl < 0 ? T.red : T.dim) }}>
+                      {setup.pnl > 0 ? "+" : ""}{setup.pnl !== 0 ? "$" + setup.pnl.toLocaleString() : "—"}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "auto", color: T.dim, fontSize: 11 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <span style={{ fontSize: 12 }}>🕒</span> {setup.totalTrades > 0 ? (setup.timestamp || "5d ago") : "No trades yet"}
+                  </div>
+                  <div style={{ display: "flex", gap: 12 }}>
+                    <span onClick={() => handleEditClick(setup)} style={{ cursor: "pointer", fontSize: 12 }}>✏️</span>
+                    <span onClick={() => setConfirmingDeleteId(setup.id)} style={{ color: T.red, cursor: "pointer", fontSize: 12 }}>🗑</span>
+                  </div>
+                </div>
+
+                {isConfirming && (
+                  <div style={{ background: `${T.red}15`, border: `1px solid ${T.red}40`, borderRadius: 8, padding: "10px 12px", marginTop: 10 }}>
+                    <div style={{ fontSize: 11, color: T.red, marginBottom: 8, lineHeight: 1.4 }}>
+                      Delete "{setup.name}"?
+                      {tradeCount > 0 && ` ${tradeCount} closed trade${tradeCount === 1 ? "" : "s"} reference this setup and will lose their tag.`}
+                    </div>
+                    <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                      <button onClick={() => setConfirmingDeleteId(null)} style={{ background: "none", border: `1px solid ${T.dim}`, color: T.dim, borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>Cancel</button>
+                      <button onClick={() => handleDeleteConfirmed(setup.id)} style={{ background: `${T.red}25`, border: `1px solid ${T.red}60`, color: T.red, borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>Delete</button>
+                    </div>
                   </div>
                 )}
               </div>
-
-              <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
-                <div style={{ background: getSetupColor(setup.type), color: "#FFF", padding: "4px 8px", borderRadius: 6, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
-                  🏷 {setup.type}
-                </div>
-                <div style={{ background: T.panel2, border: `1px solid ${T.border}`, color: T.dim, padding: "4px 8px", borderRadius: 6, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
-                  <span style={{ fontSize: 10 }}>☰</span> {setup.rulesCount || 0} rules
-                </div>
-              </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12 }}>
-                  <div style={{ color: T.dim }}>Win rate</div>
-                  <div style={{ fontWeight: 700, color: setup.winRate >= 50 ? T.green : T.red }}>{setup.totalTrades > 0 ? `${setup.winRate}%` : "—"}</div>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12 }}>
-                  <div style={{ color: T.dim }}>Trades</div>
-                  <div style={{ fontWeight: 700, color: "#FFF" }}>{setup.totalTrades || "0"}</div>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12 }}>
-                  <div style={{ color: T.dim }}>PnL</div>
-                  <div style={{ fontWeight: 700, color: setup.pnl > 0 ? T.green : (setup.pnl < 0 ? T.red : T.dim) }}>
-                    {setup.pnl > 0 ? "+" : ""}{setup.pnl !== 0 ? "$" + setup.pnl.toLocaleString() : "—"}
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "auto", color: T.dim, fontSize: 11 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <span style={{ fontSize: 12 }}>🕒</span> {setup.totalTrades > 0 ? (setup.timestamp || "5d ago") : "No trades yet"}
-                </div>
-                <div style={{ display: "flex", gap: 12 }}>
-                  <span onClick={() => handleEditClick(setup)} style={{ cursor: "pointer", fontSize: 12 }}>✏️</span>
-                  <span onClick={() => handleDelete(setup.id)} style={{ color: T.red, cursor: "pointer", fontSize: 12 }}>🗑</span>
-                </div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div style={{ color: T.dim, padding: 40, textAlign: "center", background: T.panel, borderRadius: 16, border: `1px solid ${T.border}`, marginBottom: 24 }}>
-          {computedSetups.length === 0 
-            ? 'No setups created yet. Click "+ New Setup" to start tracking!' 
-            : 'No setups found matching this filter.'}
+          {computedSetups.length === 0 ? 'No setups created yet. Click "+ New Setup" to start tracking!' : 'No setups found matching this filter.'}
         </div>
       )}
 
-      {/* Analytics Overview */}
       <div style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 16, padding: 20, marginBottom: 24 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, color: T.purple, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 6 }}>OVERVIEW</div>
             <div style={{ fontSize: 20, fontWeight: 700, color: "#FFF" }}>Trade Setup Analytics</div>
           </div>
-          <div style={{ background: T.panel2, border: `1px solid ${T.border}`, width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 10, color: T.purple, fontSize: 18 }}>
-            📈
-          </div>
+          <div style={{ background: T.panel2, border: `1px solid ${T.border}`, width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 10, color: T.purple, fontSize: 18 }}>📈</div>
         </div>
-
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 0, borderTop: `1px solid ${T.border}`, paddingTop: 20 }}>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", borderRight: `1px solid ${T.border}` }}>
             <div style={{ width: 40, height: 40, borderRadius: "50%", background: `${T.purple}15`, display: "flex", alignItems: "center", justifyContent: "center", color: T.purple, marginBottom: 12, fontSize: 18 }}>📚</div>
@@ -704,7 +671,6 @@ export default function TradeSetupsManager({ trades = [], tradeSetups = [], setT
         </div>
       </div>
 
-      {/* Bottom CTA Card */}
       <div onClick={() => setShowAddSetup(true)} style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: 16, padding: 20, display: "flex", alignItems: "center", gap: 16, cursor: "pointer" }}>
         <div style={{ width: 48, height: 48, borderRadius: "50%", background: `${T.purple}15`, display: "flex", alignItems: "center", justifyContent: "center", color: T.purple, fontSize: 24, fontWeight: 300 }}>+</div>
         <div style={{ flex: 1 }}>
@@ -714,112 +680,66 @@ export default function TradeSetupsManager({ trades = [], tradeSetups = [], setT
         <div style={{ color: T.purple, fontSize: 20 }}>›</div>
       </div>
 
-
-      {/* Modal Overlay */}
       {showAddSetup && (
         <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: T.bg, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          
-          {/* Header */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "24px 20px 20px", borderBottom: `1px solid ${T.border}`, background: T.panel }}>
             <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-              <div style={{ width: 40, height: 40, borderRadius: 10, background: `${T.purple}15`, color: T.purple, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>
-                ◎
-              </div>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: `${T.purple}15`, color: T.purple, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>◎</div>
               <div>
                 <div style={{ fontSize: 18, fontWeight: 800, color: "#FFF", marginBottom: 2 }}>{newSetup.id ? "Edit Trade Setup" : "New Trade Setup"}</div>
-                <div style={{ fontSize: 13, color: T.dim }}>Name it, tag the style, attach your chart,<br/>and list what must be true.</div>
+                <div style={{ fontSize: 13, color: T.dim }}>Name it, tag the style, attach your chart,<br />and list what must be true.</div>
               </div>
             </div>
             <button onClick={() => setShowAddSetup(false)} style={{ background: "none", border: "none", color: T.dim, fontSize: 24, cursor: "pointer", padding: 0 }}>✕</button>
           </div>
 
           <div style={{ flex: 1, overflowY: "auto", padding: 20 }}>
-            {/* Basics */}
             <div style={{ fontSize: 11, fontWeight: 700, color: T.dim, letterSpacing: 1.5, marginBottom: 12 }}>BASICS</div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: T.dim, letterSpacing: 1, marginBottom: 8, textTransform: "uppercase" }}>Setup Name <span style={{color: T.red}}>*</span></div>
-            <input 
-              type="text" placeholder="e.g. GBPJPY liquidity sweep" value={newSetup.name} 
-              onChange={e => setNewSetup({...newSetup, name: e.target.value})}
-              style={{ width: "100%", padding: "16px 14px", background: T.bg, border: `1px solid ${T.border}`, color: "#FFF", borderRadius: 12, marginBottom: 24, fontSize: 16, boxSizing: "border-box", outline: "none" }}
-            />
+            <div style={{ fontSize: 11, fontWeight: 700, color: T.dim, letterSpacing: 1, marginBottom: 8, textTransform: "uppercase" }}>Setup Name <span style={{ color: T.red }}>*</span></div>
+            <input type="text" placeholder="e.g. GBPJPY liquidity sweep" value={newSetup.name} maxLength={MAX_NAME_LEN}
+              onChange={e => { setNewSetup({ ...newSetup, name: e.target.value }); setNameError(""); }}
+              style={{ width: "100%", padding: "16px 14px", background: T.bg, border: `1px solid ${nameError ? T.red : T.border}`, color: "#FFF", borderRadius: 12, marginBottom: nameError ? 4 : 24, fontSize: 16, boxSizing: "border-box", outline: "none" }} />
+            {nameError && <div style={{ fontSize: 12, color: T.red, marginBottom: 24 }}>{nameError}</div>}
 
             <div style={{ fontSize: 11, fontWeight: 700, color: T.dim, letterSpacing: 1, marginBottom: 12, textTransform: "uppercase" }}>Setup Type</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 32 }}>
               {allSetupTypes.map(type => (
-                <button
-                  key={type.id}
-                  onClick={() => setNewSetup({...newSetup, type: type.id})}
-                  style={{
-                    background: newSetup.type === type.id ? type.color : T.panel2,
-                    border: `1px solid ${newSetup.type === type.id ? type.color : T.border}`,
-                    color: newSetup.type === type.id ? "#FFF" : T.dim,
-                    padding: "8px 16px",
-                    borderRadius: 8,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    cursor: "pointer"
-                  }}
-                >
+                <button key={type.id} onClick={() => setNewSetup({ ...newSetup, type: type.id })}
+                  style={{ background: newSetup.type === type.id ? type.color : T.panel2, border: `1px solid ${newSetup.type === type.id ? type.color : T.border}`, color: newSetup.type === type.id ? "#FFF" : T.dim, padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
                   {type.label}
                 </button>
               ))}
-              
               {!showAddType ? (
-                <button
-                  onClick={() => setShowAddType(true)}
-                  style={{
-                    background: T.panel2,
-                    border: `1px dashed ${T.border}`,
-                    color: T.dim,
-                    padding: "8px 16px",
-                    borderRadius: 8,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    cursor: "pointer"
-                  }}
-                >
-                  + Add Type
-                </button>
+                <button onClick={() => setShowAddType(true)} style={{ background: T.panel2, border: `1px dashed ${T.border}`, color: T.dim, padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>+ Add Type</button>
               ) : (
                 <div style={{ display: "flex", gap: 6 }}>
-                  <input
-                    autoFocus
-                    type="text"
-                    placeholder="Type name..."
-                    value={newTypeInput}
-                    onChange={(e) => setNewTypeInput(e.target.value)}
+                  <input autoFocus type="text" placeholder="Type name..." value={newTypeInput} onChange={(e) => setNewTypeInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleAddCustomType()}
-                    style={{ background: T.bg, border: `1px solid ${T.purple}`, color: "#FFF", borderRadius: 8, padding: "8px 12px", fontSize: 13, outline: "none", width: 120 }}
-                  />
+                    style={{ background: T.bg, border: `1px solid ${T.purple}`, color: "#FFF", borderRadius: 8, padding: "8px 12px", fontSize: 13, outline: "none", width: 120 }} />
                   <button onClick={handleAddCustomType} style={{ background: T.purple, color: "#FFF", border: "none", borderRadius: 8, padding: "0 12px", cursor: "pointer", fontWeight: 700 }}>✓</button>
                   <button onClick={() => setShowAddType(false)} style={{ background: T.panel2, color: T.dim, border: `1px solid ${T.border}`, borderRadius: 8, padding: "0 12px", cursor: "pointer" }}>✕</button>
                 </div>
               )}
             </div>
 
-            {/* Reference Chart */}
             <div style={{ fontSize: 11, fontWeight: 700, color: T.dim, letterSpacing: 1.5, marginBottom: 4, textTransform: "uppercase" }}>Reference Chart</div>
-            <div style={{ fontSize: 13, color: T.dim, marginBottom: 12 }}>Your ideal example for this setup</div>
-            
-            <div 
-              onClick={() => fileInputRef.current?.click()}
-              style={{ 
-                border: `2px dashed ${T.purple}40`, background: `${T.purple}05`, borderRadius: 16, padding: "32px 20px", 
-                textAlign: "center", cursor: "pointer", marginBottom: 32, position: "relative", overflow: "hidden"
-              }}
-            >
-              {newSetup.image ? (
+            <div style={{ fontSize: 13, color: T.dim, marginBottom: 12 }}>Your ideal example for this setup (max 2MB)</div>
+
+            <div onClick={() => !uploadingImage && fileInputRef.current?.click()}
+              style={{ border: `2px dashed ${T.purple}40`, background: `${T.purple}05`, borderRadius: 16, padding: "32px 20px", textAlign: "center", cursor: uploadingImage ? "wait" : "pointer", marginBottom: 32, position: "relative", overflow: "hidden" }}>
+              {uploadingImage ? (
+                <div style={{ color: T.dim, fontSize: 14, fontWeight: 700 }}>Saving image…</div>
+              ) : newSetup.image ? (
                 <>
-                  <img src={getImageUrl(newSetup.image)} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.8 }} />
+                  <img src={getImageUrl(newSetup.image)} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.8 }}
+                    onError={(e) => { e.currentTarget.style.display = "none"; }} />
                   <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.8), transparent)", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: 16 }}>
-                    <div style={{ color: "#FFF", fontWeight: 700, fontSize: 14, display: "flex", alignItems: "center", gap: 8 }}><span style={{fontSize:18}}>↺</span> Change Image</div>
+                    <div style={{ color: "#FFF", fontWeight: 700, fontSize: 14, display: "flex", alignItems: "center", gap: 8 }}><span style={{ fontSize: 18 }}>↺</span> Change Image</div>
                   </div>
                 </>
               ) : (
                 <>
-                  <div style={{ width: 48, height: 48, borderRadius: "50%", background: `${T.purple}15`, color: T.purple, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, margin: "0 auto 16px" }}>
-                    🖼️
-                  </div>
+                  <div style={{ width: 48, height: 48, borderRadius: "50%", background: `${T.purple}15`, color: T.purple, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, margin: "0 auto 16px" }}>🖼️</div>
                   <div style={{ fontSize: 16, fontWeight: 700, color: "#FFF", marginBottom: 8 }}>Add chart screenshot</div>
                   <div style={{ fontSize: 13, color: T.dim }}>Annotate levels, zones, and key levels</div>
                 </>
@@ -827,7 +747,6 @@ export default function TradeSetupsManager({ trades = [], tradeSetups = [], setT
               <input type="file" ref={fileInputRef} accept="image/*" onChange={handleImageUpload} style={{ display: "none" }} />
             </div>
 
-            {/* Entry Rules */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: T.dim, letterSpacing: 1.5, textTransform: "uppercase" }}>Entry Rules</div>
               <div style={{ background: T.panel2, border: `1px solid ${T.border}`, padding: "4px 10px", borderRadius: 12, color: T.dim, fontSize: 11, fontWeight: 700 }}>
@@ -838,64 +757,36 @@ export default function TradeSetupsManager({ trades = [], tradeSetups = [], setT
 
             {newSetup.rules.map((rule, idx) => (
               <div key={rule.id} style={{ display: "flex", gap: 12, marginBottom: 12, alignItems: "center" }}>
-                <div style={{ width: 32, height: 32, borderRadius: 8, background: T.panel2, display: "flex", alignItems: "center", justifyContent: "center", color: T.dim, fontWeight: 700, fontSize: 13, border: `1px solid ${T.border}` }}>
-                  {idx + 1}
-                </div>
-                <input 
-                  type="text" 
-                  placeholder={idx === 0 ? "e.g. Sweep of Asian high" : "Add another condition..."}
-                  value={rule.text}
-                  onChange={e => {
-                    const newRules = [...newSetup.rules];
-                    newRules[idx].text = e.target.value;
-                    setNewSetup({ ...newSetup, rules: newRules });
-                  }}
-                  style={{ flex: 1, padding: "12px 14px", background: T.bg, border: `1px solid ${T.border}`, color: "#FFF", borderRadius: 10, fontSize: 14, outline: "none" }}
-                />
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: T.panel2, display: "flex", alignItems: "center", justifyContent: "center", color: T.dim, fontWeight: 700, fontSize: 13, border: `1px solid ${T.border}` }}>{idx + 1}</div>
+                <input type="text" placeholder={idx === 0 ? "e.g. Sweep of Asian high" : "Add another condition..."} value={rule.text}
+                  onChange={e => { const r = [...newSetup.rules]; r[idx].text = e.target.value; setNewSetup({ ...newSetup, rules: r }); }}
+                  style={{ flex: 1, padding: "12px 14px", background: T.bg, border: `1px solid ${T.border}`, color: "#FFF", borderRadius: 10, fontSize: 14, outline: "none" }} />
                 {newSetup.rules.length > 1 && (
-                  <button 
-                    onClick={() => {
-                      const newRules = newSetup.rules.filter((_, i) => i !== idx);
-                      setNewSetup({ ...newSetup, rules: newRules });
-                    }} 
-                    style={{ background: "none", border: "none", color: T.red, fontSize: 20, cursor: "pointer", padding: "0 8px" }}
-                  >×</button>
+                  <button onClick={() => setNewSetup({ ...newSetup, rules: newSetup.rules.filter((_, i) => i !== idx) })}
+                    style={{ background: "none", border: "none", color: T.red, fontSize: 20, cursor: "pointer", padding: "0 8px" }}>×</button>
                 )}
               </div>
             ))}
 
-            <button 
-              onClick={() => setNewSetup({ ...newSetup, rules: [...newSetup.rules, { id: Date.now().toString(), text: "" }] })}
-              style={{ background: "transparent", border: `1px dashed ${T.dim}`, color: T.dim, borderRadius: 10, padding: 12, width: "100%", fontSize: 14, fontWeight: 700, cursor: "pointer", marginTop: 8 }}
-            >
+            <button onClick={() => setNewSetup({ ...newSetup, rules: [...newSetup.rules, { id: newId(), text: "" }] })}
+              style={{ background: "transparent", border: `1px dashed ${T.dim}`, color: T.dim, borderRadius: 10, padding: 12, width: "100%", fontSize: 14, fontWeight: 700, cursor: "pointer", marginTop: 8 }}>
               + Add rule
             </button>
-            <div style={{ height: 100 }} /> {/* spacer for sticky bottom */}
+            <div style={{ height: 100 }} />
           </div>
 
-          {/* Sticky Footer */}
           <div style={{ borderTop: `1px solid ${T.border}`, background: T.panel, padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
-            <button 
-              onClick={handleSaveSetup}
-              disabled={!newSetup.name.trim()}
-              style={{ 
-                width: "100%", padding: 16, background: newSetup.name.trim() ? T.purple : T.panel2, 
-                color: newSetup.name.trim() ? "#FFF" : T.dim, border: "none", borderRadius: 12, 
-                fontWeight: 700, fontSize: 16, cursor: newSetup.name.trim() ? "pointer" : "not-allowed"
-              }}
-            >
-              ✓ Create setup
+            <button onClick={handleSaveSetup} disabled={!newSetup.name.trim() || uploadingImage}
+              style={{ width: "100%", padding: 16, background: newSetup.name.trim() ? T.purple : T.panel2, color: newSetup.name.trim() ? "#FFF" : T.dim, border: "none", borderRadius: 12, fontWeight: 700, fontSize: 16, cursor: newSetup.name.trim() ? "pointer" : "not-allowed" }}>
+              ✓ {newSetup.id ? "Save changes" : "Create setup"}
             </button>
-            <button 
-              onClick={() => setShowAddSetup(false)}
-              style={{ width: "100%", padding: 16, background: T.panel2, color: "#FFF", border: "none", borderRadius: 12, fontWeight: 700, fontSize: 16, cursor: "pointer" }}
-            >
+            <button onClick={() => { setShowAddSetup(false); setNameError(""); }}
+              style={{ width: "100%", padding: 16, background: T.panel2, color: "#FFF", border: "none", borderRadius: 12, fontWeight: 700, fontSize: 16, cursor: "pointer" }}>
               Cancel
             </button>
           </div>
         </div>
       )}
-
     </div>
   );
 }
