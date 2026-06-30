@@ -31,3 +31,8 @@ GEMINI.md
 *.njsproj
 *.sln
 *.sw?
+
+# Testing/Mockup Dashboards
+src/components/views/DashboardV2.jsx
+src/components/views/DashboardV3.jsx
+

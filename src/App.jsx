@@ -28,6 +28,7 @@ import OpenSpotView from "./components/views/OpenSpotView.jsx";
 import WatchlistView from "./components/views/WatchlistView.jsx";
 import AlertsView from "./components/views/AlertsView.jsx";
 import DashboardV2 from "./components/views/DashboardV2.jsx";
+import DashboardV3 from "./components/views/DashboardV3.jsx";
 
 const ChartModal = lazy(() => import("./components/modals/ChartModal.jsx"));
 const Analytics = lazy(() => import("./components/views/Analytics.jsx"));
@@ -1072,6 +1073,9 @@ export default function App() {
                 initialCapital={initialCapital}
                 isMobile={isMobile}
               />
+            )}
+            {view === "Dashboard-3" && (
+              <DashboardV3 />
             )}
             <>
               {view === "Open Spot Trades" && <OpenSpotView spotOpen={spotOpen} onSell={closeSpotOpen} onDelete={deleteSpotOpen} onEdit={setEditingTrade} savedSymbols={savedSymbols} />}
