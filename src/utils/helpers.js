@@ -70,9 +70,13 @@ export const parseMaskedDate = (str) => {
 // ─── Formatting ───────────────────────────────────────────────────────────────
 export const fmt$ = (n) => {
   const abs = Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return n < 0 ? `-${abs} USDT` : `${abs} USDT`;
+};
+
+export const fmtPnl = (n) => {
+  const abs = Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   return n > 0 ? `+${abs} USDT` : n < 0 ? `-${abs} USDT` : `${abs} USDT`;
 };
-export const fmtPnl = fmt$;
 
 export const getOrdinal = (n) => {
   const s = ["th", "st", "nd", "rd"];

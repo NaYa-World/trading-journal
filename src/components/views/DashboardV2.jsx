@@ -104,6 +104,7 @@ export default function DashboardV2({
 
   // Filter closed trades by range
   const rangeFilteredTrades = useMemo(() => {
+    // eslint-disable-next-line react-hooks/purity
     const now = Date.now();
     const allClosed = trades.filter(t => t.status === "closed" && t.entryType !== "Deposit" && t.entryType !== "Withdrawal" && t.symbol !== "Deposit" && t.symbol !== "Withdrawal");
     const cut = {
@@ -145,6 +146,7 @@ export default function DashboardV2({
     const sorted = [...closed].sort((a, b) => a.closeTime - b.closeTime);
     let run = 0, peak = 0, dd = 0;
     const eq = [{ date: "Start", val: 0 }, ...sorted.map(t => {
+      // eslint-disable-next-line react-hooks/immutability
       run += t.pnl;
       if (run > peak) peak = run;
       dd = Math.min(dd, run - peak);
@@ -208,7 +210,8 @@ export default function DashboardV2({
     const mn = Math.min(...vals);
     const mx = Math.max(...vals);
     const rangeVal = mx - mn || 1;
-    const x = i => (i / (vals.length - 1)) * W;
+    const divisor = vals.length > 1 ? vals.length - 1 : 1;
+    const x = i => (i / divisor) * W;
     const y = v => H - ((v - mn) / rangeVal) * (H - 4) - 2;
 
     ctx.clearRect(0, 0, W, H);
@@ -293,7 +296,8 @@ export default function DashboardV2({
     const mn = Math.min(...vals, 0);
     const mx = Math.max(...vals, 1);
     const rangeVal = mx - mn;
-    const x = i => (i / (vals.length - 1)) * (W - 20) + 10;
+    const divisor = vals.length > 1 ? vals.length - 1 : 1;
+    const x = i => (i / divisor) * (W - 20) + 10;
     const y = v => H - 8 - ((v - mn) / rangeVal) * (H - 16);
     const zero = y(0);
 
@@ -363,10 +367,19 @@ export default function DashboardV2({
   const monthlyBars = useMemo(() => {
     const monthly = {};
     rangeFilteredTrades.forEach(t => {
-      const k = new Date(t.closeTime).toLocaleDateString("en-US", { month: "short" });
+      const date = new Date(t.closeTime);
+      const k = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
       monthly[k] = (monthly[k] || 0) + t.pnl;
     });
-    const entries = Object.entries(monthly).slice(-8);
+    const entries = Object.entries(monthly)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .slice(-8)
+      .map(([k, val]) => {
+        const [year, month] = k.split("-");
+        const monthName = new Date(year, parseInt(month, 10) - 1).toLocaleDateString("en-US", { month: "short" });
+        const label = `${monthName} '${year.slice(-2)}`;
+        return [label, val];
+      });
     const maxVal = Math.max(...entries.map(e => Math.abs(e[1])), 1);
     return { entries, maxVal };
   }, [rangeFilteredTrades]);
@@ -380,6 +393,7 @@ export default function DashboardV2({
     });
     const cells = [];
     for (let i = 89; i >= 0; i--) {
+      // eslint-disable-next-line react-hooks/purity
       const dateObj = new Date(Date.now() - i * 864e5);
       const k = dateObj.toDateString();
       const count = daily[k] || 0;
@@ -714,7 +728,7 @@ export default function DashboardV2({
                       {t.pnl >= 0 ? "+" : ""}${t.pnl.toFixed(2)}
                     </div>
                     <div style={{ fontSize: 10, color: "#6b7fa3", fontFamily: "monospace" }}>
-                      {(t.pnl / Math.max(Math.abs(t.entry * t.qty), 1) * 100).toFixed(2)}%
+                      {(t.entry && t.qty) ? `${(t.pnl / (t.entry * t.qty) * 100).toFixed(2)}%` : "0.00%"}
                     </div>
                   </div>
                 </div>

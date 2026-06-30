@@ -1,9 +1,8 @@
 import { useState, useMemo } from "react";
 import { T } from "../../utils/theme.js";
-import { fmtDate } from "../../utils/helpers.js";
+import { fmtDate, fmt$, fmtPnl } from "../../utils/helpers.js";
 import { Tag, CoinIcon } from "../shared/index.jsx";
 import { SETUPS, CLOSE_REASONS, DEFAULT_SYMBOLS } from "../../utils/constants.js";
-import { fmt$ } from "../../utils/helpers.js";
 import { calculatePnL } from "../../utils/calculations.js";
 import { useDashboard } from "../../context/DashboardContext.jsx";
 
@@ -31,7 +30,7 @@ function MobileTradeCard({ trade: t, onEdit }) {
           )}
         </div>
         <div style={{ fontFamily: T.mono, fontSize: 16, fontWeight: 700, color: t.pnl >= 0 ? T.green : T.red }}>
-          {isTransaction ? (t.entryType === "Deposit" || t.symbol === "Deposit" ? `+${fmt$(t.qty)}` : `-${fmt$(t.qty)}`) : fmt$(t.pnl)}
+          {isTransaction ? (t.entryType === "Deposit" || t.symbol === "Deposit" ? `+${fmt$(t.qty)}` : `-${fmt$(t.qty)}`) : fmtPnl(t.pnl)}
         </div>
       </div>
       
@@ -359,11 +358,11 @@ export default function TradeLog({ trades, title, onEdit, onViewChart, onSave, o
                     `-${fmt$(t.qty)}`
                   ) : t.nativePnl !== undefined && t.quoteCurrency !== "USDT" && t.quoteCurrency ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                      <span>{fmt$(t.pnl)}</span>
+                      <span>{fmtPnl(t.pnl)}</span>
                       <span style={{ fontSize: 11, color: T.dim }}>{t.nativePnl >= 0 ? "+" : ""}{t.nativePnl} {t.quoteCurrency}</span>
                     </div>
                   ) : (
-                    fmt$(t.pnl)
+                    fmtPnl(t.pnl)
                   )}
                 </td>
                 <td style={{ padding: "8px 12px", fontFamily: T.mono, fontSize: 13, color: T.red }}>
@@ -576,7 +575,7 @@ export default function TradeLog({ trades, title, onEdit, onViewChart, onSave, o
 
                 {/* P&L */}
                 <td style={{ padding: "8px 12px", fontFamily: T.mono, fontSize: 13, color: quickPnl >= 0 ? T.green : T.red }}>
-                  {quickPnl !== null ? fmt$(quickPnl) : "—"}
+                  {quickPnl !== null ? fmtPnl(quickPnl) : "—"}
                 </td>
 
                 {/* Fees */}

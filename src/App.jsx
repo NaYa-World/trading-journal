@@ -6,7 +6,7 @@ import { App as CapApp } from '@capacitor/app';
 
 import { T } from "./utils/theme.js";
 import {
-  getQuoteCurrency, fmt$, fmtDate, fmtDateShort
+  getQuoteCurrency, fmt$, fmtPnl, fmtDate, fmtDateShort
 } from "./utils/helpers.js";
 import {
   SETUPS
@@ -70,7 +70,7 @@ function ChartTip({ active, payload, label, prefix = "" }) {
   return (
     <div style={{ background: T.panel2, border: `1px solid ${T.border2}`, borderRadius: 8, padding: "8px 12px", fontSize: 13, fontFamily: T.mono }}>
       <div style={{ color: T.dim, marginBottom: 4 }}>{label}</div>
-      <div style={{ color: payload[0].value >= 0 ? T.green : T.red, fontWeight: 700 }}>{fmt$(payload[0].value)}</div>
+      <div style={{ color: payload[0].value >= 0 ? T.green : T.red, fontWeight: 700 }}>{fmtPnl(payload[0].value)}</div>
     </div>
   );
 }
@@ -174,7 +174,7 @@ function ConsistencyHeatmap({ trades }) {
             border = d.pnl >= 0 ? T.green + "50" : T.red + "50";
           }
           return (
-            <div key={i} title={`${d.date}: ${d.hasTrade ? fmt$(d.pnl) : "No trades"}`} style={{ width: 14, height: 14, borderRadius: 3, background: bg, border: `1px solid ${border}`, cursor: "pointer" }} />
+            <div key={i} title={`${d.date}: ${d.hasTrade ? fmtPnl(d.pnl) : "No trades"}`} style={{ width: 14, height: 14, borderRadius: 3, background: bg, border: `1px solid ${border}`, cursor: "pointer" }} />
           );
         })}
       </div>
@@ -196,7 +196,7 @@ function BreakdownCard({ title, rows }) {
             <span style={{ textTransform: "capitalize", fontWeight: 700, color: T.bright }}>{r.label}</span>
             <span style={{ color: T.dim, fontSize: 12 }}>{r.count} trades · {r.winRate.toFixed(0)}% WR</span>
             <span style={{ color: r.pnl >= 0 ? T.green : T.red, fontFamily: T.mono, fontWeight: 700 }}>
-              {fmt$(r.pnl)}
+              {fmtPnl(r.pnl)}
             </span>
           </div>
         ))
@@ -327,7 +327,7 @@ function Overview({ trades, allProfileTrades, initialCapital = 0, profiles = [],
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <div style={ML}>Net PNL <InfoDot title="Realized profit/loss after transaction fees" /></div>
-                <div style={{ ...MV, color: realizedPnl >= 0 ? T.green : T.red, fontSize: 32 }}>{fmt$(realizedPnl)}</div>
+                <div style={{ ...MV, color: realizedPnl >= 0 ? T.green : T.red, fontSize: 32 }}>{fmtPnl(realizedPnl)}</div>
               </div>
               <Sparkline data={equitySeries.map(d => d.val)} color={realizedPnl >= 0 ? T.green : T.red} width={90} height={40} />
             </div>
@@ -413,7 +413,7 @@ function Overview({ trades, allProfileTrades, initialCapital = 0, profiles = [],
                        <div style={{ fontSize: 14, fontWeight: 700 }}>{t.symbol}</div>
                        <div style={{ fontSize: 12, color: T.dim }}>{t.side} {t.leverage ? `${t.leverage}x` : ""}</div>
                      </div>
-                     <div style={{ color: pnl >= 0 ? T.green : T.red, fontWeight: 700, fontSize: 15 }}>{fmt$(pnl)}</div>
+                     <div style={{ color: pnl >= 0 ? T.green : T.red, fontWeight: 700, fontSize: 15 }}>{fmtPnl(pnl)}</div>
                    </div>
                  );
               })
@@ -434,7 +434,7 @@ function Overview({ trades, allProfileTrades, initialCapital = 0, profiles = [],
                     <div style={{ fontSize: 14, fontWeight: 700 }}>{t.symbol}</div>
                     <div style={{ fontSize: 12, color: T.dim }}>{fmtDateShort(t.closeTime)}</div>
                   </div>
-                  <div style={{ color: t.pnl >= 0 ? T.green : T.red, fontWeight: 700, fontSize: 15 }}>{fmt$(t.pnl)}</div>
+                  <div style={{ color: t.pnl >= 0 ? T.green : T.red, fontWeight: 700, fontSize: 15 }}>{fmtPnl(t.pnl)}</div>
                 </div>
               ))
             )}
@@ -452,7 +452,7 @@ function Overview({ trades, allProfileTrades, initialCapital = 0, profiles = [],
         <Card style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <div style={ML}>Net PNL <InfoDot title="Realized profit/loss after transaction fees" /></div>
-            <div style={{ ...MV, color: realizedPnl >= 0 ? T.green : T.red, fontSize: 30 }}>{fmt$(realizedPnl)}</div>
+            <div style={{ ...MV, color: realizedPnl >= 0 ? T.green : T.red, fontSize: 30 }}>{fmtPnl(realizedPnl)}</div>
           </div>
           <Sparkline data={equitySeries.map(d => d.val)} color={realizedPnl >= 0 ? T.green : T.red} width={90} height={40} />
         </Card>
@@ -1102,7 +1102,7 @@ export default function App() {
               </div>
             )}
 
-            {(view === "Finished Trades" || (view === "Journal" && journalTab === "Finished")) && (
+            <div style={{ display: (view === "Finished Trades" || (view === "Journal" && journalTab === "Finished")) ? "block" : "none" }}>
               <TradeFilterBar
                 filterSetup={filterSetup} setFilterSetup={setFilterSetup}
                 filterCoin={filterCoin} setFilterCoin={setFilterCoin}
@@ -1112,7 +1112,7 @@ export default function App() {
                 coins={Array.from(new Set(closed.map(t => t.symbol)))}
                 setups={SETUPS}
               />
-            )}
+            </div>
             {view === "Dashboard" ? (
               isJournalEmpty ? <EmptyState onAdd={() => setShowAddModal(true)} /> :
               isFilteredEmpty ? <EmptyState filtered={true} /> :
